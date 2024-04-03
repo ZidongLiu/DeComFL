@@ -64,7 +64,7 @@ def get_loss(original_image: np.ndarray, image_true_label: int, change_images: n
     
     return l2dist_loss + CLASSIFICATION_LOSS_MULTIPLIER * classification_loss
 
-def get_grad_in_1_pixel(model, cur_image, original_image, image_true_label: int, pixel_index_3d):
+def get_grad_in_1_pixel(model, cur_image, original_image, image_true_label: int, pixel_index_3d: np.ndarray):
     cur_pixel_value = cur_image[*pixel_index_3d]
     pixel_minus = cur_pixel_value + h
     pixel_plus = cur_pixel_value - h
@@ -81,7 +81,6 @@ def get_grad_in_1_pixel(model, cur_image, original_image, image_true_label: int,
     grad = (grad_image_loss[1] - grad_image_loss[0]) / (2 * h)
     return grad
 
-def get_grad_in_many_pixels(model, cur_image, original_image, image_true_label, many_pixel_indices_3d: np.ndarray):
     
 def single_step(T_matrix: np.ndarray, M_matrix: np.ndarray, V_matrix: np.ndarray, model: torch.nn.Module, last_image: torch.tensor, original_image: torch.tensor, true_label: int) -> torch.tensor:
     sample_indices = get_image_sampling_pixels()
@@ -134,7 +133,7 @@ def attack(model, image, label):
         
         last_image = next_image
     
-    return success, next_image
+    return success, next_image, i
 
 from matplotlib import pyplot as plt
 def compare_images(image1, image2):
@@ -158,12 +157,16 @@ trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
 
 result, result_images = [], []
 ## success percentage = 32.5%
-from tqdm import tqdm
-for i in tqdm(range(100)):
-    image, label = trainset[i]
-    model_pred = int(model(image).argmax())
-    if label == model_pred:
-        is_success, attack_image = attack(model, image, label)
-        result += [is_success]
-        result_images += [(image, attack_image)]
-    
+from time import time
+
+with torch.no_grad():
+    for i in range(30):
+        image, label = trainset[i]
+        model_pred = int(model(image).argmax())
+        if label == model_pred:
+            t1 = time()
+            is_success, attack_image, n_ite = attack(model, image, label)
+            result += [is_success]
+            result_images += [(image, attack_image)]
+            t2 = time()
+            print(i, (t2 - t1) / (n_ite + 1))
