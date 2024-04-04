@@ -6,36 +6,28 @@ Created on Tue Apr  2 17:21:51 2024
 """
 import numpy as np
 from model_helpers import get_model_and_optimizer
-
-model, optimizer = get_model_and_optimizer(
-    r'C:\research\zoo_attack\models\simple-2024-3-24-20-45-56.pt')
 import torchvision.transforms as transforms
-
-transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-])
-
 import torchvision
+from torch_attack_class import Attack
+from time import time
+import ssl
+from os import path
+
+ssl._create_default_https_context = ssl._create_unverified_context
+
+model, optimizer = get_model_and_optimizer(path.join(path.dirname(__file__), 'models/simple-2024-3-24-20-45-56.pt'))
+
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
 # Load CIFAR-10 dataset
-trainset = torchvision.datasets.CIFAR10(root='./data',
-                                        train=True,
-                                        download=False,
-                                        transform=transform)
-
-
-from torch_attack_class import Attack
+trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=False, transform=transform)
 
 model_attacker = Attack(model)
 
 np.random.seed(1)
 result, result_images, losses = [], [], []
 
-from time import time
-
-
-for i in range(30):
+for i in range(3):
     image, label = trainset[i]
     model_pred = model(image).argmax().item()
     if label == model_pred:
