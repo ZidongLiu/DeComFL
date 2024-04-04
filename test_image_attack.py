@@ -5,13 +5,15 @@ Created on Tue Apr  2 17:21:51 2024
 @author: Zidong
 """
 import numpy as np
-from model_helpers import get_model_and_optimizer
 import torchvision.transforms as transforms
 import torchvision
-from torch_attack_class import Attack
+
 from time import time
 import ssl
 from os import path
+
+from shared.model_helpers import get_model_and_optimizer
+from attack_image.torch_attack_class import Attack
 
 ssl._create_default_https_context = ssl._create_unverified_context
 

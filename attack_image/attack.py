@@ -5,13 +5,14 @@ Created on Wed Mar 27 21:06:55 2024
 @author: Zidong
 """
 from matplotlib import pyplot as plt
-from model_helpers import get_model_and_optimizer
 import torchvision.transforms as transforms
 import torchvision
 from time import time
 import numpy as np
 import torch
 from os import path
+
+from shared.model_helpers import get_model_and_optimizer
 
 n_channel = 3
 height = 32

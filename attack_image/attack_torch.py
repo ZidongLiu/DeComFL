@@ -6,10 +6,11 @@ Created on Wed Mar 27 21:06:55 2024
 """
 import torch
 import numpy as np
-from model_helpers import get_model_and_optimizer
 import torchvision.transforms as transforms
 import torchvision
 from time import time
+
+from shared.model_helpers import get_model_and_optimizer
 
 n_channel = 3
 height = 32

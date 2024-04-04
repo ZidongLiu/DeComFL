@@ -3,7 +3,8 @@ import torch.nn as nn
 import torchvision
 # Define transforms
 import torchvision.transforms as transforms
-from model_helpers import get_model_and_optimizer
+
+from shared.model_helpers import get_model_and_optimizer
 
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
