@@ -1,0 +1,16 @@
+{
+  "editor.rulers": [140],
+  "editor.formatOnSave": true,
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "eeyore.yapf",
+    "editor.formatOnPaste": false,
+    "editor.formatOnType": false
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "editor.detectIndentation": true,
+  "editor.insertSpaces": false,
+  "editor.inlineSuggest.enabled": true
+}

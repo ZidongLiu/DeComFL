@@ -1,0 +1,12 @@
+[style]
+based_on_style = pep8
+column_limit = 140
+indent_width = 4
+spaces_before_comment = 2
+split_before_logical_operator = true
+split_before_arithmetic_operator = true
+split_before_named_assigns = true
+continuation_indent_width = 4
+dedent_closing_brackets = true
+split_arguments_when_comma_terminated = true
+join_multiple_lines = true
