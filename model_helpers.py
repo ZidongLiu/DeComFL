@@ -8,8 +8,11 @@ Created on Wed Mar 27 20:58:19 2024
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from os import path
+
 
 class Net(nn.Module):
+
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
@@ -35,12 +38,14 @@ def get_current_datetime_str():
     year, month, day, hour, minute, second = now.year, now.month, now.day, now.hour, now.minute, now.second
     return f'{year}-{month}-{day}-{hour}-{minute}-{second}'
 
-def save_model(optimizer, model):
-    save_path = r'C:\research\zoo_attack\models\simple-{current_time}.pt'.format(current_time = get_current_datetime_str())
+
+def save_model(optimizer, model, model_prefix='simple'):
+    save_path = path.join(path.dirname(__file__), f'models/{model_prefix}-{get_current_datetime_str()}.pt')
     torch.save({
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            }, save_path)
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+    }, save_path)
+
 
 def load_model(optimizer, model, model_path):
     checkpoint = torch.load(model_path)
@@ -48,11 +53,12 @@ def load_model(optimizer, model, model_path):
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     model.eval()
 
-def get_model_and_optimizer(checkpoint = None):
+
+def get_model_and_optimizer(checkpoint=None):
     model = Net()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-    
+
     if checkpoint:
         load_model(optimizer, model, checkpoint)
-    
+
     return model, optimizer
