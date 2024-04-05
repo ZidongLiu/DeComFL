@@ -14,7 +14,7 @@ class View(nn.Module):
 
 class SplitSimpleCNN(nn.Module):
 
-    def __init__(self, learning_rate=1e-4, mu=1e-5, compress=None):
+    def __init__(self, learning_rate=1e-2, mu=1e-5, compress=None):
         super(SplitSimpleCNN, self).__init__()
 
         self.grad_history = []

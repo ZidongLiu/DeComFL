@@ -9,7 +9,6 @@ from shared.simple_split_model import SplitSimpleCNN
 # from shared.model_helpers import Net
 
 import torch
-from torch import nn
 import torchvision
 # Define transforms
 import torchvision.transforms as transforms
