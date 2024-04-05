@@ -13,8 +13,18 @@ from os import path
 
 class Net(nn.Module):
 
-    def __init__(self):
+    def __init__(self, learning_rate=1e-3, mu=1e-5, compress=None):
         super(Net, self).__init__()
+
+        self.grad_history = []
+        self.parameter_l2_history = []
+
+        self.compress = compress
+        self.learning_rate = learning_rate
+        self.mu = mu
+
+        self.criterion = nn.CrossEntropyLoss()
+
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
@@ -30,6 +40,27 @@ class Net(nn.Module):
         x = nn.functional.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+
+    def gd_train_step(self, train_input, label):
+        original_pred = self.forward(train_input)
+        loss1 = self.criterion(original_pred, label)
+        loss1.backward()
+        parameter_l2 = sum([torch.sum(param**2) for param in self.parameters()])**0.5
+        self.parameter_l2_history += [parameter_l2.item()]
+        updates = [-self.learning_rate * param.grad.detach().clone() for param in self.parameters()]
+
+        self.add_model_params_(updates)
+        with torch.no_grad():
+            for p in self.parameters():
+                p.grad.zero_()
+
+            for p in self.parameters():
+                print('grad sum', torch.sum(p.grad))
+
+    def add_model_params_(self, add_ons: list[torch.tensor]):
+        with torch.no_grad():
+            for p, add_on in zip(self.parameters(), add_ons):
+                p.add_(add_on)
 
 
 def get_current_datetime_str():

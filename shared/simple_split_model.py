@@ -14,8 +14,11 @@ class View(nn.Module):
 
 class SplitSimpleCNN(nn.Module):
 
-    def __init__(self, learning_rate=1e-3, mu=1e-3, compress=None):
+    def __init__(self, learning_rate=1e-3, mu=1e-5, compress=None):
         super().__init__()
+
+        self.grad_history = []
+        self.parameter_l2_history = []
 
         self.compress = compress
         self.learning_rate = learning_rate
@@ -61,8 +64,9 @@ class SplitSimpleCNN(nn.Module):
         return m2_out
 
     def add_model_params_(self, add_ons: list[torch.tensor]):
-        for p, add_on in zip(self.parameters(), add_ons):
-            p.add_(add_on)
+        with torch.no_grad():
+            for p, add_on in zip(self.parameters(), add_ons):
+                p.add_(add_on)
 
     def get_grad(self, new_loss, original_loss):
         return (new_loss - original_loss) / self.mu
@@ -71,30 +75,45 @@ class SplitSimpleCNN(nn.Module):
         return [torch.randn(p_shape) for p_shape in self.parameters_shape]
 
     def single_train_step(self, train_input, label):
-        cur_parameters = [p.clone() for p in self.parameters()]
+        # cur_parameters = [p.clone() for p in self.parameters()]
         # original loss
         original_pred = self.train_forward(train_input)
         loss1 = self.criterion(original_pred, label)
         # update model parameters
         perturbation = self.sample_update_perturbation()
         # perturbation_l2 = sum([torch.sum(perturb**2) for perturb in perturbation])**0.5
-        # print('parameters l2', sum([torch.sum(perturb**2) for perturb in self.parameters()])**0.5)
+        parameter_l2 = sum([torch.sum(param**2) for param in self.parameters()])**0.5
+        # print('parameters l2', )
         # print('perturbation_l2', perturbation_l2)
         self.add_model_params_([self.mu * perturb for perturb in perturbation])
-        print((cur_parameters[0] + self.mu * perturbation[0] - [p for p in self.parameters()][0]).abs().sum())
+        # print((cur_parameters[0] + self.mu * perturbation[0] - [p for p in self.parameters()][0]).abs().sum())
         # updated loss
         new_pred = self.train_forward(train_input)
         loss2 = self.criterion(new_pred, label)
 
         grad = self.get_grad(loss2, loss1)
-        print('grad', grad)
+        # print('grad', grad)
         # update_parameters, need to minus perturbation(since model is already changed), then move to new_direction
         # x_t+1 = x_t - learning_rate * grad * perturbation
         # x_t+0.5 = x_t + mu * perturbation
         # x_t+1 = x_t+0.5 - mu * perturbation - learning_rate * grad * perturbation
         # x_t+1 = x_t+0.5 - (mu + learning_rate * grad) * perturbation
-
+        self.parameter_l2_history += [parameter_l2]
+        self.grad_history += [grad]
         self.add_model_params_([-(self.mu + self.learning_rate * grad) * perturb for perturb in perturbation])
+
+    def gd_train_step(self, train_input, label):
+        original_pred = self.train_forward(train_input)
+        loss1 = self.criterion(original_pred, label)
+        loss1.backward()
+        parameter_l2 = sum([torch.sum(param**2) for param in self.parameters()])**0.5
+        self.parameter_l2_history += [parameter_l2.item()]
+        updates = [-self.learning_rate * param.grad.detach().clone() for param in self.parameters()]
+
+        self.add_model_params_(updates)
+        with torch.no_grad():
+            for p in self.parameters():
+                p.grad.zero_()
 
     # def batch_train_step(self, batch_inputs, batch_labels):
     #     preds = self.forward(batch_inputs)

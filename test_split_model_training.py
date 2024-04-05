@@ -6,15 +6,13 @@ Created on Thu Apr  4 15:08:23 2024
 """
 
 from shared.simple_split_model import SplitSimpleCNN
-
-
+# from shared.model_helpers import Net
 
 import torch
-from torch import nn
 import torchvision
 # Define transforms
 import torchvision.transforms as transforms
-
+from matplotlib import pyplot as plt
 
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
@@ -25,15 +23,33 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=1, shuffle=True, 
 
 model = SplitSimpleCNN()
 
-count = 0
-with torch.no_grad():
+# count = 0
+# with torch.no_grad():
+#     running_loss = 0.0
+#     for i, data in enumerate(trainloader, 0):
+#         inputs, labels = data
+#         model.gd_train_step(inputs, labels)
+#         loss = model.criterion(model(inputs), labels)
+#         if torch.isnan(loss).all():
+#             break
+#         if i % 100 == 0:
+
+#             running_loss += loss.item()
+#             print('[%5d] loss: %.3f' % (i + 1, running_loss / 100))
+#             running_loss = 0.0
+
+if __name__ == '__main__':
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
         inputs, labels = data
-        model.single_train_step(inputs, labels)
-        
+        model.gd_train_step(inputs, labels)
+        loss = model.criterion(model(inputs), labels)
+        if torch.isnan(loss).all():
+            break
         if i % 100 == 0:
-            loss = model.criterion(model(inputs), labels)
+
             running_loss += loss.item()
             print('[%5d] loss: %.3f' % (i + 1, running_loss / 100))
             running_loss = 0.0
+
+    plt.plot(model.parameter_l2_history)
