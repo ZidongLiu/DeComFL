@@ -14,8 +14,8 @@ class View(nn.Module):
 
 class SplitSimpleCNN(nn.Module):
 
-    def __init__(self, learning_rate=1e-3, mu=1e-5, compress=None):
-        super().__init__()
+    def __init__(self, learning_rate=1e-4, mu=1e-5, compress=None):
+        super(SplitSimpleCNN, self).__init__()
 
         self.grad_history = []
         self.parameter_l2_history = []
@@ -25,23 +25,21 @@ class SplitSimpleCNN(nn.Module):
         self.mu = mu
 
         self.criterion = nn.CrossEntropyLoss()
-        pool_layer = nn.MaxPool2d(2, 2)
-        relu_layer = nn.ReLU()
         self.model1 = nn.Sequential(
             nn.Conv2d(3, 6, 5),
-            relu_layer,
-            pool_layer,
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
             nn.Conv2d(6, 16, 5),
-            relu_layer,
-            pool_layer,
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
             View(16 * 5 * 5),
             nn.Linear(16 * 5 * 5, 120),
-            relu_layer,
+            nn.ReLU(),
         )
 
         self.model2 = nn.Sequential(
             nn.Linear(120, 84),
-            relu_layer,
+            nn.ReLU(),
             nn.Linear(84, 10),
         )
 
@@ -50,9 +48,9 @@ class SplitSimpleCNN(nn.Module):
         # self.model2_parameters_shapes = [p.shape for p in self.model2.parameters()]
 
     def forward(self, x):
-        m1_out = self.model1(x)
-        m2_out = self.model2(m1_out)
-        return m2_out
+        x = self.model1(x)
+        x = self.model2(x)
+        return x
 
     def train_forward(self, x):
         if self.compress is None:
@@ -77,6 +75,7 @@ class SplitSimpleCNN(nn.Module):
     def single_train_step(self, train_input, label):
         # cur_parameters = [p.clone() for p in self.parameters()]
         # original loss
+        self.zero_grad()
         original_pred = self.train_forward(train_input)
         loss1 = self.criterion(original_pred, label)
         # update model parameters
@@ -102,18 +101,17 @@ class SplitSimpleCNN(nn.Module):
         self.grad_history += [grad]
         self.add_model_params_([-(self.mu + self.learning_rate * grad) * perturb for perturb in perturbation])
 
-    def gd_train_step(self, train_input, label):
-        original_pred = self.train_forward(train_input)
-        loss1 = self.criterion(original_pred, label)
-        loss1.backward()
-        parameter_l2 = sum([torch.sum(param**2) for param in self.parameters()])**0.5
-        self.parameter_l2_history += [parameter_l2.item()]
-        updates = [-self.learning_rate * param.grad.detach().clone() for param in self.parameters()]
+        return loss1.item()
 
-        self.add_model_params_(updates)
+    def sgd_train_step(self, train_input, label):
+        self.zero_grad()
+        pred = self.forward(train_input)
+        loss = self.criterion(pred, label)
+        loss.backward()
         with torch.no_grad():
-            for p in self.parameters():
-                p.grad.zero_()
+            self.add_model_params_([-p.grad * self.learning_rate for p in self.parameters()])
+
+        return loss.item()
 
     # def batch_train_step(self, batch_inputs, batch_labels):
     #     preds = self.forward(batch_inputs)

@@ -5,6 +5,7 @@ import torchvision
 import torchvision.transforms as transforms
 
 from shared.model_helpers import get_model_and_optimizer
+from shared.simple_split_model import SplitSimpleCNN
 
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
@@ -17,12 +18,15 @@ classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship'
 
 # Initialize the network
 
-model, optimizer = get_model_and_optimizer()
+model = SplitSimpleCNN()
+_, optimizer = get_model_and_optimizer(model)
+
 
 # Define loss function and optimizer
 criterion = nn.CrossEntropyLoss()
 
-train_epochs = 0
+train_epochs = 2
+log_iteration = 100
 # Training the network
 for epoch in range(train_epochs):  # loop over the dataset multiple times
 
@@ -41,8 +45,8 @@ for epoch in range(train_epochs):  # loop over the dataset multiple times
 
         # Print statistics
         running_loss += loss.item()
-        if i % 2000 == 1999:  # print every 2000 mini-batches
-            print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 2000))
+        if i % log_iteration == log_iteration - 1:  # print every 2000 mini-batches
+            print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / log_iteration))
             running_loss = 0.0
 
 # Testing the network

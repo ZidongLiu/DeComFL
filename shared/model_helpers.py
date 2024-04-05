@@ -13,17 +13,8 @@ from os import path
 
 class Net(nn.Module):
 
-    def __init__(self, learning_rate=1e-3, mu=1e-5, compress=None):
+    def __init__(self):
         super(Net, self).__init__()
-
-        self.grad_history = []
-        self.parameter_l2_history = []
-
-        self.compress = compress
-        self.learning_rate = learning_rate
-        self.mu = mu
-
-        self.criterion = nn.CrossEntropyLoss()
 
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
@@ -85,9 +76,11 @@ def load_model(optimizer, model, model_path):
     model.eval()
 
 
-def get_model_and_optimizer(checkpoint=None):
-    model = Net()
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+def get_model_and_optimizer(model=None, checkpoint=None):
+    if model is None:
+        model = Net()
+
+    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0)
 
     if checkpoint:
         load_model(optimizer, model, checkpoint)
