@@ -40,7 +40,7 @@ def get_current_datetime_str():
 
 
 def save_model(optimizer, model, model_prefix='simple'):
-    save_path = path.join(path.dirname(__file__), f'models/{model_prefix}-{get_current_datetime_str()}.pt')
+    save_path = path.join(path.dirname(path.dirname(__file__)), f'models/{model_prefix}-{get_current_datetime_str()}.pt')
     torch.save({
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
