@@ -12,6 +12,7 @@ import numpy as np
 import torch
 from os import path
 
+from models.simple_cnn.simple_cnn import SimpleCNN
 from shared.model_helpers import get_model_and_optimizer
 
 n_channel = 3
@@ -153,7 +154,8 @@ def compare_images(image1, image2):
     axarr[1].imshow((image2.permute(1, 2, 0) + 1) / 2)
 
 
-model, optimizer = get_model_and_optimizer(path.join(path.dirname(__file__), 'models/simple-2024-3-24-20-45-56.pt'))
+simple_cnn_check_point = path.join(path.dirname(__file__), 'models/simple_cnn/trained_models/simple-2024-3-24-20-45-56.pt')
+model, optimizer = get_model_and_optimizer(SimpleCNN, checkpoint=simple_cnn_check_point)
 
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 

@@ -18,9 +18,7 @@ classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship'
 
 # Initialize the network
 
-model = SplitSimpleCNN()
-_, optimizer = get_model_and_optimizer(model)
-
+model, optimizer = get_model_and_optimizer(, )
 
 # Define loss function and optimizer
 criterion = nn.CrossEntropyLoss()

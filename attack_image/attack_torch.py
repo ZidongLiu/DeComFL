@@ -9,8 +9,10 @@ import numpy as np
 import torchvision.transforms as transforms
 import torchvision
 from time import time
+from os import path
 
 from shared.model_helpers import get_model_and_optimizer
+from models.simple_cnn.simple_cnn import SimpleCNN
 
 n_channel = 3
 height = 32
@@ -148,7 +150,8 @@ def attack(model, image, label):
     return success, next_image, loss
 
 
-model, optimizer = get_model_and_optimizer(r'C:\research\zoo_attack\models\simple-2024-3-24-20-45-56.pt')
+simple_cnn_check_point = path.join(path.dirname(__file__), 'models/simple_cnn/trained_models/simple-2024-3-24-20-45-56.pt')
+model, optimizer = get_model_and_optimizer(SimpleCNN(), checkpoint=simple_cnn_check_point)
 
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
