@@ -1,5 +1,5 @@
 {
-  "editor.rulers": [100],
+  "editor.rulers": [90],
   "editor.formatOnSave": true,
   "[python]": {
     "editor.formatOnSave": true,
