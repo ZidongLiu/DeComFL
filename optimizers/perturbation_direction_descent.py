@@ -16,7 +16,7 @@ class PDD:
 
     def _params_list_add_(self, to_add: list[torch.Tensor]):
         if (not isinstance(to_add, list)) or (not len(to_add) == len(self.params_list)):
-            raise Exception('Current to_add does not match controlled parameters')
+            raise Exception("Current to_add does not match controlled parameters")
 
         for p, added_value in zip(self.params_list, to_add):
             p.add_(added_value)
@@ -31,18 +31,23 @@ class PDD:
 
     def cancel_current_perturbation(self):
         if self.current_perturbation is None:
-            raise Exception('Current perturbation does not exist yet')
+            raise Exception("Current perturbation does not exist yet")
 
-        self._params_list_add_([-self.mu * perturb for perturb in self.current_perturbation])
+        self._params_list_add_(
+            [-self.mu * perturb for perturb in self.current_perturbation]
+        )
 
     def calculate_grad(self, perturbation_loss, original_loss):
         return (perturbation_loss - original_loss) / self.mu
 
     def step(self, grad, to_cancel_perturbation=True):
-        if (not isinstance(self.current_perturbation, list)) or (not len(self.current_perturbation) == len(self.params_list)):
-            raise Exception('Current perturbation does not match controlled parameters')
+        if (not isinstance(self.current_perturbation, list)) or (
+            not len(self.current_perturbation) == len(self.params_list)
+        ):
+            raise Exception("Current perturbation does not match controlled parameters")
 
-        # update_parameters, need to minus perturbation(since model is already changed), then move to new_direction
+        # update_parameters, need to minus perturbation(since model is already changed)
+        # then move to new_direction
         # x_t+1 = x_t - learning_rate * grad * perturbation
         # x_t+0.5 = x_t + mu * perturbation
         # x_t+1 = x_t+0.5 - mu * perturbation - learning_rate * grad * perturbation

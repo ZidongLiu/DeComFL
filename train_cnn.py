@@ -1,24 +1,42 @@
 import torch
 import torch.nn as nn
 import torchvision
+
 # Define transforms
 import torchvision.transforms as transforms
 
 from shared.model_helpers import get_model_and_optimizer
-from shared.simple_split_model import SplitSimpleCNN
+from models.simple_cnn.simple_cnn import SimpleCNN
 
-transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+transform = transforms.Compose(
+    [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+)
 
 # Load CIFAR-10 dataset
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=False, transform=transform)
+trainset = torchvision.datasets.CIFAR10(
+    root="./data", train=True, download=False, transform=transform
+)
 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=4, shuffle=True, num_workers=2)
+trainloader = torch.utils.data.DataLoader(
+    trainset, batch_size=4, shuffle=True, num_workers=2
+)
 
-classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+classes = (
+    "plane",
+    "car",
+    "bird",
+    "cat",
+    "deer",
+    "dog",
+    "frog",
+    "horse",
+    "ship",
+    "truck",
+)
 
 # Initialize the network
 
-model, optimizer = get_model_and_optimizer(, )
+model, optimizer = get_model_and_optimizer(SimpleCNN())
 
 # Define loss function and optimizer
 criterion = nn.CrossEntropyLoss()
@@ -44,7 +62,10 @@ for epoch in range(train_epochs):  # loop over the dataset multiple times
         # Print statistics
         running_loss += loss.item()
         if i % log_iteration == log_iteration - 1:  # print every 2000 mini-batches
-            print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / log_iteration))
+            print(
+                "[%d, %5d] loss: %.3f"
+                % (epoch + 1, i + 1, running_loss / log_iteration)
+            )
             running_loss = 0.0
 
 # Testing the network
@@ -58,4 +79,6 @@ with torch.no_grad():
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 
-print('Accuracy of the network on the 10000 test images: %d %%' % (100 * correct / total))
+print(
+    "Accuracy of the network on the 10000 test images: %d %%" % (100 * correct / total)
+)

@@ -1,9 +1,9 @@
 {
-  "editor.rulers": [140],
+  "editor.rulers": [100],
   "editor.formatOnSave": true,
   "[python]": {
     "editor.formatOnSave": true,
-    "editor.defaultFormatter": "eeyore.yapf",
+    "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnPaste": false,
     "editor.formatOnType": false
   },

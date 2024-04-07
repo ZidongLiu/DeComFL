@@ -12,23 +12,37 @@ from os import path
 
 def get_current_datetime_str():
     from datetime import datetime
+
     now = datetime.now()
-    year, month, day, hour, minute, second = now.year, now.month, now.day, now.hour, now.minute, now.second
-    return f'{year}-{month}-{day}-{hour}-{minute}-{second}'
+    year, month, day, hour, minute, second = (
+        now.year,
+        now.month,
+        now.day,
+        now.hour,
+        now.minute,
+        now.second,
+    )
+    return f"{year}-{month}-{day}-{hour}-{minute}-{second}"
 
 
 def save_model_and_optimizer(optimizer, model, model_path, model_prefix):
-    save_path = path.join(path.dirname(path.dirname(__file__)), f'models/{model_prefix}-{get_current_datetime_str()}.pt')
-    torch.save({
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-    }, save_path)
+    save_path = path.join(
+        path.dirname(path.dirname(__file__)),
+        f"models/{model_prefix}-{get_current_datetime_str()}.pt",
+    )
+    torch.save(
+        {
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+        },
+        save_path,
+    )
 
 
 def load_model_and_optimizer(optimizer, model, model_path):
     checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    model.load_state_dict(checkpoint["model_state_dict"])
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     model.eval()
 
 
