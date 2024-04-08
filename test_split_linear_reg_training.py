@@ -1,5 +1,7 @@
 import numpy as np
 import torch
+
+from shared.model_helpers import get_current_datetime_str
 from models.splitted_linear_regression.splitted_linear_regression import (
     LinearRegSlope,
     LinearRegIntercept,
@@ -7,7 +9,13 @@ from models.splitted_linear_regression.splitted_linear_regression import (
 from optimizers.perturbation_direction_descent import PDD
 from torch.nn import MSELoss
 from tqdm import tqdm
+from tensorboardX import SummaryWriter
 
+writer = SummaryWriter(
+    logdir="./models/splitted_linear_regression/tensorboards/"
+    + get_current_datetime_str(),
+    filename_suffix="-train-100k-iteration",
+)
 
 learning_rate = 1e-4
 mu = 1e-4
@@ -44,7 +52,7 @@ print("start MSE loss", mse_criterion(torch.zeros_like(ys), ys))
 #
 indexes_to_be_sampled = range(len(xs))
 batch_size = 2
-n_round = 10000
+n_round = 100000
 eval_iteration = 500
 train_update_iteration = 100
 
@@ -81,10 +89,15 @@ with tqdm(total=n_round, desc="Training:") as t:
                 eval_loss = mse_criterion(
                     intercept_model(slope_model(xs)), test_ys
                 ).item()
+                cur_slope = slope_pdd.params_list[0].data.item()
+                cur_intercept = intercept_pdd.params_list[0].data.item()
+                writer.add_scalar("data/slope", cur_slope, cur_round)
+                writer.add_scalar("data/intercept", cur_intercept, cur_round)
+                writer.add_scalar("data/eval_loss", eval_loss, cur_round)
                 print(
                     f"\nEval Round: {cur_round+1}. Eval MSE loss: {eval_loss:.5f}. "
-                    + f"Slope: {slope_pdd.params_list[0].data.item():.5f}"
-                    + f" Intercept: {intercept_pdd.params_list[0].data.item():.5f}"
+                    + f"Slope: {cur_slope:.5f}"
+                    + f" Intercept: {cur_intercept:.5f}"
                 )
 
             if cur_round % train_update_iteration == (train_update_iteration - 1):
@@ -92,6 +105,7 @@ with tqdm(total=n_round, desc="Training:") as t:
                 t.update(train_update_iteration)
                 running_loss = 0.0
 
+writer.close()
 print(
     "true slope: {},  trained slope: {:.4f}".format(
         true_slope, slope_pdd.params_list[0].data.item()
