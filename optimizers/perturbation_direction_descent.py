@@ -65,7 +65,7 @@ class PDD:
             p.add_(perturb_multiplier * perturb)
 
 
-def get_accuracy(preds: torch.tensor, labels: torch.tensor):
+def _get_accuracy(preds: torch.tensor, labels: torch.tensor):
     return (preds.argmax(dim=1) == labels).float().mean().item()
 
 
@@ -113,7 +113,7 @@ def PDD_training_loop(
                     pdd1.step(grad)
 
                     running_loss += original_loss.item()
-                    running_accuracy += get_accuracy(original_out_2, labels)
+                    running_accuracy += _get_accuracy(original_out_2, labels)
 
                     eval_round = epoch_idx * trainset_len + train_batch_idx
                     if train_batch_idx % train_update_iteration == (
@@ -127,8 +127,8 @@ def PDD_training_loop(
                                 "Accuracy": train_accuracy,
                             }
                         )
-                        writer.add_scalar("Loss/test", train_loss, eval_round)
-                        writer.add_scalar("Accuracy/test", train_accuracy, eval_round)
+                        writer.add_scalar("Loss/train", train_loss, eval_round)
+                        writer.add_scalar("Accuracy/train", train_accuracy, eval_round)
                         t.update(train_update_iteration)
                         running_loss = 0.0
                         running_accuracy = 0.0
@@ -142,7 +142,7 @@ def PDD_training_loop(
                             (test_images, test_labels) = data
                             pred = model2(model1(test_images))
 
-                            accuracy += get_accuracy(original_out_2, labels)
+                            accuracy += _get_accuracy(original_out_2, labels)
 
                             batch_eval_loss = criterion(pred, test_labels)
                             loss += batch_eval_loss
@@ -150,6 +150,8 @@ def PDD_training_loop(
                         eval_loss = loss / (test_idx + 1)
                         eval_accuracy = accuracy / (test_idx + 1)
 
+                        writer.add_scalar("Loss/test", eval_loss, eval_round)
+                        writer.add_scalar("Accuracy/test", eval_accuracy, eval_round)
                         print(
                             f"Evaluation(round {eval_round}): {eval_loss=:.3f}"
                             + f"{eval_accuracy=:.3f}"
@@ -157,3 +159,5 @@ def PDD_training_loop(
                         print(
                             f"Eval Loss:{eval_loss:.4f}, Accuracy: {eval_accuracy: .4f}"
                         )
+
+    writer.close()

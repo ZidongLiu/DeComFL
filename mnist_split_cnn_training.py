@@ -41,7 +41,6 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=4, num_workers=2)
 criterion = nn.CrossEntropyLoss()
 
 
-batch_size = 2
 n_epoch = 10
 eval_iteration = 5000
 train_update_iteration = 100
