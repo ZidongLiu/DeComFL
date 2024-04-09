@@ -2,6 +2,10 @@ import torch
 from torch.nn import Parameter
 from torch import Tensor
 from typing import Iterator
+from tqdm import tqdm
+from tensorboardX import SummaryWriter
+from os import path
+from shared.model_helpers import get_current_datetime_str
 
 
 class PDD:
@@ -59,3 +63,97 @@ class PDD:
 
         for p, perturb in zip(self.params_list, self.current_perturbation):
             p.add_(perturb_multiplier * perturb)
+
+
+def get_accuracy(preds: torch.tensor, labels: torch.tensor):
+    return (preds.argmax(dim=1) == labels).float().mean().item()
+
+
+def PDD_training_loop(
+    model1,
+    model2,
+    pdd1,
+    pdd2,
+    criterion,
+    train_loader,
+    test_loader,
+    n_epoch,
+    train_update_iteration,
+    eval_iteration,
+    tensorboard_path,
+):
+    trainset_len = len(train_loader)
+    total_steps = n_epoch * trainset_len
+    tensorboard_sub_folder = f"{n_epoch}-{get_current_datetime_str()}"
+    writer = SummaryWriter(path.join(tensorboard_path, tensorboard_sub_folder))
+    with tqdm(total=total_steps, desc="Training:") as t:
+        with torch.no_grad():
+            running_loss = 0.0
+            running_accuracy = 0.0
+            for epoch_idx in range(n_epoch):
+                for train_batch_idx, data in enumerate(train_loader):
+                    (images, labels) = data
+
+                    # model 1
+                    original_out_1 = model1(images)
+                    pdd1.apply_perturbation()
+                    perturbed_out_1 = model1(images)
+
+                    # model 2 and calulate loss and grad
+                    original_out_2 = model2(original_out_1)
+                    pdd2.apply_perturbation()
+                    perturbed_out_2 = model2(perturbed_out_1)
+
+                    original_loss = criterion(original_out_2, labels)
+                    perturbed_loss = criterion(perturbed_out_2, labels)
+                    grad = pdd2.calculate_grad(perturbed_loss, original_loss)
+
+                    # update model
+                    pdd2.step(grad)
+                    pdd1.step(grad)
+
+                    running_loss += original_loss.item()
+                    running_accuracy += get_accuracy(original_out_2, labels)
+
+                    eval_round = epoch_idx * trainset_len + train_batch_idx
+                    if train_batch_idx % train_update_iteration == (
+                        train_update_iteration - 1
+                    ):
+                        train_loss = running_loss / train_update_iteration
+                        train_accuracy = running_accuracy / train_update_iteration
+                        t.set_postfix(
+                            {
+                                "Loss": train_loss,
+                                "Accuracy": train_accuracy,
+                            }
+                        )
+                        writer.add_scalar("Loss/test", train_loss, eval_round)
+                        writer.add_scalar("Accuracy/test", train_accuracy, eval_round)
+                        t.update(train_update_iteration)
+                        running_loss = 0.0
+                        running_accuracy = 0.0
+
+                    if train_batch_idx % eval_iteration == (eval_iteration - 1):
+
+                        loss = 0.0
+                        accuracy = 0.0
+
+                        for test_idx, data in enumerate(train_loader):
+                            (test_images, test_labels) = data
+                            pred = model2(model1(test_images))
+
+                            accuracy += get_accuracy(original_out_2, labels)
+
+                            batch_eval_loss = criterion(pred, test_labels)
+                            loss += batch_eval_loss
+
+                        eval_loss = loss / (test_idx + 1)
+                        eval_accuracy = accuracy / (test_idx + 1)
+
+                        print(
+                            f"Evaluation(round {eval_round}): {eval_loss=:.3f}"
+                            + f"{eval_accuracy=:.3f}"
+                        )
+                        print(
+                            f"Eval Loss:{eval_loss:.4f}, Accuracy: {eval_accuracy: .4f}"
+                        )
