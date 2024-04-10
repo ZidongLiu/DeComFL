@@ -12,9 +12,11 @@ from tensorboardX import SummaryWriter
 from os import path
 from shared.model_helpers import get_current_datetime_str
 from shared.metrics import Metric, accuracy
-from torch.optim import SGD
+from optimizers.perturbation_direction_descent import PDD
 
 tensorboard_path = "./tensorboards/1_model"
+
+grad_estimate_method = "forward"
 
 learning_rate = 1e-4
 mu = 1e-4
@@ -22,8 +24,12 @@ mu = 1e-4
 model = MnistSimpleCNN()
 criterion = nn.CrossEntropyLoss()
 
-grad_estimate_method = "sgd"
-sgd = SGD(model.parameters(), lr=learning_rate, momentum=0.9)
+pdd = PDD(
+    model.parameters(),
+    lr=learning_rate,
+    mu=mu,
+    grad_estimate_method=grad_estimate_method,
+)
 
 
 transform = transforms.Compose(
@@ -55,7 +61,7 @@ if __name__ == "__main__":
 
     trainset_len = len(train_loader)
     total_steps = n_epoch * trainset_len
-    tensorboard_sub_folder = f"sgd-{get_current_datetime_str()}"
+    tensorboard_sub_folder = f"pdd-{grad_estimate_method}-{get_current_datetime_str()}"
     writer = SummaryWriter(path.join(tensorboard_path, tensorboard_sub_folder))
 
     train_loss = Metric("train loss")
@@ -63,7 +69,7 @@ if __name__ == "__main__":
     eval_loss = Metric("Eval loss")
     eval_accuracy = Metric("Eval accuracy")
 
-    with tqdm(total=total_steps, desc="Training:") as t:  # , torch.no_grad():
+    with tqdm(total=total_steps, desc="Training:") as t, torch.no_grad():
         for epoch_idx in range(n_epoch):
             for train_batch_idx, data in enumerate(train_loader):
                 trained_iteration = epoch_idx * trainset_len + train_batch_idx
@@ -71,12 +77,10 @@ if __name__ == "__main__":
                 (images, labels) = data
 
                 # update models
-                sgd.zero_grad()
+                pdd.perturb_and_step(images, labels, model, criterion)
+                # pred
                 pred = model(images)
-                loss = criterion(pred, labels)
-                loss.backward()
-                sgd.step()
-
+                #
                 train_loss.update(criterion(pred, labels))
                 train_accuracy.update(accuracy(pred, labels))
 

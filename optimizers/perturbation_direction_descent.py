@@ -79,6 +79,20 @@ class PDD:
         for p, perturb in zip(self.params_list, self.current_perturbation):
             p.add_(perturb_multiplier * perturb)
 
+    def perturb_and_step(self, images, labels, model, criterion):
+        self.generate_perturbation()
+        self.apply_perturbation_1()
+        pred1 = model(images)
+        self.apply_perturbation_2()
+        pred2 = model(images)
+
+        loss1 = criterion(pred1, labels)
+        loss2 = criterion(pred2, labels)
+
+        grad = self.calculate_grad(loss1, loss2)
+        self.step(grad)
+        return grad
+
     @property
     def divider(self):
         if self.grad_estimate_method == "forward":
