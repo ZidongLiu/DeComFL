@@ -49,6 +49,7 @@ class PDD:
             self._params_list_add_(
                 [self.mu * perturb for perturb in self.current_perturbation]
             )
+            return
 
         if self.grad_estimate_method == "middle":
             self._params_list_add_(
