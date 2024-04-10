@@ -6,13 +6,14 @@ import torchvision
 import torchvision.transforms as transforms
 
 from models.splitted_simple_cnn.splitted_simple_cnn import SimpleCNNSub1, SimpleCNNSub2
-from optimizers.pdd_2_models import PDD2Models
 
 from tqdm import tqdm
 from tensorboardX import SummaryWriter
 from os import path
 from shared.model_helpers import get_current_datetime_str
 from shared.metrics import Metric, accuracy
+from torch.optim import SGD
+from itertools import chain
 
 tensorboard_path = "./tensorboards/split_simple_cnn"
 
@@ -23,10 +24,9 @@ model1 = SimpleCNNSub1()
 model2 = SimpleCNNSub2()
 criterion = nn.CrossEntropyLoss()
 
-grad_estimate_method = "forward"
-
-pdd_for_2_models = PDD2Models(
-    model1, model2, learning_rate, mu, criterion, grad_estimate_method
+grad_estimate_method = "sgd"
+sgd = SGD(
+    chain(model1.parameters(), model2.parameters()), lr=learning_rate, momentum=0.9
 )
 
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     trainset_len = len(train_loader)
     total_steps = n_epoch * trainset_len
-    tensorboard_sub_folder = f"{grad_estimate_method}-{get_current_datetime_str()}"
+    tensorboard_sub_folder = f"sgd-{get_current_datetime_str()}"
     writer = SummaryWriter(path.join(tensorboard_path, tensorboard_sub_folder))
 
     train_loss = Metric("train loss")
@@ -75,13 +75,14 @@ if __name__ == "__main__":
                 (images, labels) = data
 
                 # update models
-                grad = pdd_for_2_models.step(images, labels)
-                # pred
+                sgd.zero_grad()
                 pred = model2(model1(images))
+                loss = criterion(pred, labels)
+                loss.backward()
+                sgd.step()
 
                 train_loss.update(criterion(pred, labels))
                 train_accuracy.update(accuracy(pred, labels))
-                writer.add_scalar("Grad Scalar", grad, trained_iteration)
 
                 if train_batch_idx % train_update_iteration == (
                     train_update_iteration - 1
@@ -123,46 +124,3 @@ if __name__ == "__main__":
                     eval_accuracy.reset()
 
     writer.close()
-
-# trainset_len = len(train_loader)
-# total_steps = n_epoch * trainset_len
-# tensorboard_sub_folder = f"{n_epoch}-{get_current_datetime_str()}"
-# writer = SummaryWriter(path.join(tensorboard_path, tensorboard_sub_folder))
-
-# train_loss = Metric("train loss")
-# train_accuracy = Metric("train accuracy")
-# eval_loss = Metric("Eval loss")
-# eval_accuracy = Metric("Eval accuracy")
-
-# with tqdm(total=total_steps, desc="Training:") as t:
-#     with torch.no_grad():
-#         for epoch_idx in range(n_epoch):
-#             for train_batch_idx, data in enumerate(train_loader):
-#                 trained_iteration = epoch_idx * trainset_len + train_batch_idx
-#                 #
-#                 (images, labels) = data
-
-#                 # update models
-#                 grad = pdd_for_2_models.step(images, labels)
-#                 # pred
-#                 pred = model2(model1(images))
-#                 break
-
-# with torch.no_grad():
-#     pdd1 = pdd_for_2_models.pdd1
-#     pdd2 = pdd_for_2_models.pdd2
-
-#     current_model1 = list(model1.parameters())[0].clone()
-#     current_model2 = list(model2.parameters())[0].clone()
-
-#     current_perturbation = pdd1.generate_perturbation()[0].clone()
-
-#     pdd1.apply_perturbation_1()
-
-#     perturbation_1_model1 = list(model1.parameters())[0].clone()
-#     perturbation_1_output_from_model1 = model1(images)
-
-#     pdd1.apply_perturbation_2()
-
-#     perturbation_2_model1 = list(model1.parameters())[0].clone()
-#     perturbation_2_output_from_model1 = model1(images)
