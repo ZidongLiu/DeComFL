@@ -5,7 +5,10 @@ import torchvision
 # Define transforms
 import torchvision.transforms as transforms
 
-from models.splitted_simple_cnn.splitted_simple_cnn import SimpleCNNSub1, SimpleCNNSub2
+from models.mnist.splitted_simple_cnn.splitted_simple_cnn import (
+    SimpleCNNSub1,
+    SimpleCNNSub2,
+)
 from optimizers.pdd_2_models import PDD2Models
 
 from tqdm import tqdm
