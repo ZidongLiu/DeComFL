@@ -7,6 +7,30 @@ def accuracy(output: torch.tensor, target: torch.tensor) -> float:
     return pred.eq(target.view_as(pred)).cpu().float().mean()
 
 
+class TensorMetric(object):
+    def __init__(self, name):
+        self.name = name
+        self.tensor = None
+        self.n = 0
+
+    def reset(self):
+        self.sum = None
+        self.n = 0
+
+    def update(self, update_tensor: torch.tensor):
+        # self.sum += torch.allreduce(val.detach().cpu(), name=self.name)
+        if self.tensor is None:
+            self.tensor = update_tensor
+        else:
+            self.tensor += update_tensor
+
+        self.n += 1
+
+    @property
+    def avg(self) -> float:
+        return self.tensor / self.n
+
+
 class Metric(object):
     def __init__(self, name):
         self.name = name
