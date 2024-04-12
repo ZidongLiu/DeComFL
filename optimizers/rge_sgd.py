@@ -49,8 +49,9 @@ class RGE_SGD:
 
             self.perturb_model(pb_norm, alpha=self.mu)
             pert_plus_loss = criterion(model(batch_inputs), labels)
-            self.perturb_model(pb_norm, alpha=-2 * self.mu)  #  Model
+            self.perturb_model(pb_norm, alpha=-2 * self.mu)
             pert_minus_loss = criterion(model(batch_inputs), labels)
+            self.perturb_model(pb_norm, alpha=self.mu)  # Restore model
 
             dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)
             grad += (-self.lr * dir_grad) * pb_norm
@@ -66,8 +67,9 @@ class RGE_SGD:
 
             self.perturb_model(pb_norm, alpha=self.mu)
             pert_plus_loss = criterion(model(batch_inputs), labels)
-            self.perturb_model(pb_norm, alpha=-2 * self.mu)  #  Model
+            self.perturb_model(pb_norm, alpha=-2 * self.mu)
             pert_minus_loss = criterion(model(batch_inputs), labels)
+            self.perturb_model(pb_norm, alpha=self.mu)  # Restore model
 
             dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)
             grad += dir_grad * pb_norm
