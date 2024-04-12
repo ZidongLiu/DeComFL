@@ -13,6 +13,7 @@ def get_params(dataset: str):
     parser.add_argument("--compressor", type=str, default="quant")
     parser.add_argument("--num-pert", type=int, default=1)
     parser.add_argument("--dataset", type=str, default="mnist")
+    parser.add_argument("--momentum", type=float, default=0.1)
 
     # Rarely change
     parser.add_argument("--seed", type=int, default=365, help="random seed")
