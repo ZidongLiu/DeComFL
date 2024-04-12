@@ -67,9 +67,9 @@ model, criterion = MnistSimpleCNN(), nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(
     model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=0.0
 )
-n_permutation = 8
+
 rge_sgd = RGE_SGD(
-    list(model.parameters()), lr=args.lr, mu=args.mu, n_permutation=n_permutation
+    list(model.parameters()), lr=args.lr, mu=args.mu, num_pert=args.n_pert
 )
 
 
@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
     tensorboard_sub_folder = (
         f"rge_sgd-{args.grad_estimate_method}-"
-        + f"n_permutation-{n_permutation}-{get_current_datetime_str()}"
+        + f"num_pert-{args.num_pert}-{get_current_datetime_str()}"
     )
     writer = SummaryWriter(path.join(tensorboard_path, tensorboard_sub_folder))
     for epoch in range(args.epoch):

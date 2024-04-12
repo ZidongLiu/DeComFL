@@ -7,12 +7,12 @@ from shared.metrics import TensorMetric
 
 class RGE_SGD:
 
-    def __init__(self, params: Iterator[Parameter], lr=1e-2, mu=1e-5, n_permutation=1):
+    def __init__(self, params: Iterator[Parameter], lr=1e-2, mu=1e-5, num_pert=1):
         self.params_list: list[Parameter] = list(params)
         self.params_shape: list[Tensor] = [p.shape for p in self.params_list]
         self.lr = lr
         self.mu = mu
-        self.n_permutation = n_permutation
+        self.num_perturbation = num_pert
         self.total_dimensions = sum([p.numel() for p in self.params_list])
 
     def _params_list_set_(self, to_set: list[torch.Tensor]):
@@ -44,7 +44,7 @@ class RGE_SGD:
 
     def step(self, batch_inputs, labels, model, criterion):
         grad = 0
-        for _ in range(self.n_permutation):
+        for _ in range(self.num_perturbation):
             pb_norm = self.generate_perturbation_norm()  # TODO add random seed
 
             self.perturb_model(pb_norm, alpha=self.mu)
@@ -62,7 +62,7 @@ class RGE_SGD:
 
     def compute_grad(self, batch_inputs, labels, model, criterion):
         grad = 0
-        for _ in range(self.n_permutation):
+        for _ in range(self.num_perturbation):
             pb_norm = self.generate_perturbation_norm()  # TODO add random seed
 
             self.perturb_model(pb_norm, alpha=self.mu)
@@ -84,7 +84,7 @@ class RGE_SGD:
             TensorMetric(f"running_grad_{i}") for i in range(len(self.params_list))
         ]
 
-        for i in range(self.n_permutation):
+        for i in range(self.num_perturbation):
             perturbation = self.generate_perturbation()
             perturbed_params = [
                 p + self.mu * perturb
