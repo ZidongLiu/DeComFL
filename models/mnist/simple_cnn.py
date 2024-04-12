@@ -1,6 +1,6 @@
 from torch import nn
 
-
+# This commented CNN have exploding gradient issue
 # class MnistSimpleCNN(nn.Module):
 
 #     def __init__(self):
