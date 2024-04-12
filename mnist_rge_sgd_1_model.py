@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision
 
 # Define transforms
@@ -39,18 +40,8 @@ kwargs = (
 
 tensorboard_path = "./tensorboards/1_model"
 
-n_perturbation = 1
-
-model = MnistSimpleCNN()
-criterion = nn.CrossEntropyLoss()
-
-rge_sgd = RGE_SGD(
-    model.parameters(), lr=args.lr, mu=args.mu, n_perturbation=n_perturbation
-)
-
-
 transform = transforms.Compose(
-    [transforms.ToTensor(), transforms.Normalize((0.5), (0.5))]
+    [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
 )
 
 # Load Mnist dataset
@@ -71,15 +62,29 @@ test_loader = torch.utils.data.DataLoader(
 )
 
 
+model, criterion = MnistSimpleCNN(), nn.CrossEntropyLoss()
+
+optimizer = torch.optim.SGD(
+    model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=0.0
+)
+
+rge_sgd = RGE_SGD(
+    list(model.parameters()), lr=args.lr, mu=args.mu, num_pert=args.num_pert
+)
+
+
 def train_model(epoch: int) -> tuple[float, float]:
+    model.train()
     train_loss = Metric("train loss")
     train_accuracy = Metric("train accuracy")
     with tqdm(total=len(train_loader), desc="Training:") as t, torch.no_grad():
         for train_batch_idx, (images, labels) in enumerate(train_loader):
             # update models
-            rge_sgd.step(images, labels, model, criterion)
-            pred = model(images)
+            optimizer.zero_grad()
+            rge_sgd.compute_grad(images, labels, model, criterion)
+            optimizer.step()
 
+            pred = model(images)
             train_loss.update(criterion(pred, labels))
             train_accuracy.update(accuracy(pred, labels))
             t.set_postfix({"Loss": train_loss.avg, "Accuracy": train_accuracy.avg})
@@ -88,14 +93,14 @@ def train_model(epoch: int) -> tuple[float, float]:
 
 
 def eval_model(epoch: int) -> tuple[float, float]:
+    model.eval()
     eval_loss = Metric("Eval loss")
     eval_accuracy = Metric("Eval accuracy")
     with torch.no_grad():
-        for test_idx, data in enumerate(test_loader):
-            (test_images, test_labels) = data
-            pred = model(test_images)
-            eval_loss.update(criterion(pred, test_labels))
-            eval_accuracy.update(accuracy(pred, test_labels))
+        for test_idx, (images, labels) in enumerate(test_loader):
+            pred = model(images)
+            eval_loss.update(criterion(pred, labels))
+            eval_accuracy.update(accuracy(pred, labels))
     print(
         f"Evaluation(round {epoch}): Eval Loss:{eval_loss.avg=:.4f}, "
         f"Accuracy: {eval_accuracy.avg * 100=: .2f}%"
@@ -107,7 +112,7 @@ if __name__ == "__main__":
 
     tensorboard_sub_folder = (
         f"rge_sgd-{args.grad_estimate_method}-"
-        + f"n_perturbation-{n_perturbation}-{get_current_datetime_str()}"
+        + f"num_pert-{args.num_pert}-{get_current_datetime_str()}"
     )
     writer = SummaryWriter(path.join(tensorboard_path, tensorboard_sub_folder))
     for epoch in range(args.epoch):

@@ -1,15 +1,12 @@
 from torch import nn
 
-# This commented CNN have exploding gradient issue
-# class MnistSimpleCNN(nn.Module):
-
+# This commented CNN have exploding gradient issue when batch_size = 4
+# class CNN_MNIST(nn.Module):
 #     def __init__(self):
-#         super(MnistSimpleCNN, self).__init__()
-
+#         super(CNN_MNIST, self).__init__()
 #         self.conv1 = nn.Conv2d(1, 6, 5)
 #         self.pool = nn.MaxPool2d(2, 2)
 #         self.conv2 = nn.Conv2d(6, 16, 5)
-
 #         self.fc1 = nn.Linear(16 * 4 * 4, 84)
 #         self.fc2 = nn.Linear(84, 10)
 
@@ -22,9 +19,9 @@ from torch import nn
 #         return x
 
 
-class MnistSimpleCNN(nn.Module):
+class CNN_MNIST(nn.Module):
     def __init__(self):
-        super(MnistSimpleCNN, self).__init__()
+        super(CNN_MNIST, self).__init__()
         self.conv1 = nn.Sequential(
             nn.Conv2d(
                 in_channels=1,
