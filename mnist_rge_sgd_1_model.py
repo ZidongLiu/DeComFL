@@ -45,10 +45,7 @@ model = MnistSimpleCNN()
 criterion = nn.CrossEntropyLoss()
 
 rge_sgd = RGE_SGD(
-    model.parameters(),
-    lr=args.lr,
-    mu=args.mu,
-    n_permutation=n_permutation,
+    model.parameters(), lr=args.lr, mu=args.mu, n_permutation=n_permutation
 )
 
 
@@ -58,97 +55,68 @@ transform = transforms.Compose(
 
 # Load Mnist dataset
 trainset = torchvision.datasets.MNIST(
-    root="./data",
-    train=True,
-    download=True,
-    transform=transform,
+    root="./data", train=True, download=True, transform=transform
 )
 
 train_loader = torch.utils.data.DataLoader(
-    trainset,
-    batch_size=args.train_batch_size,
-    **kwargs,
+    trainset, batch_size=args.train_batch_size, **kwargs
 )
 
 testset = torchvision.datasets.MNIST(
-    root="./data",
-    train=False,
-    download=True,
-    transform=transform,
+    root="./data", train=False, download=True, transform=transform
 )
 
 test_loader = torch.utils.data.DataLoader(
-    testset,
-    batch_size=args.test_batch_size,
-    **kwargs,
+    testset, batch_size=args.test_batch_size, **kwargs
 )
+
+
+def train_model(epoch: int) -> tuple[float, float]:
+    train_loss = Metric("train loss")
+    train_accuracy = Metric("train accuracy")
+    with tqdm(total=len(train_loader), desc="Training:") as t, torch.no_grad():
+        for train_batch_idx, (images, labels) in enumerate(train_loader):
+            # update models
+            rge_sgd.step(images, labels, model, criterion)
+            pred = model(images)
+
+            train_loss.update(criterion(pred, labels))
+            train_accuracy.update(accuracy(pred, labels))
+            t.set_postfix({"Loss": train_loss.avg, "Accuracy": train_accuracy.avg})
+            t.update(1)
+    return train_loss.avg, train_accuracy.avg
+
+
+def eval_model(epoch: int) -> tuple[float, float]:
+    eval_loss = Metric("Eval loss")
+    eval_accuracy = Metric("Eval accuracy")
+    with torch.no_grad():
+        for test_idx, data in enumerate(test_loader):
+            (test_images, test_labels) = data
+            pred = model(test_images)
+            eval_loss.update(criterion(pred, test_labels))
+            eval_accuracy.update(accuracy(pred, test_labels))
+    print(
+        f"Evaluation(round {epoch}): Eval Loss:{eval_loss.avg=:.4f}, "
+        f"Accuracy: {eval_accuracy.avg * 100=: .2f}%"
+    )
+    return eval_loss.avg, eval_accuracy.avg
 
 
 if __name__ == "__main__":
 
-    trainset_len = len(train_loader)
-    total_steps = args.epoch * trainset_len
     tensorboard_sub_folder = (
         f"rge_sgd-{args.grad_estimate_method}-"
         + f"n_permutation-{n_permutation}-{get_current_datetime_str()}"
     )
     writer = SummaryWriter(path.join(tensorboard_path, tensorboard_sub_folder))
+    for epoch in range(args.epoch):
+        train_loss, train_accuracy = train_model(epoch)
+        writer.add_scalar("Loss/train", train_loss, epoch)
+        writer.add_scalar("Accuracy/train", train_accuracy, epoch)
 
-    train_loss = Metric("train loss")
-    train_accuracy = Metric("train accuracy")
-    eval_loss = Metric("Eval loss")
-    eval_accuracy = Metric("Eval accuracy")
-
-    with tqdm(total=total_steps, desc="Training:") as t, torch.no_grad():
-        for epoch_idx in range(args.epoch):
-            for train_batch_idx, data in enumerate(train_loader):
-                trained_iteration = epoch_idx * trainset_len + train_batch_idx
-                #
-                (images, labels) = data
-
-                # update models
-                rge_sgd.step(images, labels, model, criterion)
-                # pred
-                pred = model(images)
-                #
-                train_loss.update(criterion(pred, labels))
-                train_accuracy.update(accuracy(pred, labels))
-
-                if train_batch_idx % args.train_update_iteration == (
-                    args.train_update_iteration - 1
-                ):
-                    t.set_postfix(
-                        {
-                            "Loss": train_loss.avg,
-                            "Accuracy": train_accuracy.avg,
-                        }
-                    )
-
-                    writer.add_scalar("Loss/train", train_loss.avg, trained_iteration)
-                    writer.add_scalar(
-                        "Accuracy/train", train_accuracy.avg, trained_iteration
-                    )
-                    t.update(args.train_update_iteration)
-
-                    train_loss.reset()
-                    train_accuracy.reset()
-
-                if train_batch_idx % args.eval_iteration == (args.eval_iteration - 1):
-                    for test_idx, data in enumerate(test_loader):
-                        (test_images, test_labels) = data
-                        pred = model(test_images)
-                        eval_loss.update(criterion(pred, test_labels))
-                        eval_accuracy.update(accuracy(pred, test_labels))
-
-                    writer.add_scalar("Loss/test", eval_loss.avg, trained_iteration)
-                    writer.add_scalar(
-                        "Accuracy/test", eval_accuracy.avg, trained_iteration
-                    )
-                    print("")
-                    print(
-                        f"Evaluation(round {trained_iteration}): Eval Loss:{eval_loss.avg=:.4f}, Accuracy: {eval_accuracy.avg=: .4f}"
-                    )
-                    eval_loss.reset()
-                    eval_accuracy.reset()
+        eval_loss, eval_accuracy = eval_model(epoch)
+        writer.add_scalar("Loss/test", eval_loss, epoch)
+        writer.add_scalar("Accuracy/test", eval_accuracy, epoch)
 
     writer.close()
