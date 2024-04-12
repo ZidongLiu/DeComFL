@@ -39,7 +39,7 @@ class RGE_SGD:
     def put_grad(self, grad: torch.Tensor) -> None:
         start = 0
         for p in self.params_list:
-            p.grad = grad[start : (start + p.numel())].view(p.shape).clone()
+            p.grad = grad[start : (start + p.numel())].view(p.shape)
             start += p.numel()
 
     def step(self, batch_inputs, labels, model, criterion):
