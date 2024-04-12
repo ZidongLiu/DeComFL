@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision
 
 # Define transforms
@@ -39,18 +40,8 @@ kwargs = (
 
 tensorboard_path = "./tensorboards/1_model"
 
-n_permutation = 1
-
-model = MnistSimpleCNN()
-criterion = nn.CrossEntropyLoss()
-
-rge_sgd = RGE_SGD(
-    model.parameters(), lr=args.lr, mu=args.mu, n_permutation=n_permutation
-)
-
-
 transform = transforms.Compose(
-    [transforms.ToTensor(), transforms.Normalize((0.5), (0.5))]
+    [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
 )
 
 # Load Mnist dataset
@@ -71,7 +62,16 @@ test_loader = torch.utils.data.DataLoader(
 )
 
 
+model, criterion = MnistSimpleCNN(), nn.CrossEntropyLoss()
+
+n_permutation = 1
+rge_sgd = RGE_SGD(
+    list(model.parameters()), lr=args.lr, mu=args.mu, n_permutation=n_permutation
+)
+
+
 def train_model(epoch: int) -> tuple[float, float]:
+    model.train()
     train_loss = Metric("train loss")
     train_accuracy = Metric("train accuracy")
     with tqdm(total=len(train_loader), desc="Training:") as t, torch.no_grad():
@@ -88,14 +88,14 @@ def train_model(epoch: int) -> tuple[float, float]:
 
 
 def eval_model(epoch: int) -> tuple[float, float]:
+    model.eval()
     eval_loss = Metric("Eval loss")
     eval_accuracy = Metric("Eval accuracy")
     with torch.no_grad():
-        for test_idx, data in enumerate(test_loader):
-            (test_images, test_labels) = data
-            pred = model(test_images)
-            eval_loss.update(criterion(pred, test_labels))
-            eval_accuracy.update(accuracy(pred, test_labels))
+        for test_idx, (images, labels) in enumerate(test_loader):
+            pred = model(images)
+            eval_loss.update(criterion(pred, labels))
+            eval_accuracy.update(accuracy(pred, labels))
     print(
         f"Evaluation(round {epoch}): Eval Loss:{eval_loss.avg=:.4f}, "
         f"Accuracy: {eval_accuracy.avg * 100=: .2f}%"

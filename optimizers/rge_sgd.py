@@ -7,12 +7,13 @@ from shared.metrics import TensorMetric
 
 class RGE_SGD:
 
-    def __init__(self, params: Iterator[Parameter], lr=1e-3, mu=1e-3, n_permutation=1):
+    def __init__(self, params: Iterator[Parameter], lr=1e-2, mu=1e-5, n_permutation=1):
         self.params_list: list[Parameter] = list(params)
         self.params_shape: list[Tensor] = [p.shape for p in self.params_list]
         self.lr = lr
         self.mu = mu
         self.n_permutation = n_permutation
+        self.total_dimensions = sum([p.numel() for p in self.params_list])
 
     def _params_list_set_(self, to_set: list[torch.Tensor]):
         if (not isinstance(to_set, list)) or (not len(to_set) == len(self.params_list)):
@@ -24,7 +25,34 @@ class RGE_SGD:
     def generate_perturbation(self):
         return [torch.randn(shape) for shape in self.params_shape]
 
+    def generate_perturbation_norm(self) -> torch.Tensor:
+        p = torch.randn(self.total_dimensions)
+        return p  # / torch.norm(p)
+
+    def perturb_model(self, perturb: torch.Tensor, *, alpha: float) -> None:
+        start = 0
+        for p in self.params_list:
+            _perturb = perturb[start : (start + p.numel())]
+            p.add_(_perturb.view(p.shape), alpha=alpha)
+            start += p.numel()
+
     def step(self, batch_inputs, labels, model, criterion):
+        if self.n_permutation != 1:
+            raise NotImplementedError
+        pb_norm = self.generate_perturbation_norm()  # TODO add random seed
+
+        self.perturb_model(pb_norm, alpha=self.mu)
+        pert_plus_loss = criterion(model(batch_inputs), labels)
+        self.perturb_model(pb_norm, alpha=-2 * self.mu)  #  Model
+        pert_minus_loss = criterion(model(batch_inputs), labels)
+
+        dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)
+        # Use perturb model function as step function
+        self.perturb_model(pb_norm, alpha=-self.lr * dir_grad)
+
+        return
+
+    def old_step(self, batch_inputs, labels, model, criterion):
         start_params = [p.clone() for p in self.params_list]
         start_pred = model(batch_inputs)
         start_loss = criterion(start_pred, labels)
