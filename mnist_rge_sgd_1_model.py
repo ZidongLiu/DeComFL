@@ -69,7 +69,7 @@ optimizer = torch.optim.SGD(
 )
 
 rge_sgd = RGE_SGD(
-    list(model.parameters()), lr=args.lr, mu=args.mu, num_pert=args.n_pert
+    list(model.parameters()), lr=args.lr, mu=args.mu, num_pert=args.num_pert
 )
 
 
