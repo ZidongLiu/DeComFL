@@ -39,13 +39,13 @@ kwargs = (
 
 tensorboard_path = "./tensorboards/1_model"
 
-n_permutation = 1
+n_perturbation = 1
 
 model = MnistSimpleCNN()
 criterion = nn.CrossEntropyLoss()
 
 rge_sgd = RGE_SGD(
-    model.parameters(), lr=args.lr, mu=args.mu, n_permutation=n_permutation
+    model.parameters(), lr=args.lr, mu=args.mu, n_perturbation=n_perturbation
 )
 
 
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     tensorboard_sub_folder = (
         f"rge_sgd-{args.grad_estimate_method}-"
-        + f"n_permutation-{n_permutation}-{get_current_datetime_str()}"
+        + f"n_perturbation-{n_perturbation}-{get_current_datetime_str()}"
     )
     writer = SummaryWriter(path.join(tensorboard_path, tensorboard_sub_folder))
     for epoch in range(args.epoch):

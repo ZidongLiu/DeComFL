@@ -7,12 +7,12 @@ from shared.metrics import TensorMetric
 
 class RGE_SGD:
 
-    def __init__(self, params: Iterator[Parameter], lr=1e-3, mu=1e-3, n_permutation=1):
+    def __init__(self, params: Iterator[Parameter], lr=1e-3, mu=1e-3, n_perturbation=1):
         self.params_list: list[Parameter] = list(params)
         self.params_shape: list[Tensor] = [p.shape for p in self.params_list]
         self.lr = lr
         self.mu = mu
-        self.n_permutation = n_permutation
+        self.n_perturbation = n_perturbation
 
     def _params_list_set_(self, to_set: list[torch.Tensor]):
         if (not isinstance(to_set, list)) or (not len(to_set) == len(self.params_list)):
@@ -33,7 +33,7 @@ class RGE_SGD:
             TensorMetric(f"running_grad_{i}") for i in range(len(self.params_list))
         ]
 
-        for i in range(self.n_permutation):
+        for i in range(self.n_perturbation):
             perturbation = self.generate_perturbation()
             perturbed_params = [
                 p + self.mu * perturb
