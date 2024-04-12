@@ -10,8 +10,7 @@ def get_params(dataset: str):
     parser.add_argument("--epoch", type=int, default=500)
     parser.add_argument("--grad-estimate-method", type=str, default="middle")
     parser.add_argument("--mu", type=float, default=1e-4)
-    parser.add_argument("--eval-iteration", type=int, default=150)
-    parser.add_argument("--train-update-iteration", type=int, default=100)
+    parser.add_argument("--compressor", type=str, default="quant")
 
     # Rarely change
     parser.add_argument("--seed", type=int, default=365, help="random seed")
