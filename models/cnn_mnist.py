@@ -1,5 +1,6 @@
 from torch import nn
 
+
 # This commented CNN have exploding gradient issue when batch_size = 4
 # class CNN_MNIST(nn.Module):
 #     def __init__(self):

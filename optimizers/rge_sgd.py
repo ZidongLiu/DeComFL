@@ -7,7 +7,7 @@ from shared.metrics import TensorMetric
 
 class RGE_SGD:
 
-    def __init__(self, params: Iterator[Parameter], lr=1e-2, mu=1e-5, num_pert=1):
+    def __init__(self, params: Iterator[Parameter], lr, mu, num_pert):
         self.params_list: list[Parameter] = list(params)
         self.params_shape: list[Tensor] = [p.shape for p in self.params_list]
         self.lr = lr
