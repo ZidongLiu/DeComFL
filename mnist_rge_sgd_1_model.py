@@ -64,7 +64,10 @@ test_loader = torch.utils.data.DataLoader(
 
 model, criterion = MnistSimpleCNN(), nn.CrossEntropyLoss()
 
-n_permutation = 1
+optimizer = torch.optim.SGD(
+    model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=0.0
+)
+n_permutation = 8
 rge_sgd = RGE_SGD(
     list(model.parameters()), lr=args.lr, mu=args.mu, n_permutation=n_permutation
 )
@@ -77,9 +80,11 @@ def train_model(epoch: int) -> tuple[float, float]:
     with tqdm(total=len(train_loader), desc="Training:") as t, torch.no_grad():
         for train_batch_idx, (images, labels) in enumerate(train_loader):
             # update models
-            rge_sgd.step(images, labels, model, criterion)
-            pred = model(images)
+            optimizer.zero_grad()
+            rge_sgd.compute_grad(images, labels, model, criterion)
+            optimizer.step()
 
+            pred = model(images)
             train_loss.update(criterion(pred, labels))
             train_accuracy.update(accuracy(pred, labels))
             t.set_postfix({"Loss": train_loss.avg, "Accuracy": train_accuracy.avg})

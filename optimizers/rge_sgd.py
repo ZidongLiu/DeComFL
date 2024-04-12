@@ -29,28 +29,49 @@ class RGE_SGD:
         p = torch.randn(self.total_dimensions)
         return p  # / torch.norm(p)
 
-    def perturb_model(self, perturb: torch.Tensor, *, alpha: float) -> None:
+    def perturb_model(self, perturb: torch.Tensor, *, alpha: float | int = 1) -> None:
         start = 0
         for p in self.params_list:
             _perturb = perturb[start : (start + p.numel())]
             p.add_(_perturb.view(p.shape), alpha=alpha)
             start += p.numel()
 
+    def put_grad(self, grad: torch.Tensor) -> None:
+        start = 0
+        for p in self.params_list:
+            p.grad = grad[start : (start + p.numel())].view(p.shape).clone()
+            start += p.numel()
+
     def step(self, batch_inputs, labels, model, criterion):
-        if self.n_permutation != 1:
-            raise NotImplementedError
-        pb_norm = self.generate_perturbation_norm()  # TODO add random seed
+        grad = 0
+        for _ in range(self.n_permutation):
+            pb_norm = self.generate_perturbation_norm()  # TODO add random seed
 
-        self.perturb_model(pb_norm, alpha=self.mu)
-        pert_plus_loss = criterion(model(batch_inputs), labels)
-        self.perturb_model(pb_norm, alpha=-2 * self.mu)  #  Model
-        pert_minus_loss = criterion(model(batch_inputs), labels)
+            self.perturb_model(pb_norm, alpha=self.mu)
+            pert_plus_loss = criterion(model(batch_inputs), labels)
+            self.perturb_model(pb_norm, alpha=-2 * self.mu)  #  Model
+            pert_minus_loss = criterion(model(batch_inputs), labels)
 
-        dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)
+            dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)
+            grad += (-self.lr * dir_grad) * pb_norm
         # Use perturb model function as step function
-        self.perturb_model(pb_norm, alpha=-self.lr * dir_grad)
+        self.perturb_model(grad)
 
         return
+
+    def compute_grad(self, batch_inputs, labels, model, criterion):
+        grad = 0
+        for _ in range(self.n_permutation):
+            pb_norm = self.generate_perturbation_norm()  # TODO add random seed
+
+            self.perturb_model(pb_norm, alpha=self.mu)
+            pert_plus_loss = criterion(model(batch_inputs), labels)
+            self.perturb_model(pb_norm, alpha=-2 * self.mu)  #  Model
+            pert_minus_loss = criterion(model(batch_inputs), labels)
+
+            dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)
+            grad += dir_grad * pb_norm
+        self.put_grad(grad)
 
     def old_step(self, batch_inputs, labels, model, criterion):
         start_params = [p.clone() for p in self.params_list]
