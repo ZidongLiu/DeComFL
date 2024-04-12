@@ -11,6 +11,7 @@ def get_params(dataset: str):
     parser.add_argument("--grad-estimate-method", type=str, default="middle")
     parser.add_argument("--mu", type=float, default=1e-4)
     parser.add_argument("--compressor", type=str, default="quant")
+    parser.add_argument("--num-pert", type=int, default=1)
 
     # Rarely change
     parser.add_argument("--seed", type=int, default=365, help="random seed")
