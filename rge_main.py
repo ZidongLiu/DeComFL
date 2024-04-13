@@ -30,6 +30,9 @@ elif args.dataset == "cifar10":
         model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
     )
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
+rge_sgd = RGE_SGD(
+    list(model.parameters()), lr=args.lr, mu=args.mu, num_pert=args.num_pert
+)
 
 
 def train_model(epoch: int) -> tuple[float, float]:
