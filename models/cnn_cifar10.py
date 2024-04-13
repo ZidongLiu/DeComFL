@@ -17,8 +17,6 @@ class CNN_CIFAR10(nn.Module):
         self.fc1 = nn.Linear(64 * 4 * 4, 500)
         # linear layer (500 -> 10)
         self.fc2 = nn.Linear(500, 10)
-        # dropout layer (p=0.25)
-        self.dropout = nn.Dropout(0.25)
 
     def forward(self, x):
         # add sequence of convolutional and max pooling layers
@@ -27,12 +25,8 @@ class CNN_CIFAR10(nn.Module):
         x = self.pool(F.relu(self.conv3(x)))
         # flatten image input
         x = x.view(-1, 64 * 4 * 4)
-        # add dropout layer
-        x = self.dropout(x)
         # add 1st hidden layer, with relu activation function
         x = F.relu(self.fc1(x))
-        # add dropout layer
-        x = self.dropout(x)
         # add 2nd hidden layer, with relu activation function
         x = self.fc2(x)
         return x
