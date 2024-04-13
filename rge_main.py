@@ -10,6 +10,7 @@ from preprocess import preprocess
 from models.cnn_mnist import CNN_MNIST
 from optimizers.rge_sgd import RGE_SGD
 from models.cnn_cifar10 import CNN_CIFAR10
+from models.resnet import ResNet18
 
 
 args = get_params("").parse_args()
@@ -24,12 +25,15 @@ if args.dataset == "mnist":
     )
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
 elif args.dataset == "cifar10":
-    model = CNN_CIFAR10()
+    # Test CNN and ResNet models to know which one is better
+    # model = CNN_CIFAR10()
+    model = ResNet18()
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(
         model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
     )
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
+
 rge_sgd = RGE_SGD(
     list(model.parameters()), lr=args.lr, mu=args.mu, num_pert=args.num_pert
 )
