@@ -20,6 +20,7 @@ class RandomGradientEstimator:
         num_pert=1,
         grad_estimate_method: GradEstimateMethod = GradEstimateMethod.central.value,
         normalize_perturbation: bool = False,
+        device: Optional[str] = None,
     ):
         self.model = model
         if parameters is None:
@@ -37,8 +38,14 @@ class RandomGradientEstimator:
             GradEstimateMethod.central.value: self._central_method,
         }
 
+        self.device = device
+
     def generate_perturbation_norm(self) -> torch.Tensor:
         p = torch.randn(self.total_dimensions)
+
+        if self.device is not None:
+            p = p.to(self.device)
+
         if self.normalize_perturbation:
             return p / torch.norm(p)
         else:

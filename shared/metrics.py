@@ -41,9 +41,8 @@ class Metric(object):
         self.sum = torch.tensor(0.0)  # pylint: disable=not-callable
         self.n = torch.tensor(0.0)  # pylint: disable=not-callable
 
-    def update(self, val: float):
-        # self.sum += torch.allreduce(val.detach().cpu(), name=self.name)
-        self.sum += val
+    def update(self, val: float | torch.Tensor):
+        self.sum += val.detach().cpu()
         self.n += 1
 
     @property
