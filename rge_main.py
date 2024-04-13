@@ -22,12 +22,14 @@ if args.dataset == "mnist":
     optimizer = torch.optim.SGD(
         model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
     )
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
 elif args.dataset == "cifar10":
     model = CNN_CIFAR10()
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(
         model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
     )
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
 rge_sgd = RGE_SGD(
     list(model.parameters()), lr=args.lr, mu=args.mu, num_pert=args.num_pert
 )
@@ -51,6 +53,7 @@ def train_model(epoch: int) -> tuple[float, float]:
             train_accuracy.update(accuracy(pred, labels))
             t.set_postfix({"Loss": train_loss.avg, "Accuracy": train_accuracy.avg})
             t.update(1)
+        scheduler.step()
     return train_loss.avg, train_accuracy.avg
 
 
