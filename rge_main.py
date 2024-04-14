@@ -13,35 +13,30 @@ from models.cnn_cifar10 import CNN_CIFAR10
 from models.resnet import ResNet18
 
 
-args = get_params().parse_args()
-torch.manual_seed(args.seed)
+def prepare_settings(args, device):
+    if args.dataset == "mnist":
+        model = CNN_MNIST().to(device)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
+        )
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
+    elif args.dataset == "cifar10":
+        model = ResNet18().to(device)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
+        )
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 
-device, train_loader, test_loader = preprocess(args)
-if args.dataset == "mnist":
-    model = CNN_MNIST()
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(
-        model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
+    rge = RGE(
+        model,
+        mu=args.mu,
+        num_pert=args.num_pert,
+        grad_estimate_method=args.grad_estimate_method,
+        device=device,
     )
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
-elif args.dataset == "cifar10":
-    # Test CNN and ResNet models to know which one is better
-    # model = CNN_CIFAR10()
-    model = ResNet18()
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(
-        model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
-    )
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
-
-model.to(device)
-rge = RGE(
-    model,
-    mu=args.mu,
-    num_pert=args.num_pert,
-    grad_estimate_method=args.grad_estimate_method,
-    device=device,
-)
+    return model, criterion, optimizer, scheduler, rge
 
 
 def train_model(epoch: int) -> tuple[float, float]:
@@ -85,6 +80,9 @@ def eval_model(epoch: int) -> tuple[float, float]:
 
 
 if __name__ == "__main__":
+    args = get_params().parse_args()
+    torch.manual_seed(args.seed)
+
     if args.log_to_tensorboard:
         tensorboard_sub_folder = (
             f"rge-{args.grad_estimate_method}-{args.log_to_tensorboard}-"
@@ -93,6 +91,10 @@ if __name__ == "__main__":
         writer = SummaryWriter(
             path.join("tensorboards", args.dataset, tensorboard_sub_folder)
         )
+
+    device, train_loader, test_loader = preprocess(args)
+    model, criterion, optimizer, scheduler, rge = prepare_settings(args, device)
+
     for epoch in range(args.epoch):
         train_loss, train_accuracy = train_model(epoch)
         if args.log_to_tensorboard:
