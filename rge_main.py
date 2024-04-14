@@ -13,10 +13,10 @@ from models.cnn_cifar10 import CNN_CIFAR10
 from models.resnet import ResNet18
 
 
-args = get_params("").parse_args()
+args = get_params().parse_args()
 torch.manual_seed(args.seed)
 
-device, train_loader, test_loader = preprocess(args.dataset)
+device, train_loader, test_loader = preprocess(args)
 if args.dataset == "mnist":
     model = CNN_MNIST()
     criterion = nn.CrossEntropyLoss()
@@ -50,7 +50,7 @@ def train_model(epoch: int) -> tuple[float, float]:
     train_accuracy = Metric("train accuracy")
     with tqdm(total=len(train_loader), desc="Training:") as t, torch.no_grad():
         for _, (images, labels) in enumerate(train_loader):
-            if device == torch.device("cuda"):
+            if device != torch.device("cpu"):
                 images, labels = images.to(device), labels.to(device)
             # update models
             optimizer.zero_grad()
@@ -72,7 +72,7 @@ def eval_model(epoch: int) -> tuple[float, float]:
     eval_accuracy = Metric("Eval accuracy")
     with torch.no_grad():
         for _, (images, labels) in enumerate(test_loader):
-            if device == torch.device("cuda"):
+            if device != torch.device("cpu"):
                 images, labels = images.to(device), labels.to(device)
             pred = model(images)
             eval_loss.update(criterion(pred, labels))

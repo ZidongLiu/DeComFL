@@ -2,7 +2,7 @@ import argparse
 
 
 # Parameters
-def get_params(dataset: str):
+def get_params():
     parser = argparse.ArgumentParser(description=f"PyTorch training")
     parser.add_argument("--train-batch-size", type=int, default=256)
     parser.add_argument("--test-batch-size", type=int, default=1000)

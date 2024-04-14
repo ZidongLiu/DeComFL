@@ -5,11 +5,7 @@ import torchvision.transforms as transforms
 from config import get_params
 
 
-args = get_params("").parse_args()
-torch.manual_seed(args.seed)
-
-
-def use_device():
+def use_device(args):
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     use_mps = not args.no_mps and torch.backends.mps.is_available()
     if use_cuda:
@@ -28,9 +24,9 @@ def use_device():
         return torch.device("cpu"), {}
 
 
-def preprocess(dataset: str):
-    if dataset == "mnist":
-        device, kwargs = use_device()
+def preprocess(args):
+    if args.dataset == "mnist":
+        device, kwargs = use_device(args)
         transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
         )
@@ -46,8 +42,8 @@ def preprocess(dataset: str):
         test_loader = torch.utils.data.DataLoader(
             testset, batch_size=args.test_batch_size, **kwargs
         )
-    elif dataset == "cifar10":
-        device, kwargs = use_device()
+    elif args.dataset == "cifar10":
+        device, kwargs = use_device(args)
         transform = transforms.Compose(
             [
                 transforms.RandomCrop(32, padding=4),
