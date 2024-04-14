@@ -19,6 +19,7 @@ def get_params():
     parser.add_argument("--grad-estimate-method", type=str, default="central")
     parser.add_argument("--seed", type=int, default=365, help="random seed")
     parser.add_argument("--num-workers", type=int, default=2)
+    parser.add_argument("--log-to-tensorboard", type=str, default=None)
 
     # No need to change
     parser.add_argument(

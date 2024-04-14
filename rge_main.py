@@ -85,21 +85,22 @@ def eval_model(epoch: int) -> tuple[float, float]:
 
 
 if __name__ == "__main__":
-
-    tensorboard_sub_folder = (
-        f"rge-{args.grad_estimate_method}-"
-        + f"num_pert-{args.num_pert}-{get_current_datetime_str()}"
-    )
-    writer = SummaryWriter(
-        path.join("tensorboards", args.dataset, tensorboard_sub_folder)
-    )
+    if args.log_to_tensorboard:
+        tensorboard_sub_folder = (
+            f"rge-{args.grad_estimate_method}-{args.log_to_tensorboard}-"
+            + f"num_pert-{args.num_pert}-{get_current_datetime_str()}"
+        )
+        writer = SummaryWriter(
+            path.join("tensorboards", args.dataset, tensorboard_sub_folder)
+        )
     for epoch in range(args.epoch):
         train_loss, train_accuracy = train_model(epoch)
-        writer.add_scalar("Loss/train", train_loss, epoch)
-        writer.add_scalar("Accuracy/train", train_accuracy, epoch)
-
+        if args.log_to_tensorboard:
+            writer.add_scalar("Loss/train", train_loss, epoch)
+            writer.add_scalar("Accuracy/train", train_accuracy, epoch)
         eval_loss, eval_accuracy = eval_model(epoch)
-        writer.add_scalar("Loss/test", eval_loss, epoch)
-        writer.add_scalar("Accuracy/test", eval_accuracy, epoch)
+        if args.log_to_tensorboard:
+            writer.add_scalar("Loss/test", eval_loss, epoch)
+            writer.add_scalar("Accuracy/test", eval_accuracy, epoch)
 
     writer.close()
