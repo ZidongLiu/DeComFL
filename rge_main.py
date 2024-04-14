@@ -8,7 +8,7 @@ from shared.metrics import Metric, accuracy
 from config import get_params
 from preprocess import preprocess
 from models.cnn_mnist import CNN_MNIST
-from optimizers.rge_sgd import RGE_SGD
+from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 from models.cnn_cifar10 import CNN_CIFAR10
 from models.resnet import ResNet18
 
@@ -34,8 +34,13 @@ elif args.dataset == "cifar10":
     )
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
 
-rge_sgd = RGE_SGD(
-    list(model.parameters()), lr=args.lr, mu=args.mu, num_pert=args.num_pert
+model.to(device)
+rge = RGE(
+    model,
+    mu=args.mu,
+    num_pert=args.num_pert,
+    grad_estimate_method=args.grad_estimate_method,
+    device=device,
 )
 
 
@@ -49,7 +54,7 @@ def train_model(epoch: int) -> tuple[float, float]:
                 images, labels = images.to(device), labels.to(device)
             # update models
             optimizer.zero_grad()
-            rge_sgd.compute_grad(images, labels, model, criterion)
+            rge.compute_grad(images, labels, criterion)
             optimizer.step()
 
             pred = model(images)
@@ -82,7 +87,7 @@ def eval_model(epoch: int) -> tuple[float, float]:
 if __name__ == "__main__":
 
     tensorboard_sub_folder = (
-        f"rge_sgd-{args.grad_estimate_method}-"
+        f"rge-{args.grad_estimate_method}-"
         + f"num_pert-{args.num_pert}-{get_current_datetime_str()}"
     )
     writer = SummaryWriter(
