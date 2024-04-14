@@ -41,15 +41,10 @@ class RandomGradientEstimator:
         self.device = device
 
     def generate_perturbation_norm(self) -> torch.Tensor:
-        p = torch.randn(self.total_dimensions)
-
-        if self.device is not None:
-            p = p.to(self.device)
-
+        p = torch.randn(self.total_dimensions, device=self.device)
         if self.normalize_perturbation:
-            return p / torch.norm(p)
-        else:
-            return p
+            p.div_(torch.norm(p))
+        return p
 
     def perturb_model(self, perturb: torch.Tensor, *, alpha: float | int = 1) -> None:
         start = 0
