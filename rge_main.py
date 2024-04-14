@@ -105,4 +105,5 @@ if __name__ == "__main__":
             writer.add_scalar("Loss/test", eval_loss, epoch)
             writer.add_scalar("Accuracy/test", eval_accuracy, epoch)
 
-    writer.close()
+    if args.log_to_tensorboard:
+        writer.close()
