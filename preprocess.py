@@ -44,7 +44,7 @@ def preprocess(args):
         )
     elif args.dataset == "cifar10":
         device, kwargs = use_device(args)
-        transform = transforms.Compose(
+        transform_train = transforms.Compose(
             [
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
@@ -55,13 +55,21 @@ def preprocess(args):
             ]
         )
         trainset = torchvision.datasets.CIFAR10(
-            root="./data", train=True, download=True, transform=transform
+            root="./data", train=True, download=True, transform=transform_train
         )
         train_loader = torch.utils.data.DataLoader(
             trainset, batch_size=args.train_batch_size, **kwargs
         )
+        transform_test = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+                ),
+            ]
+        )
         testset = torchvision.datasets.CIFAR10(
-            root="./data", train=False, download=True, transform=transform
+            root="./data", train=False, download=True, transform=transform_test
         )
         test_loader = torch.utils.data.DataLoader(
             testset, batch_size=args.test_batch_size, **kwargs
