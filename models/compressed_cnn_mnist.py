@@ -1,5 +1,5 @@
 from torch import nn
-from compression.top_k import top_k
+from shared import top_k
 
 
 # This commented CNN have exploding gradient issue when batch_size = 4
