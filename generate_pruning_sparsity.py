@@ -1,0 +1,49 @@
+import os
+import torch
+from torch import nn
+
+from config import get_params
+from preprocess import preprocess
+from pruning.model_prune import zoo_grasp_prune
+from pruning.helpers import get_module_weight_sparsity
+
+from models.cnn_mnist import CNN_MNIST
+
+# from models.cnn_cifar10 import CNN_CIFAR10
+from models.resnet import ResNet18
+
+if __name__ == "__main__":
+    import ssl
+
+    ssl._create_default_https_context = ssl._create_unverified_context
+
+    parser = get_params()
+    # has one more args than rge_main
+    parser.add_argument("--sparsity", type=float, default=0.9)
+
+    args = parser.parse_args()
+    torch.manual_seed(args.seed)
+
+    device, train_loader, test_loader = preprocess(args)
+    criterion = nn.CrossEntropyLoss()
+    if args.dataset == "mnist":
+        model = CNN_MNIST().to(device)
+
+    elif args.dataset == "cifar10":
+        model = ResNet18().to(device)
+
+    # zoo_
+    zoo_grasp_prune(
+        model,
+        ratio=args.sparsity,
+        dataloader=train_loader,
+        sample_per_classes=25,
+        num_pert=192,
+        mu=5e-3,
+    )
+
+    os.makedirs(f"Layer_Sparsity/{args.dataset}", exist_ok=True)
+    torch.save(
+        get_module_weight_sparsity(model),
+        f"Layer_Sparsity/{args.dataset}/zoo_grasp_{args.sparsity}.pth",
+    )

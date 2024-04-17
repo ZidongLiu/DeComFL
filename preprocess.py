@@ -1,8 +1,6 @@
 import torch
-import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
-from config import get_params
 
 
 def use_device(args):

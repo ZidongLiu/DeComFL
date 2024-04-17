@@ -25,6 +25,15 @@ def get_current_datetime_str():
     return f"{year}-{month}-{day}-{hour}-{minute}-{second}"
 
 
+@torch.no_grad()
+def eval_network_and_get_loss(params_dict, network, x, y, loss_func):
+    state_dict_backup = network.state_dict()
+    network.load_state_dict(params_dict, strict=False)
+    loss = loss_func(network(x), y).detach().item()
+    network.load_state_dict(state_dict_backup)
+    return loss
+
+
 def save_model_and_optimizer(optimizer, model, model_path, model_prefix):
     save_path = path.join(
         path.dirname(path.dirname(__file__)),
