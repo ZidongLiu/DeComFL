@@ -1,5 +1,5 @@
 from torch import nn
-from shared import top_k
+from shared import compression
 
 
 # This commented CNN have exploding gradient issue when batch_size = 4
@@ -45,7 +45,7 @@ class CNN_MNIST(nn.Module):
     def forward(self, x):
         x = self.conv1(x)
         # compress activation by top-k
-        x = top_k(tensor=x, k=8)
+        x = compression.top_k(tensor=x, k=8)
         x = self.conv2(x)
         x = x.view(x.size(0), -1)
         output = self.out(x)
