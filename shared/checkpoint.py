@@ -106,7 +106,7 @@ class CheckPoint:
     def should_update(self, eval_loss, eval_acc, n_epoch):
         update_plan = self.args.checkpoint_update_plan
         if update_plan == "never":
-            return
+            return False
 
         if update_plan in ["every5", "every10"]:
             update_freq = {"every5": 5, "every10": 10}.get(update_plan)
