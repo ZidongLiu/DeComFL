@@ -1,37 +1,120 @@
 import argparse
 
 
+DEFAULTS = {
+    "train_batch_size": 256,
+    "test_batch_size": 1000,
+    "lr": 1e-4,
+    "epoch": 500,
+    "mu": 1e-4,
+    "compressor": "quant",
+    "num_pert": 1,
+    "dataset": "mnist",
+    "momentum": 0.1,
+    "sparsity_file": None,
+    "mask_shuffle_interval": 5,
+    "grad_estimate_method": "central",
+    "seed": 365,
+    "num_workers": 2,
+    "log_to_tensorboard": None,
+    "no_cuda": False,
+    "no_mps": False,
+    "checkpoint": None,
+    "checkpoint_overwrite": False,
+    "checkpoint_update_plan": "every10",
+}
+
+
 # Parameters
 def get_params():
     parser = argparse.ArgumentParser(description="PyTorch training")
-    parser.add_argument("--train-batch-size", type=int, default=256)
-    parser.add_argument("--test-batch-size", type=int, default=1000)
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
-    parser.add_argument("--epoch", type=int, default=500)
+    parser.add_argument(
+        "--train-batch-size", type=int, default=DEFAULTS["train_batch_size"]
+    )
+    parser.add_argument(
+        "--test-batch-size", type=int, default=DEFAULTS["test_batch_size"]
+    )
+    parser.add_argument(
+        "--lr", type=float, default=DEFAULTS["lr"], help="Learning rate"
+    )
+    parser.add_argument("--epoch", type=int, default=DEFAULTS["epoch"])
 
-    parser.add_argument("--mu", type=float, default=1e-4)
-    parser.add_argument("--compressor", type=str, default="quant")
-    parser.add_argument("--num-pert", type=int, default=1)
-    parser.add_argument("--dataset", type=str, default="mnist")
-    parser.add_argument("--momentum", type=float, default=0.1)
+    parser.add_argument("--mu", type=float, default=DEFAULTS["mu"])
+    parser.add_argument("--compressor", type=str, default=DEFAULTS["compressor"])
+    parser.add_argument("--num-pert", type=int, default=DEFAULTS["num_pert"])
+    parser.add_argument("--dataset", type=str, default=DEFAULTS["dataset"])
+    parser.add_argument("--momentum", type=float, default=DEFAULTS["momentum"])
 
-    parser.add_argument("--sparsity-file", type=str, default=None)
-    parser.add_argument("--mask-shuffle-interval", type=int, default=5)
+    parser.add_argument("--sparsity-file", type=str, default=DEFAULTS["sparsity_file"])
+    parser.add_argument(
+        "--mask-shuffle-interval",
+        type=int,
+        default=DEFAULTS["mask_shuffle_interval"],
+    )
 
     # Rarely change
-    parser.add_argument("--grad-estimate-method", type=str, default="central")
-    parser.add_argument("--seed", type=int, default=365, help="random seed")
-    parser.add_argument("--num-workers", type=int, default=2)
-    parser.add_argument("--log-to-tensorboard", type=str, default=None)
+    parser.add_argument(
+        "--grad-estimate-method",
+        type=str,
+        default=DEFAULTS["grad_estimate_method"],
+    )
+    parser.add_argument(
+        "--seed", type=int, default=DEFAULTS["seed"], help="random seed"
+    )
+    parser.add_argument("--num-workers", type=int, default=DEFAULTS["num_workers"])
+    parser.add_argument(
+        "--log-to-tensorboard",
+        type=str,
+        default=DEFAULTS["log_to_tensorboard"],
+    )
+
+    # checkpoints
+    parser.add_argument("--checkpoint", type=str, default=DEFAULTS["checkpoint"])
+    parser.add_argument(
+        "--checkpoint-overwrite", type=bool, default=DEFAULTS["checkpoint_overwrite"]
+    )
+    parser.add_argument(
+        "--checkpoint-update-plan",
+        type=str,
+        default=DEFAULTS["checkpoint_update_plan"],
+        choices=["never", "every5", "every10", "best_loss", "best_acc"],
+    )
 
     # No need to change
     parser.add_argument(
-        "--no-cuda", action="store_true", default=False, help="disables CUDA training"
+        "--no-cuda",
+        action="store_true",
+        default=DEFAULTS["no_cuda"],
+        help="disables CUDA training",
     )
     parser.add_argument(
         "--no-mps",
         action="store_true",
-        default=False,
+        default=DEFAULTS["no_mps"],
         help="disables macOS GPU training",
     )
     return parser
+
+
+def get_args_dict(args):
+    return {key: getattr(args, key) for key in DEFAULTS.keys()}
+
+
+def get_args_str(args):
+    # important ones, add to string regardless of it's different from default
+    base_str = f"{args.dataset}-lr-{args.lr}-mmtm-{args.momentum}-npert-{args.num_pert}"
+    # only add to string if it's different from default
+    advanced_items = []
+    for key in ["mu", "seed", "sparsity_file", "mask_shuffle_interval"]:
+        if getattr(args, key) != DEFAULTS[key]:
+            v = getattr(args, key)
+            if key == "sparsity_file":
+                v = v.replace("/", ".").replace("\\", ".")
+
+            advanced_items += [f"{key}-{v}"]
+
+    if len(advanced_items):
+        advanced_str = "-".join(advanced_items)
+        return base_str + "-" + advanced_str
+
+    return base_str

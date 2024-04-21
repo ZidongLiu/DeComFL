@@ -29,11 +29,9 @@ if __name__ == "__main__":
 
     if args.dataset == "mnist":
         model = CNN_MNIST().to(device)
-        model_name = "CNN_MNIST"
 
     elif args.dataset == "cifar10":
         model = ResNet18().to(device)
-        model_name = "ResNet18"
 
     print(args.dataset)
     # zoo_
@@ -53,5 +51,6 @@ if __name__ == "__main__":
         f"saved_sparsity/{args.dataset}/zoo_grasp_{args.sparsity}.json", "w"
     ) as file:
         json.dump(
-            {"model_name": model_name, "sparsity_dict": weight_sparsity_dict}, file
+            {"model_name": model.model_name, "sparsity_dict": weight_sparsity_dict},
+            file,
         )

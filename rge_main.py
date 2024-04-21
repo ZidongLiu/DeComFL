@@ -3,10 +3,11 @@ from tqdm import tqdm
 import torch.nn as nn
 from tensorboardX import SummaryWriter
 from os import path
+from shared.checkpoint import CheckPoint
 from shared.model_helpers import get_current_datetime_str
 from shared.metrics import Metric, accuracy
 from pruning.helpers import generate_random_mask_arr
-from config import get_params
+from config import get_params, get_args_str
 from preprocess import preprocess, use_sparsity_dict
 from models.cnn_mnist import CNN_MNIST
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
@@ -16,7 +17,6 @@ from models.resnet import ResNet18
 def prepare_settings(args, device):
     if args.dataset == "mnist":
         model = CNN_MNIST().to(device)
-        model_name = "CNN_MNIST"
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
@@ -24,7 +24,6 @@ def prepare_settings(args, device):
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     elif args.dataset == "cifar10":
         model = ResNet18().to(device)
-        model_name = "ResNet18"
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
@@ -38,7 +37,7 @@ def prepare_settings(args, device):
         grad_estimate_method=args.grad_estimate_method,
         device=device,
     )
-    return model, criterion, optimizer, scheduler, rge, model_name
+    return model, criterion, optimizer, scheduler, rge
 
 
 def train_model(epoch: int) -> tuple[float, float]:
@@ -85,21 +84,19 @@ if __name__ == "__main__":
     args = get_params().parse_args()
     torch.manual_seed(args.seed)
 
+    args_str = get_args_str(args)
     if args.log_to_tensorboard:
-        tensorboard_sub_folder = (
-            f"rge-{args.grad_estimate_method}-{args.log_to_tensorboard}-"
-            + f"num_pert-{args.num_pert}-{get_current_datetime_str()}"
-        )
+        tensorboard_sub_folder = args_str + "-" + get_current_datetime_str()
         writer = SummaryWriter(
             path.join("tensorboards", args.dataset, tensorboard_sub_folder)
         )
 
     device, train_loader, test_loader = preprocess(args)
-    model, criterion, optimizer, scheduler, rge, model_name = prepare_settings(
-        args, device
-    )
+    model, criterion, optimizer, scheduler, rge = prepare_settings(args, device)
 
-    sparsity_dict = use_sparsity_dict(args, model_name)
+    checkpoint = CheckPoint(args, model, optimizer, rge)
+
+    sparsity_dict = use_sparsity_dict(args, model.model_name)
     for epoch in range(args.epoch):
         if sparsity_dict is not None and epoch % args.mask_shuffle_interval == 0:
             print("Updating gradient mask!")
@@ -114,6 +111,8 @@ if __name__ == "__main__":
         if args.log_to_tensorboard:
             writer.add_scalar("Loss/test", eval_loss, epoch)
             writer.add_scalar("Accuracy/test", eval_accuracy, epoch)
+
+        checkpoint.save(args_str + "-" + get_current_datetime_str(), epoch)
 
     if args.log_to_tensorboard:
         writer.close()

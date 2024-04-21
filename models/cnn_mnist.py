@@ -21,6 +21,8 @@ from torch import nn
 
 
 class CNN_MNIST(nn.Module):
+    model_name = "CNN_MNIST"
+
     def __init__(self):
         super(CNN_MNIST, self).__init__()
         self.conv1 = nn.Sequential(
