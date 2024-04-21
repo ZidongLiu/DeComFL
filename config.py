@@ -3,7 +3,7 @@ import argparse
 
 # Parameters
 def get_params():
-    parser = argparse.ArgumentParser(description=f"PyTorch training")
+    parser = argparse.ArgumentParser(description="PyTorch training")
     parser.add_argument("--train-batch-size", type=int, default=256)
     parser.add_argument("--test-batch-size", type=int, default=1000)
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
@@ -14,6 +14,9 @@ def get_params():
     parser.add_argument("--num-pert", type=int, default=1)
     parser.add_argument("--dataset", type=str, default="mnist")
     parser.add_argument("--momentum", type=float, default=0.1)
+
+    parser.add_argument("--sparsity-file", type=str, default=None)
+    parser.add_argument("--mask-shuffle-interval", type=int, default=5)
 
     # Rarely change
     parser.add_argument("--grad-estimate-method", type=str, default="central")

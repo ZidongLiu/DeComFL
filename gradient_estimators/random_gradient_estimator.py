@@ -1,7 +1,6 @@
 import torch
 from torch.nn import Parameter
 from typing import Iterator, Optional
-
 from enum import Enum
 
 
@@ -21,6 +20,7 @@ class RandomGradientEstimator:
         grad_estimate_method: GradEstimateMethod = GradEstimateMethod.central.value,
         normalize_perturbation: bool = False,
         device: Optional[str] = None,
+        prune_mask_arr: Optional[torch.Tensor] = None,
     ):
         self.model = model
         if parameters is None:
@@ -39,11 +39,21 @@ class RandomGradientEstimator:
         }
 
         self.device = device
+        self.prune_mask_arr = None
+        if prune_mask_arr:
+            self.set_prune_mask_arr(prune_mask_arr)
+
+    def set_prune_mask_arr(self, prune_mask_arr):
+        self.prune_mask_arr = prune_mask_arr
 
     def generate_perturbation_norm(self) -> torch.Tensor:
         p = torch.randn(self.total_dimensions, device=self.device)
+        if self.prune_mask_arr is not None:
+            p.mul_(self.prune_mask_arr)
+
         if self.normalize_perturbation:
             p.div_(torch.norm(p))
+
         return p
 
     def perturb_model(self, perturb: torch.Tensor, *, alpha: float | int = 1) -> None:
@@ -93,3 +103,26 @@ class RandomGradientEstimator:
             dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)
             grad += dir_grad * pb_norm
         return grad / self.num_pert
+
+
+# Copied from DeepZero and slightly modified
+@torch.no_grad()
+def functional_forward_rge(func, params_dict: dict, num_pert, mu):
+    base = func(params_dict)
+    grads_dict = {}
+    for _ in range(num_pert):
+        perturbs_dict, perturbed_params_dict = {}, {}
+        for key, param in params_dict.items():
+            perturb = torch.randn_like(param)
+            perturb /= torch.norm(perturb) + 1e-8
+            perturb *= mu
+            perturbs_dict[key] = perturb
+            perturbed_params_dict[key] = perturb + param
+        directional_derivative = (func(perturbed_params_dict) - base) / mu
+        if len(grads_dict.keys()) == len(params_dict.keys()):
+            for key, perturb in perturbs_dict.items():
+                grads_dict[key] += perturb * directional_derivative / num_pert
+        else:
+            for key, perturb in perturbs_dict.items():
+                grads_dict[key] = perturb * directional_derivative / num_pert
+    return grads_dict

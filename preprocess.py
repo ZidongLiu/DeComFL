@@ -1,8 +1,8 @@
 import torch
-import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
-from config import get_params
+import json
+from typing import Union
 
 
 def use_device(args):
@@ -22,6 +22,25 @@ def use_device(args):
     else:
         print("----- Using cpu -----")
         return torch.device("cpu"), {}
+
+
+def use_sparsity_dict(args, model_name: str) -> Union[dict[str, float], None]:
+    if args.sparsity_file is None:
+        print("Sparsity Dict: ", None)
+        return None
+
+    with open(args.sparsity_file, "r") as file:
+        sparsity_data = json.load(file)
+
+    sparsity_data_model = sparsity_data["model_name"]
+    if sparsity_data_model != model_name:
+        raise Exception(
+            f"Sparsity file is generated using {sparsity_data_model}, "
+            + f"while current specified model is {model_name}"
+        )
+
+    print("Sparsity Dict: ", sparsity_data["sparsity_dict"])
+    return sparsity_data["sparsity_dict"]
 
 
 def preprocess(args):
