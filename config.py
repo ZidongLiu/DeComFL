@@ -15,6 +15,9 @@ def get_params():
     parser.add_argument("--dataset", type=str, default="mnist")
     parser.add_argument("--momentum", type=float, default=0.1)
 
+    parser.add_argument("--sparsity-file", type=str, default=None)
+    parser.add_argument("--mask-shuffle-interval", type=int, default=5)
+
     # Rarely change
     parser.add_argument("--grad-estimate-method", type=str, default="central")
     parser.add_argument("--seed", type=int, default=365, help="random seed")

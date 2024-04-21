@@ -1,7 +1,7 @@
 import os
 import torch
 from torch import nn
-
+import json
 from config import get_params
 from preprocess import preprocess
 from pruning.model_prune import zoo_grasp_prune
@@ -26,12 +26,16 @@ if __name__ == "__main__":
 
     device, train_loader, test_loader = preprocess(args)
     criterion = nn.CrossEntropyLoss()
+
     if args.dataset == "mnist":
         model = CNN_MNIST().to(device)
+        model_name = "CNN_MNIST"
 
     elif args.dataset == "cifar10":
         model = ResNet18().to(device)
+        model_name = "ResNet18"
 
+    print(args.dataset)
     # zoo_
     zoo_grasp_prune(
         model,
@@ -42,8 +46,12 @@ if __name__ == "__main__":
         mu=5e-3,
     )
 
-    os.makedirs(f"Layer_Sparsity/{args.dataset}", exist_ok=True)
-    torch.save(
-        get_module_weight_sparsity(model),
-        f"Layer_Sparsity/{args.dataset}/zoo_grasp_{args.sparsity}.pth",
-    )
+    weight_sparsity_dict = get_module_weight_sparsity(model)
+
+    os.makedirs(f"saved_sparsity/{args.dataset}", exist_ok=True)
+    with open(
+        f"saved_sparsity/{args.dataset}/zoo_grasp_{args.sparsity}.json", "w"
+    ) as file:
+        json.dump(
+            {"model_name": model_name, "sparsity_dict": weight_sparsity_dict}, file
+        )

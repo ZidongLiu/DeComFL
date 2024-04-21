@@ -209,3 +209,4 @@ node_modules
 # The project used data related folder
 /data/*
 /tensorboards/*
+/saved_sparsity/*

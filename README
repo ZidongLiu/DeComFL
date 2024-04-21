@@ -1,1 +1,0 @@
-tensorboard --logdir models/splitted_simple_cnn/tensorboard

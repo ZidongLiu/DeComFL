@@ -5,17 +5,18 @@ from tensorboardX import SummaryWriter
 from os import path
 from shared.model_helpers import get_current_datetime_str
 from shared.metrics import Metric, accuracy
+from pruning.helpers import generate_random_mask_arr
 from config import get_params
-from preprocess import preprocess
+from preprocess import preprocess, use_sparsity_dict
 from models.cnn_mnist import CNN_MNIST
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from models.cnn_cifar10 import CNN_CIFAR10
 from models.resnet import ResNet18
 
 
 def prepare_settings(args, device):
     if args.dataset == "mnist":
         model = CNN_MNIST().to(device)
+        model_name = "CNN_MNIST"
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
@@ -23,6 +24,7 @@ def prepare_settings(args, device):
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     elif args.dataset == "cifar10":
         model = ResNet18().to(device)
+        model_name = "ResNet18"
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
@@ -36,7 +38,7 @@ def prepare_settings(args, device):
         grad_estimate_method=args.grad_estimate_method,
         device=device,
     )
-    return model, criterion, optimizer, scheduler, rge
+    return model, criterion, optimizer, scheduler, rge, model_name
 
 
 def train_model(epoch: int) -> tuple[float, float]:
@@ -93,9 +95,17 @@ if __name__ == "__main__":
         )
 
     device, train_loader, test_loader = preprocess(args)
-    model, criterion, optimizer, scheduler, rge = prepare_settings(args, device)
+    model, criterion, optimizer, scheduler, rge, model_name = prepare_settings(
+        args, device
+    )
 
+    sparsity_dict = use_sparsity_dict(args, model_name)
     for epoch in range(args.epoch):
+        if sparsity_dict is not None and epoch % args.mask_shuffle_interval == 0:
+            print("Updating gradient mask!")
+            mask_arr = generate_random_mask_arr(model, sparsity_dict, device)
+            rge.set_prune_mask_arr(mask_arr)
+
         train_loss, train_accuracy = train_model(epoch)
         if args.log_to_tensorboard:
             writer.add_scalar("Loss/train", train_loss, epoch)
