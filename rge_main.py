@@ -112,7 +112,8 @@ if __name__ == "__main__":
             writer.add_scalar("Loss/test", eval_loss, epoch)
             writer.add_scalar("Accuracy/test", eval_accuracy, epoch)
 
-        checkpoint.save(args_str + "-" + get_current_datetime_str(), epoch)
+        if checkpoint.should_update(eval_loss, eval_accuracy, epoch):
+            checkpoint.save(args_str + "-" + get_current_datetime_str(), epoch)
 
     if args.log_to_tensorboard:
         writer.close()
