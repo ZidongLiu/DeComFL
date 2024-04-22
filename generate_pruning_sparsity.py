@@ -12,6 +12,7 @@ from models.cnn_mnist import CNN_MNIST
 from models.cnn_cifar10 import CNN_CIFAR10
 from models.resnet import ResNet18
 from models.lenet import LeNet
+from models.cnn_fashion import CNN_FMNIST
 
 if __name__ == "__main__":
     import ssl
@@ -31,10 +32,12 @@ if __name__ == "__main__":
     if args.dataset == "mnist":
         model = CNN_MNIST().to(device)
         model_name = "CNN_MNIST"
-
     elif args.dataset == "cifar10":
         model = LeNet().to(device)
         model_name = "LeNet"
+    elif args.dataset == "fashion":
+        model = CNN_FMNIST()
+        model_name = "CNN_FMNIST"
 
     print(args.dataset)
     # zoo_
