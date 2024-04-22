@@ -10,7 +10,9 @@ from config import get_params
 from preprocess import preprocess, use_sparsity_dict
 from models.cnn_mnist import CNN_MNIST
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from models.resnet import ResNet18
+from models.resnet_cifar10 import resnet20
+from models.lenet import LeNet
+from models.cnn_fashion import CNN_FMNIST
 
 
 def prepare_settings(args, device):
@@ -23,13 +25,25 @@ def prepare_settings(args, device):
         )
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     elif args.dataset == "cifar10":
-        model = ResNet18().to(device)
-        model_name = "ResNet18"
+        model = LeNet().to(device)
+        model_name = "LeNet"
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=args.lr, weight_decay=5e-4, momentum=args.momentum
+        )
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            optimizer, milestones=[200], gamma=0.1
+        )
+    elif args.dataset == "fashion":
+        model = CNN_FMNIST().to(device)
+        model_name = "CNN_FMNIST"
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
         )
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            optimizer, milestones=[10000], gamma=0.1
+        )
 
     rge = RGE(
         model,
