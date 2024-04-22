@@ -39,6 +39,7 @@ class CheckPoint:
         self.history = []
         self.best_loss = None
         self.best_acc = None
+        self.new_checkpoint_file_path = None
 
         checkpoint_file_path: Optional[str] = args.checkpoint
         self.last_checkpoint_file = checkpoint_file_path
@@ -46,7 +47,7 @@ class CheckPoint:
             try:
                 checkpoint_data = torch.load(checkpoint_file_path)
             except:
-                raise Exception("Fail to load ")
+                raise Exception("Fail to load checkpoint")
         else:
             checkpoint_data = None
 
@@ -55,19 +56,10 @@ class CheckPoint:
 
         self.history = checkpoint_data["history"]
         # model
-        model_dict = checkpoint_data.get("model")
-        if self.model.model_name == model_dict["model_name"]:
-            self.model.load_state_dict(model_dict["state_dict"])
-        else:
-            raise Exception("Model does not match checkpoint!")
+        self.load_model(checkpoint_data.get("model"))
 
-        # optimizer
-        optimizer_dict = checkpoint_data.get("optimizer")
-        if self.optimizer.__class__.__name__ == optimizer_dict["name"]:
-            self.optimizer.load_state_dict(optimizer_dict["state_dict"])
-            # TODO: update optimizer's parameter using args
-        else:
-            raise Exception("Optimizer does not match checkpoint!")
+        # optimizer, TODO: discuss if we need to load momentum buffer
+        # self.load_optimizer(checkpoint_data.get("optimizer"))
 
         # gradient estimator
         # ge_dict = checkpoint_data.get("gradient_estimator")
@@ -78,9 +70,31 @@ class CheckPoint:
         #     raise Exception("Optimizer does not match checkpoint!")
 
         # TODO: random seed
+        # TODO: LR scheduler
 
-    def _generate_save_data(self, file_name, n_epoch):
-        checkpoint_step = {"n_epoch": n_epoch, "args": get_args_dict(self.args)}
+    def load_model(self, model_dict):
+        if self.model.model_name == model_dict["model_name"]:
+            self.model.load_state_dict(model_dict["state_dict"])
+        else:
+            raise Exception("Model does not match checkpoint!")
+
+    def load_optimizer(self, optimizer_dict):
+        if self.optimizer.__class__.__name__ == optimizer_dict["name"]:
+            optimizer_state_dict = optimizer_dict["state_dict"]
+            # update state dict to use args
+            optimizer_state_dict["param_groups"][0].update(
+                {
+                    "lr": self.args.lr,
+                    "initial_lr": self.args.lr,
+                    "momentum": self.args.momentum,
+                }
+            )
+            self.optimizer.load_state_dict()
+        else:
+            raise Exception("Optimizer does not match checkpoint!")
+
+    def _generate_save_data(self, file_name, epoch_idx):
+        checkpoint_step = {"n_epoch": epoch_idx + 1, "args": get_args_dict(self.args)}
         return {
             "model": {
                 "model_name": self.model.model_name,
@@ -96,25 +110,25 @@ class CheckPoint:
             # },
             # "random_seed": {
             #     "seed": self.args.seed,
-            #     "count": n_epoch,
+            #     "count": epoch_idx + 1,
             # },
             "last_checkpoint": self.last_checkpoint_file,
             "history": self.history + [checkpoint_step],
             "checkpoint_step_since_last_checkpoint": checkpoint_step,
         }
 
-    def should_update(self, eval_loss, eval_acc, n_epoch):
+    def should_update(self, eval_loss, eval_acc, epoch_idx):
         update_plan = self.args.checkpoint_update_plan
         if update_plan == "never":
             return False
 
         if update_plan in ["every5", "every10"]:
             update_freq = {"every5": 5, "every10": 10}.get(update_plan)
-            if (n_epoch % update_freq) == (update_freq - 1):
+            if ((epoch_idx + 1) % update_freq) == 0:
                 return True
 
         if update_plan == "best_loss":
-            if self.best_loss is None or eval_loss > self.best_loss:
+            if self.best_loss is None or eval_loss < self.best_loss:
                 self.best_loss = eval_loss
                 return True
 
@@ -125,18 +139,20 @@ class CheckPoint:
 
         return False
 
-    def save(self, file_name, n_epoch):
-        to_save = self._generate_save_data(file_name, n_epoch)
+    def save(self, file_name, epoch_idx):
+        to_save = self._generate_save_data(file_name, epoch_idx)
 
         os.makedirs("checkpoints/", exist_ok=True)
 
         new_file_path = "./checkpoints/" + file_name + ".pth"
-        if self.args.checkpoint_overwrite:
-            if self.last_checkpoint_file is None:
-                self.last_checkpoint_file = new_file_path
-
-            file_path = self.last_checkpoint_file
-        else:
+        if self.args.create_many_checkpoint:
             file_path = new_file_path
 
+        else:
+            if self.new_checkpoint_file_path is None:
+                self.new_checkpoint_file_path = new_file_path
+
+            file_path = self.new_checkpoint_file_path
+
+        print(f"Saving checkpoint {file_path}")
         torch.save(to_save, file_path)

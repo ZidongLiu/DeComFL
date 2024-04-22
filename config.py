@@ -20,7 +20,7 @@ DEFAULTS = {
     "no_cuda": False,
     "no_mps": False,
     "checkpoint": None,
-    "checkpoint_overwrite": False,
+    "create_many_checkpoint": True,
     "checkpoint_update_plan": "every10",
 }
 
@@ -71,7 +71,9 @@ def get_params():
     # checkpoints
     parser.add_argument("--checkpoint", type=str, default=DEFAULTS["checkpoint"])
     parser.add_argument(
-        "--checkpoint-overwrite", type=bool, default=DEFAULTS["checkpoint_overwrite"]
+        "--create-many-checkpoint",
+        default=DEFAULTS["create_many_checkpoint"],
+        action=argparse.BooleanOptionalAction,
     )
     parser.add_argument(
         "--checkpoint-update-plan",
