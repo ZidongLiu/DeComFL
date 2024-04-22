@@ -41,12 +41,26 @@ def prepare_settings(args, device):
     return model, criterion, optimizer, scheduler, rge, model_name
 
 
+def get_warmup_lr(
+    args, current_epoch: int, current_iter: int, iters_per_epoch: int
+) -> float:
+    overall_iterations = args.warmup_epochs * iters_per_epoch + 1
+    current_iterations = current_epoch * iters_per_epoch + current_iter + 1
+    return args.lr * current_iterations / overall_iterations
+
+
 def train_model(epoch: int) -> tuple[float, float]:
     model.train()
     train_loss = Metric("train loss")
     train_accuracy = Metric("train accuracy")
-    with tqdm(total=len(train_loader), desc="Training:") as t, torch.no_grad():
-        for _, (images, labels) in enumerate(train_loader):
+    iter_per_epoch = len(train_loader)
+    with tqdm(total=iter_per_epoch, desc="Training:") as t, torch.no_grad():
+        for iteration, (images, labels) in enumerate(train_loader):
+            if epoch < args.warmup_epochs:
+                warmup_lr = get_warmup_lr(args, epoch, iteration, iter_per_epoch)
+                for p in optimizer.param_groups:
+                    p["lr"] = warmup_lr
+
             if device != torch.device("cpu"):
                 images, labels = images.to(device), labels.to(device)
             # update models
@@ -59,7 +73,8 @@ def train_model(epoch: int) -> tuple[float, float]:
             train_accuracy.update(accuracy(pred, labels))
             t.set_postfix({"Loss": train_loss.avg, "Accuracy": train_accuracy.avg})
             t.update(1)
-        scheduler.step()
+        if epoch > args.warmup_epochs:
+            scheduler.step()
     return train_loss.avg, train_accuracy.avg
 
 

@@ -13,7 +13,8 @@ def get_params():
     parser.add_argument("--compressor", type=str, default="quant")
     parser.add_argument("--num-pert", type=int, default=1)
     parser.add_argument("--dataset", type=str, default="mnist")
-    parser.add_argument("--momentum", type=float, default=0.1)
+    parser.add_argument("--momentum", type=float, default=0.9)
+    parser.add_argument("--warmup-epochs", type=int, default=5)
 
     parser.add_argument("--sparsity-file", type=str, default=None)
     parser.add_argument("--mask-shuffle-interval", type=int, default=5)
