@@ -91,6 +91,7 @@ class Server:
             range(len(self.clients)), self.num_sample_clients
         )
         seeds = [random.randint(0, 1e6) for _ in range(self.local_update_steps)]
+        local_grad_scalar_list: list[list[torch.Tensor]] = []
 
         for index in sampled_client_index:
             client = self.clients[index]
