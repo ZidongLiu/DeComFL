@@ -9,8 +9,6 @@ from pruning.helpers import get_module_weight_sparsity
 
 from models.cnn_mnist import CNN_MNIST
 
-from models.cnn_cifar10 import CNN_CIFAR10
-from models.resnet import ResNet18
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
 
@@ -31,16 +29,14 @@ if __name__ == "__main__":
 
     if args.dataset == "mnist":
         model = CNN_MNIST().to(device)
-        model_name = "CNN_MNIST"
     elif args.dataset == "cifar10":
         model = LeNet().to(device)
-        model_name = "LeNet"
     elif args.dataset == "fashion":
         model = CNN_FMNIST()
-        model_name = "CNN_FMNIST"
 
-    print(args.dataset)
-    # zoo_
+    model_name = model.model_name
+    print(args.dataset, model_name)
+
     zoo_grasp_prune(
         model,
         ratio=args.sparsity,
@@ -58,5 +54,6 @@ if __name__ == "__main__":
         "w",
     ) as file:
         json.dump(
-            {"model_name": model_name, "sparsity_dict": weight_sparsity_dict}, file
+            {"model_name": model_name, "sparsity_dict": weight_sparsity_dict},
+            file,
         )
