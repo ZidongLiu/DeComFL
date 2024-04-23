@@ -37,6 +37,13 @@ from torch.autograd import Variable
 
 __all__ = [
     "ResNet",
+    # imagenet
+    "ResNet18",
+    "ResNet34",
+    "ResNet50",
+    "ResNet101",
+    "ResNet152",
+    # cifar10
     "Resnet20",
     "Resnet32",
     "Resnet44",
@@ -110,6 +117,44 @@ class BasicBlock(nn.Module):
         return out
 
 
+class Bottleneck(nn.Module):
+    expansion = 4
+
+    def __init__(self, in_planes, planes, stride=1):
+        super(Bottleneck, self).__init__()
+        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(
+            planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
+        )
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(
+            planes, self.expansion * planes, kernel_size=1, bias=False
+        )
+        self.bn3 = nn.BatchNorm2d(self.expansion * planes)
+
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_planes != self.expansion * planes:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(
+                    in_planes,
+                    self.expansion * planes,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
+                nn.BatchNorm2d(self.expansion * planes),
+            )
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = F.relu(self.bn2(self.conv2(out)))
+        out = self.bn3(self.conv3(out))
+        out += self.shortcut(x)
+        out = F.relu(out)
+        return out
+
+
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10, model_name="ResNet"):
         super(ResNet, self).__init__()
@@ -145,6 +190,28 @@ class ResNet(nn.Module):
         return out
 
 
+# imagenet models
+def ResNet18():
+    return ResNet(BasicBlock, [2, 2, 2, 2], model_name="ResNet18")
+
+
+def ResNet34():
+    return ResNet(BasicBlock, [3, 4, 6, 3], model_name="ResNet34")
+
+
+def ResNet50():
+    return ResNet(Bottleneck, [3, 4, 6, 3], model_name="ResNet50")
+
+
+def ResNet101():
+    return ResNet(Bottleneck, [3, 4, 23, 3], model_name="ResNet101")
+
+
+def ResNet152():
+    return ResNet(Bottleneck, [3, 8, 36, 3], model_name="ResNet152")
+
+
+# cifar10 models
 def Resnet20():
     return ResNet(BasicBlock, [3, 3, 3], model_name="Resnet20")
 
