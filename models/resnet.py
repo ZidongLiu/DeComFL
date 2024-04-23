@@ -1,3 +1,162 @@
+"""ResNet in PyTorch.
+
+For Pre-activation ResNet, see 'preact_resnet.py'.
+
+Reference:
+[1] Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
+    Deep Residual Learning for Image Recognition. arXiv:1512.03385
+"""
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+__all__ = [
+    # imagenet
+    "ResNet18",
+    "ResNet34",
+    "ResNet50",
+    "ResNet101",
+    "ResNet152",
+    # cifar10
+    "Resnet20",
+    "Resnet32",
+    "Resnet44",
+    "Resnet56",
+    "Resnet110",
+    "Resnet1202",
+]
+
+
+class BasicBlockImagenet(nn.Module):
+    expansion = 1
+
+    def __init__(self, in_planes, planes, stride=1):
+        super(BasicBlockImagenet, self).__init__()
+        self.conv1 = nn.Conv2d(
+            in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
+        )
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(
+            planes, planes, kernel_size=3, stride=1, padding=1, bias=False
+        )
+        self.bn2 = nn.BatchNorm2d(planes)
+
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_planes != self.expansion * planes:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(
+                    in_planes,
+                    self.expansion * planes,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
+                nn.BatchNorm2d(self.expansion * planes),
+            )
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += self.shortcut(x)
+        out = F.relu(out)
+        return out
+
+
+class BottleneckImagenet(nn.Module):
+    expansion = 4
+
+    def __init__(self, in_planes, planes, stride=1):
+        super(BottleneckImagenet, self).__init__()
+        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(
+            planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
+        )
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(
+            planes, self.expansion * planes, kernel_size=1, bias=False
+        )
+        self.bn3 = nn.BatchNorm2d(self.expansion * planes)
+
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_planes != self.expansion * planes:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(
+                    in_planes,
+                    self.expansion * planes,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
+                nn.BatchNorm2d(self.expansion * planes),
+            )
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = F.relu(self.bn2(self.conv2(out)))
+        out = self.bn3(self.conv3(out))
+        out += self.shortcut(x)
+        out = F.relu(out)
+        return out
+
+
+class ResNetImagenet(nn.Module):
+    def __init__(self, block, num_blocks, num_classes=10, model_name="ResNetImagenet"):
+        super(ResNetImagenet, self).__init__()
+        self.model_name = model_name
+        self.in_planes = 64
+
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
+        self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
+        self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
+        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
+        self.linear = nn.Linear(512 * block.expansion, num_classes)
+        self.dropout = nn.Dropout(0.4)
+
+    def _make_layer(self, block, planes, num_blocks, stride):
+        strides = [stride] + [1] * (num_blocks - 1)
+        layers = []
+        for stride in strides:
+            layers.append(block(self.in_planes, planes, stride))
+            self.in_planes = planes * block.expansion
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+        out = F.avg_pool2d(out, 4)
+        out = out.view(out.size(0), -1)
+        # out = self.dropout(out)
+        out = self.linear(out)
+        return out
+
+
+def ResNet18():
+    return ResNetImagenet(BasicBlockImagenet, [2, 2, 2, 2], model_name="ResNet18")
+
+
+def ResNet34():
+    return ResNetImagenet(BasicBlockImagenet, [3, 4, 6, 3], model_name="ResNet34")
+
+
+def ResNet50():
+    return ResNetImagenet(BottleneckImagenet, [3, 4, 6, 3], model_name="ResNet50")
+
+
+def ResNet101():
+    return ResNetImagenet(BottleneckImagenet, [3, 4, 23, 3], model_name="ResNet101")
+
+
+def ResNet152():
+    return ResNetImagenet(BottleneckImagenet, [3, 8, 36, 3], model_name="ResNet152")
+
+
 """
 Properly implemented ResNet-s for CIFAR10 as described in paper [1].
 
@@ -35,23 +194,6 @@ import torch.nn.init as init
 
 from torch.autograd import Variable
 
-__all__ = [
-    "ResNet",
-    # imagenet
-    "ResNet18",
-    "ResNet34",
-    "ResNet50",
-    "ResNet101",
-    "ResNet152",
-    # cifar10
-    "Resnet20",
-    "Resnet32",
-    "Resnet44",
-    "Resnet56",
-    "Resnet110",
-    "Resnet1202",
-]
-
 
 def _weights_init(m):
     classname = m.__class__.__name__
@@ -69,11 +211,11 @@ class LambdaLayer(nn.Module):
         return self.lambd(x)
 
 
-class BasicBlock(nn.Module):
+class BasicBlockCifar10(nn.Module):
     expansion = 1
 
     def __init__(self, in_planes, planes, stride=1, option="A"):
-        super(BasicBlock, self).__init__()
+        super(BasicBlockCifar10, self).__init__()
         self.conv1 = nn.Conv2d(
             in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False
         )
@@ -117,11 +259,11 @@ class BasicBlock(nn.Module):
         return out
 
 
-class Bottleneck(nn.Module):
+class BottleneckCifar10(nn.Module):
     expansion = 4
 
     def __init__(self, in_planes, planes, stride=1):
-        super(Bottleneck, self).__init__()
+        super(BottleneckCifar10, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(
@@ -155,9 +297,9 @@ class Bottleneck(nn.Module):
         return out
 
 
-class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10, model_name="ResNet"):
-        super(ResNet, self).__init__()
+class ResNetCifar10(nn.Module):
+    def __init__(self, block, num_blocks, num_classes=10, model_name="ResNetCifar10"):
+        super(ResNetCifar10, self).__init__()
         self.model_name = model_name
         self.in_planes = 16
 
@@ -190,76 +332,26 @@ class ResNet(nn.Module):
         return out
 
 
-# imagenet models
-def ResNet18():
-    return ResNet(BasicBlock, [2, 2, 2, 2], model_name="ResNet18")
-
-
-def ResNet34():
-    return ResNet(BasicBlock, [3, 4, 6, 3], model_name="ResNet34")
-
-
-def ResNet50():
-    return ResNet(Bottleneck, [3, 4, 6, 3], model_name="ResNet50")
-
-
-def ResNet101():
-    return ResNet(Bottleneck, [3, 4, 23, 3], model_name="ResNet101")
-
-
-def ResNet152():
-    return ResNet(Bottleneck, [3, 8, 36, 3], model_name="ResNet152")
-
-
 # cifar10 models
 def Resnet20():
-    return ResNet(BasicBlock, [3, 3, 3], model_name="Resnet20")
+    return ResNetCifar10(BasicBlockCifar10, [3, 3, 3], model_name="Resnet20")
 
 
 def Resnet32():
-    return ResNet(BasicBlock, [5, 5, 5], model_name="Resnet32")
+    return ResNetCifar10(BasicBlockCifar10, [5, 5, 5], model_name="Resnet32")
 
 
 def Resnet44():
-    return ResNet(BasicBlock, [7, 7, 7], model_name="Resnet44")
+    return ResNetCifar10(BasicBlockCifar10, [7, 7, 7], model_name="Resnet44")
 
 
 def Resnet56():
-    return ResNet(BasicBlock, [9, 9, 9], model_name="Resnet56")
+    return ResNetCifar10(BasicBlockCifar10, [9, 9, 9], model_name="Resnet56")
 
 
 def Resnet110():
-    return ResNet(BasicBlock, [18, 18, 18], model_name="Resnet110")
+    return ResNetCifar10(BasicBlockCifar10, [18, 18, 18], model_name="Resnet110")
 
 
 def Resnet1202():
-    return ResNet(BasicBlock, [200, 200, 200], model_name="Resnet1202")
-
-
-def test(net):
-    import numpy as np
-
-    total_params = 0
-
-    for x in filter(lambda p: p.requires_grad, net.parameters()):
-        total_params += np.prod(x.data.numpy().shape)
-    print("Total number of params", total_params)
-    print(
-        "Total layers",
-        len(
-            list(
-                filter(
-                    lambda p: p.requires_grad and len(p.data.size()) > 1,
-                    net.parameters(),
-                )
-            )
-        ),
-    )
-
-
-if __name__ == "__main__":
-    for net_name in __all__:
-        if net_name.startswith("resnet"):
-            print(net_name)
-            test(globals()[net_name]())
-            print()
+    return ResNetCifar10(BasicBlockCifar10, [200, 200, 200], model_name="Resnet1202")
