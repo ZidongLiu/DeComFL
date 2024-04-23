@@ -11,7 +11,6 @@ from config import get_params, get_args_str
 from preprocess import preprocess, use_sparsity_dict
 from models.cnn_mnist import CNN_MNIST
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from models.resnet_cifar10 import resnet20
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
 

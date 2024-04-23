@@ -9,8 +9,6 @@ from pruning.helpers import get_module_weight_sparsity
 
 from models.cnn_mnist import CNN_MNIST
 
-from models.cnn_cifar10 import CNN_CIFAR10
-from models.resnet import ResNet18
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
 
@@ -31,8 +29,6 @@ if __name__ == "__main__":
 
     if args.dataset == "mnist":
         model = CNN_MNIST().to(device)
-    elif args.dataset == "cifar10":
-        model = ResNet18().to(device)
     elif args.dataset == "cifar10":
         model = LeNet().to(device)
     elif args.dataset == "fashion":
