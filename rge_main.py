@@ -84,17 +84,22 @@ if __name__ == "__main__":
     args = get_params().parse_args()
     torch.manual_seed(args.seed)
 
-    args_str = get_args_str(args)
-    if args.log_to_tensorboard:
-        tensorboard_sub_folder = args_str + "-" + get_current_datetime_str()
-        writer = SummaryWriter(
-            path.join("tensorboards", args.dataset, tensorboard_sub_folder)
-        )
-
     device, train_loader, test_loader = preprocess(args)
     model, criterion, optimizer, scheduler, rge = prepare_settings(args, device)
 
     checkpoint = CheckPoint(args, model, optimizer, rge)
+
+    args_str = get_args_str(args) + "-" + model.model_name
+    if args.log_to_tensorboard:
+        tensorboard_sub_folder = args_str + "-" + get_current_datetime_str()
+        writer = SummaryWriter(
+            path.join(
+                "tensorboards",
+                args.dataset,
+                args.log_to_tensorboard,
+                tensorboard_sub_folder,
+            )
+        )
 
     sparsity_dict = use_sparsity_dict(args, model.model_name)
     for epoch in range(args.epoch):
@@ -113,7 +118,11 @@ if __name__ == "__main__":
             writer.add_scalar("Accuracy/test", eval_accuracy, epoch)
 
         if checkpoint.should_update(eval_loss, eval_accuracy, epoch):
-            checkpoint.save(args_str + "-" + get_current_datetime_str(), epoch)
+            checkpoint.save(
+                args_str + "-" + get_current_datetime_str(),
+                epoch,
+                subfolder=args.log_to_tensorboard,
+            )
 
     if args.log_to_tensorboard:
         writer.close()

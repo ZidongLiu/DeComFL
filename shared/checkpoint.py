@@ -19,9 +19,9 @@ class CheckPoint:
         - gradient estimator
                         - name, 'rge' or 'cge'
                         - gradient estimator state dict. rge.state_dict (NOTE: self-implemented)
-        - random seed dict
-                        - random seed
-                        - number of perturbation/random_pruning_mask generated using this seed(tricky)
+        - rng_states
+            - cpu state: tensor
+            - cuda_all states: list[tensor]
                 - training_history
                                 - list of checkpoint step
                 - training_history_since_last_checkpoint
@@ -59,7 +59,10 @@ class CheckPoint:
         self.load_model(checkpoint_data.get("model"))
 
         # optimizer, TODO: discuss if we need to load momentum buffer
-        # self.load_optimizer(checkpoint_data.get("optimizer"))
+        self.load_optimizer(checkpoint_data.get("optimizer"))
+
+        # random seed, TODO: improve later, this does not work at this moment, investigate when have time
+        # self.load_rng_states(checkpoint_data.get("rng_states"))
 
         # gradient estimator
         # ge_dict = checkpoint_data.get("gradient_estimator")
@@ -69,7 +72,6 @@ class CheckPoint:
         # else:
         #     raise Exception("Optimizer does not match checkpoint!")
 
-        # TODO: random seed
         # TODO: LR scheduler
 
     def load_model(self, model_dict):
@@ -78,18 +80,22 @@ class CheckPoint:
         else:
             raise Exception("Model does not match checkpoint!")
 
+    def load_rng_states(self, rng_states):
+        print(f"Loading RNG from checkpoint, thus igoring random seed {self.args.seed}")
+        torch.random.set_rng_state(rng_states["cpu"])
+        torch.cuda.set_rng_state_all(rng_states["cuda_all"])
+
     def load_optimizer(self, optimizer_dict):
         if self.optimizer.__class__.__name__ == optimizer_dict["name"]:
             optimizer_state_dict = optimizer_dict["state_dict"]
-            # update state dict to use args
+            # update lr
             optimizer_state_dict["param_groups"][0].update(
                 {
                     "lr": self.args.lr,
                     "initial_lr": self.args.lr,
-                    "momentum": self.args.momentum,
                 }
             )
-            self.optimizer.load_state_dict()
+            self.optimizer.load_state_dict(optimizer_state_dict)
         else:
             raise Exception("Optimizer does not match checkpoint!")
 
@@ -108,10 +114,10 @@ class CheckPoint:
             #     "name": self.gradient_estimator.__class__.__name__,
             #     "state_dict": self.gradient_estimator.state_dict(),
             # },
-            # "random_seed": {
-            #     "seed": self.args.seed,
-            #     "count": epoch_idx + 1,
-            # },
+            "rng_states": {
+                "cpu": torch.random.get_rng_state(),
+                "cuda_all": torch.cuda.get_rng_state_all(),
+            },
             "last_checkpoint": self.last_checkpoint_file,
             "history": self.history + [checkpoint_step],
             "checkpoint_step_since_last_checkpoint": checkpoint_step,
@@ -139,12 +145,17 @@ class CheckPoint:
 
         return False
 
-    def save(self, file_name, epoch_idx):
+    def save(self, file_name, epoch_idx, subfolder=None):
         to_save = self._generate_save_data(file_name, epoch_idx)
 
-        os.makedirs("checkpoints/", exist_ok=True)
+        if subfolder:
+            folder_path = "./checkpoints/" + subfolder + "/"
+        else:
+            folder_path = "./checkpoints/"
 
-        new_file_path = "./checkpoints/" + file_name + ".pth"
+        os.makedirs(folder_path, exist_ok=True)
+
+        new_file_path = folder_path + file_name + ".pth"
         if self.args.create_many_checkpoint:
             file_path = new_file_path
 
