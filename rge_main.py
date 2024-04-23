@@ -11,7 +11,9 @@ from config import get_params, get_args_str
 from preprocess import preprocess, use_sparsity_dict
 from models.cnn_mnist import CNN_MNIST
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from models.resnet import ResNet18
+from models.resnet_cifar10 import resnet20
+from models.lenet import LeNet
+from models.cnn_fashion import CNN_FMNIST
 
 
 def prepare_settings(args, device):
@@ -23,12 +25,23 @@ def prepare_settings(args, device):
         )
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     elif args.dataset == "cifar10":
-        model = ResNet18().to(device)
+        model = LeNet().to(device)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=args.lr, weight_decay=5e-4, momentum=args.momentum
+        )
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            optimizer, milestones=[200], gamma=0.1
+        )
+    elif args.dataset == "fashion":
+        model = CNN_FMNIST().to(device)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
         )
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            optimizer, milestones=[10000], gamma=0.1
+        )
 
     rge = RGE(
         model,
@@ -40,12 +53,26 @@ def prepare_settings(args, device):
     return model, criterion, optimizer, scheduler, rge
 
 
+def get_warmup_lr(
+    args, current_epoch: int, current_iter: int, iters_per_epoch: int
+) -> float:
+    overall_iterations = args.warmup_epochs * iters_per_epoch + 1
+    current_iterations = current_epoch * iters_per_epoch + current_iter + 1
+    return args.lr * current_iterations / overall_iterations
+
+
 def train_model(epoch: int) -> tuple[float, float]:
     model.train()
     train_loss = Metric("train loss")
     train_accuracy = Metric("train accuracy")
-    with tqdm(total=len(train_loader), desc="Training:") as t, torch.no_grad():
-        for _, (images, labels) in enumerate(train_loader):
+    iter_per_epoch = len(train_loader)
+    with tqdm(total=iter_per_epoch, desc="Training:") as t, torch.no_grad():
+        for iteration, (images, labels) in enumerate(train_loader):
+            if epoch < args.warmup_epochs:
+                warmup_lr = get_warmup_lr(args, epoch, iteration, iter_per_epoch)
+                for p in optimizer.param_groups:
+                    p["lr"] = warmup_lr
+
             if device != torch.device("cpu"):
                 images, labels = images.to(device), labels.to(device)
             # update models
@@ -58,7 +85,8 @@ def train_model(epoch: int) -> tuple[float, float]:
             train_accuracy.update(accuracy(pred, labels))
             t.set_postfix({"Loss": train_loss.avg, "Accuracy": train_accuracy.avg})
             t.update(1)
-        scheduler.step()
+        if epoch > args.warmup_epochs:
+            scheduler.step()
     return train_loss.avg, train_accuracy.avg
 
 

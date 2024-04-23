@@ -1,6 +1,5 @@
 import argparse
 
-
 DEFAULTS = {
     "train_batch_size": 256,
     "test_batch_size": 1000,
@@ -10,7 +9,8 @@ DEFAULTS = {
     "compressor": "quant",
     "num_pert": 1,
     "dataset": "mnist",
-    "momentum": 0.1,
+    "momentum": 0.9,
+    "warmup_epochs": 5,
     "sparsity_file": None,
     "mask_shuffle_interval": 5,
     "grad_estimate_method": "central",
@@ -44,6 +44,7 @@ def get_params():
     parser.add_argument("--num-pert", type=int, default=DEFAULTS["num_pert"])
     parser.add_argument("--dataset", type=str, default=DEFAULTS["dataset"])
     parser.add_argument("--momentum", type=float, default=DEFAULTS["momentum"])
+    parser.add_argument("--warmup-epochs", type=int, default=DEFAULTS["warmup_epochs"])
 
     parser.add_argument("--sparsity-file", type=str, default=DEFAULTS["sparsity_file"])
     parser.add_argument(

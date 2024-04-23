@@ -93,5 +93,21 @@ def preprocess(args):
         test_loader = torch.utils.data.DataLoader(
             testset, batch_size=args.test_batch_size, **kwargs
         )
-
+    elif args.dataset == "fashion":
+        device, kwargs = use_device(args)
+        transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
+        )
+        trainset = torchvision.datasets.FashionMNIST(
+            root="./data", train=True, download=True, transform=transform
+        )
+        train_loader = torch.utils.data.DataLoader(
+            trainset, batch_size=args.train_batch_size, **kwargs
+        )
+        testset = torchvision.datasets.FashionMNIST(
+            root="./data", train=False, download=True, transform=transform
+        )
+        test_loader = torch.utils.data.DataLoader(
+            testset, batch_size=args.test_batch_size, **kwargs
+        )
     return device, train_loader, test_loader
