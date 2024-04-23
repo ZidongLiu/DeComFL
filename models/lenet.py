@@ -3,6 +3,8 @@ import torch.nn.functional as func
 
 
 class LeNet(nn.Module):
+    model_name = "LeNet"
+
     def __init__(self):
         super(LeNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 6, kernel_size=5)

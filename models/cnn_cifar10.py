@@ -3,6 +3,8 @@ import torch.nn.functional as F
 
 
 class CNN_CIFAR10(nn.Module):
+    model_name = "CNN_CIFAR10"
+
     def __init__(self):
         super(CNN_CIFAR10, self).__init__()
         # convolutional layer (sees 32x32x3 image tensor)

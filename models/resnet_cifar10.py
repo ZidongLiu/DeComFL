@@ -37,12 +37,12 @@ from torch.autograd import Variable
 
 __all__ = [
     "ResNet",
-    "resnet20",
-    "resnet32",
-    "resnet44",
-    "resnet56",
-    "resnet110",
-    "resnet1202",
+    "Resnet20",
+    "Resnet32",
+    "Resnet44",
+    "Resnet56",
+    "Resnet110",
+    "Resnet1202",
 ]
 
 
@@ -111,8 +111,9 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10):
+    def __init__(self, block, num_blocks, num_classes=10, model_name="ResNet"):
         super(ResNet, self).__init__()
+        self.model_name = model_name
         self.in_planes = 16
 
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
@@ -144,28 +145,28 @@ class ResNet(nn.Module):
         return out
 
 
-def resnet20():
-    return ResNet(BasicBlock, [3, 3, 3])
+def Resnet20():
+    return ResNet(BasicBlock, [3, 3, 3], model_name="Resnet20")
 
 
-def resnet32():
-    return ResNet(BasicBlock, [5, 5, 5])
+def Resnet32():
+    return ResNet(BasicBlock, [5, 5, 5], model_name="Resnet32")
 
 
-def resnet44():
-    return ResNet(BasicBlock, [7, 7, 7])
+def Resnet44():
+    return ResNet(BasicBlock, [7, 7, 7], model_name="Resnet44")
 
 
-def resnet56():
-    return ResNet(BasicBlock, [9, 9, 9])
+def Resnet56():
+    return ResNet(BasicBlock, [9, 9, 9], model_name="Resnet56")
 
 
-def resnet110():
-    return ResNet(BasicBlock, [18, 18, 18])
+def Resnet110():
+    return ResNet(BasicBlock, [18, 18, 18], model_name="Resnet110")
 
 
-def resnet1202():
-    return ResNet(BasicBlock, [200, 200, 200])
+def Resnet1202():
+    return ResNet(BasicBlock, [200, 200, 200], model_name="Resnet1202")
 
 
 def test(net):

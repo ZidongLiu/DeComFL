@@ -2,6 +2,8 @@ import torch.nn as nn
 
 
 class CNN_FMNIST(nn.Module):
+    model_name = "CNN_FMNIST"
+
     def __init__(self, only_digits=False):
         super(CNN_FMNIST, self).__init__()
         self.conv2d_1 = nn.Conv2d(1, 32, kernel_size=3)

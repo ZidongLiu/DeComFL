@@ -21,9 +21,11 @@ from shared import compression
 #         return x
 
 
-class CNN_MNIST(nn.Module):
+class COMPRESSED_CNN_MNIST(nn.Module):
+    model_name = "COMPRESSED_CNN_MNIST"
+
     def __init__(self):
-        super(CNN_MNIST, self).__init__()
+        super(COMPRESSED_CNN_MNIST, self).__init__()
         self.conv1 = nn.Sequential(
             nn.Conv2d(
                 in_channels=1,

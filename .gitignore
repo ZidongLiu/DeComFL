@@ -210,3 +210,4 @@ node_modules
 /data/*
 /tensorboards/*
 /saved_sparsity/*
+/checkpoints/*
