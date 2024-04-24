@@ -21,7 +21,8 @@ class AbstractClient:
         return NotImplemented
 
     @abc.abstractmethod
-    def reset(self) -> None:
+    def reset_model(self) -> None:
+        """Reset the mode to the state before the local_update."""
         return NotImplemented
 
     @abc.abstractmethod
@@ -103,6 +104,7 @@ class SeedAndGradientRecords:
         ]
 
 
+# TODO Make sure all client model intialized with same weight.
 # TODO Support Gradient Pruning
 class CeZO_Server:
     def __init__(
@@ -134,11 +136,12 @@ class CeZO_Server:
         self.server_criterion = criterion
         self.optim = optimizer
 
+    def get_sampled_client_index(self):
+        return random.sample(range(len(self.clients)), self.num_sample_clients)
+
     def train_one_step(self, iteration: int) -> None:
         # Step 0: initiate something
-        sampled_client_index = random.sample(
-            range(len(self.clients)), self.num_sample_clients
-        )
+        sampled_client_index = self.get_sampled_client_index()
         seeds = [random.randint(0, 1e6) for _ in range(self.local_update_steps)]
 
         # Step 1 & 2: pull model and local update
@@ -146,7 +149,9 @@ class CeZO_Server:
         for index in sampled_client_index:
             client = self.clients[index]
             last_update_iter = self.client_last_updates
-
+            # The seed and grad in last_update_iter is fetched as well
+            # Note at that iteration, we just reset the client model so that iteration
+            # information is needed as well.
             seeds_list = self.seed_grad_records.fetch_seed_records(last_update_iter)
             grad_list = self.seed_grad_records.fetch_grad_records(last_update_iter)
             client.pull_model(seeds_list, grad_list)
@@ -161,9 +166,10 @@ class CeZO_Server:
         # Step 4: client sync-to server (older version).
         for index in sampled_client_index:
             client = self.clients[index]
-            client.sync_to_server(seeds=seeds, gradient_scalar=grad)
+            client.reset_model(seeds=seeds, gradient_scalar=grad)
 
-        # Optional: optimize the memory
+        # Optional: optimize the memory. Remove is exclusive, i.e., the min last updates
+        # information is still kept.
         self.seed_grad_records.remove_too_old(
             earliest_record_needs=min(self.client_last_updates)
         )
