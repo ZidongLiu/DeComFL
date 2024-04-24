@@ -1,10 +1,11 @@
 import abc
 import random
 import torch
-from typing import Sequence
+from typing import Any, Iterable, Sequence
 from collections import deque
 
 from dataclasses import dataclass
+from shared.metrics import Metric, accuracy
 
 
 class AbstractClient:
@@ -14,14 +15,13 @@ class AbstractClient:
         """Returns a sequence of gradient scalar tensors for each local update.
 
         The length of the returned sequence should be the same as the length of seeds.
-        The shape of each tensor should be either a scalar or a num_pertrub*1.
+        The inner tensor can be a scalar or a vector. The length of vector is the number
+        of perturbations.
         """
         return NotImplemented
 
     @abc.abstractmethod
-    def sync_to_server(
-        self, seeds: Sequence[int], gradient_scalar: Sequence[torch.Tensor]
-    ) -> None:
+    def reset(self) -> None:
         return NotImplemented
 
     @abc.abstractmethod
@@ -31,6 +31,38 @@ class AbstractClient:
         gradient_scalar: Sequence[Sequence[torch.Tensor]],
     ) -> None:
         return NotImplemented
+
+
+def update_model_given_seed_and_grad(
+    model: torch.nn.Module,
+    optim: torch.optim.Optimizer,
+    seeds: Sequence[int],
+    grad_scalar_list: Sequence[torch.Tensor],
+    device=None,
+) -> None:
+    assert len(seeds) == len(grad_scalar_list)
+    param_len = sum([p.numel() for p in model.parameters()])
+
+    def generate_perturbation_norm() -> torch.Tensor:
+        p = torch.randn(param_len, device=device)
+        return p
+
+    def put_grad(grad: torch.Tensor) -> None:
+        start = 0
+        for p in model.parameters():
+            p.grad = grad[start : (start + p.numel())].view(p.shape)
+            start += p.numel()
+
+    with torch.no_grad():
+        # K-local update
+        for seed, grad in zip(seeds, grad_scalar_list):
+            optim.zero_grad()
+            torch.manual_seed(seed)
+            put_grad(
+                sum(g * generate_perturbation_norm() for g in grad)
+            )  # For multiple perturb
+            optim.step()
+    return model
 
 
 class SeedAndGradientRecords:
@@ -71,28 +103,46 @@ class SeedAndGradientRecords:
         ]
 
 
-class Server:
+# TODO Support Gradient Pruning
+class CeZO_Server:
     def __init__(
         self,
         clients: Sequence[AbstractClient],
+        device: torch.device,
         num_sample_clients: int = 10,
         local_update_steps: int = 10,
     ) -> None:
         self.clients = clients
+        self.device = device
         self.num_sample_clients = num_sample_clients
         self.local_update_steps = local_update_steps
 
         self.seed_grad_records = SeedAndGradientRecords()
         self.client_last_updates = [0 for _ in range(len(self.clients))]
-        self.server_model = None
+
+        self.server_model: torch.nn.Module | None = None
+        self.server_criterion: torch.nn.Module | None = None
+        self.optim: torch.optim.Optimizer | None = None
+
+    def set_server_model_and_criterion(
+        self,
+        model: torch.nn.Module,
+        criterion: torch.nn.Module,
+        optimizer: torch.optim.Optimizer,
+    ) -> None:
+        self.server_model = model
+        self.server_criterion = criterion
+        self.optim = optimizer
 
     def train_one_step(self, iteration: int) -> None:
+        # Step 0: initiate something
         sampled_client_index = random.sample(
             range(len(self.clients)), self.num_sample_clients
         )
         seeds = [random.randint(0, 1e6) for _ in range(self.local_update_steps)]
-        local_grad_scalar_list: list[list[torch.Tensor]] = []
 
+        # Step 1 & 2: pull model and local update
+        local_grad_scalar_list: list[list[torch.Tensor]] = []
         for index in sampled_client_index:
             client = self.clients[index]
             last_update_iter = self.client_last_updates
@@ -104,20 +154,40 @@ class Server:
             local_grad_scalar_list.append(client.local_update(seeds=seeds))
             self.client_last_updates[index] = iteration
 
+        # Step 3: server-side aggregation
         avg_grad_scalar = sum(local_grad_scalar_list).div_(self.num_sample_clients)
         self.seed_grad_records.add_records(seeds=seeds, grad=avg_grad_scalar)
 
+        # Step 4: client sync-to server (older version).
         for index in sampled_client_index:
             client = self.clients[index]
-            # We know the iteration must return only the latest one
-            seeds = self.seed_grad_records.fetch_seed_records(iteration)[0]
-            grad = self.seed_grad_records.fetch_grad_records(iteration)[0]
             client.sync_to_server(seeds=seeds, gradient_scalar=grad)
 
+        # Optional: optimize the memory
         self.seed_grad_records.remove_too_old(
             earliest_record_needs=min(self.client_last_updates)
         )
 
-    def eval_model(self) -> None:
-        # TODO
-        return NotImplemented
+        if self.server_model:
+            update_model_given_seed_and_grad(
+                self.server_model, self.optim, self.device, seeds, avg_grad_scalar
+            )
+
+    def eval_model(self, test_loader: Iterable[Any]) -> tuple[float, float]:
+        if self.server_model is None:
+            raise RuntimeError("set_server_model_and_criterion for server first.")
+        self.server_model.eval()
+        eval_loss = Metric("Eval loss")
+        eval_accuracy = Metric("Eval accuracy")
+        with torch.no_grad():
+            for _, (images, labels) in enumerate(test_loader):
+                if self.device != torch.device("cpu"):
+                    images, labels = images.to(self.device), labels.to(self.device)
+                pred = self.server_model(images)
+                eval_loss.update(self.criterion(pred, labels))
+                eval_accuracy.update(accuracy(pred, labels))
+        print(
+            f"Evaluation(round {epoch}): Eval Loss:{eval_loss.avg:.4f}, "
+            f"Accuracy:{eval_accuracy.avg * 100:.2f}%"
+        )
+        return eval_loss.avg, eval_accuracy.avg
