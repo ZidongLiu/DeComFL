@@ -97,6 +97,7 @@ if __name__ == "__main__":
     model, criterion, optimizer, rge = prepare_settings(args, device)
 
     checkpoint = CheckPoint(args, model, optimizer, rge)
+    checkpoint_trained_epochs = checkpoint.get_trained_epochs()
 
     args_str = get_args_str(args) + "-" + model.model_name
     if args.log_to_tensorboard:
@@ -119,18 +120,27 @@ if __name__ == "__main__":
 
         train_loss, train_accuracy = train_model(epoch)
         if args.log_to_tensorboard:
-            writer.add_scalar("Loss/train", train_loss, epoch)
-            writer.add_scalar("Accuracy/train", train_accuracy, epoch)
+            writer.add_scalar(
+                "Loss/train", train_loss, checkpoint_trained_epochs + epoch
+            )
+            writer.add_scalar(
+                "Accuracy/train", train_accuracy, checkpoint_trained_epochs + epoch
+            )
         eval_loss, eval_accuracy = eval_model(epoch)
         if args.log_to_tensorboard:
-            writer.add_scalar("Loss/test", eval_loss, epoch)
-            writer.add_scalar("Accuracy/test", eval_accuracy, epoch)
+            writer.add_scalar("Loss/test", eval_loss, checkpoint_trained_epochs + epoch)
+            writer.add_scalar(
+                "Accuracy/test", eval_accuracy, checkpoint_trained_epochs + epoch
+            )
 
         if checkpoint.should_update(eval_loss, eval_accuracy, epoch):
+            file_name = (
+                model.model_name
+                + f"-epoch-{checkpoint_trained_epochs + epoch + 1}"
+                + f"-acc-{eval_accuracy * 100:.2f}"
+            )
             checkpoint.save(
-                args_str
-                + f"-epoch-{epoch + 1}-acc-{eval_accuracy * 100:.2f}-"
-                + get_current_datetime_str(),
+                file_name,
                 epoch,
                 subfolder=args.log_to_tensorboard,
             )

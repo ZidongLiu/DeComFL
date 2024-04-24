@@ -74,6 +74,12 @@ class CheckPoint:
 
         # TODO: LR scheduler
 
+    def get_trained_epochs(self):
+        ret = 0
+        for hist in self.history:
+            ret += hist["n_epoch"]
+        return ret
+
     def load_model(self, model_dict):
         if self.model.model_name == model_dict["model_name"]:
             self.model.load_state_dict(model_dict["state_dict"])

@@ -105,7 +105,10 @@ def get_args_dict(args):
 
 def get_args_str(args):
     # important ones, add to string regardless of it's different from default
-    base_str = f"{args.dataset}-lr-{args.lr}-mmtm-{args.momentum}-npert-{args.num_pert}"
+    base_str = (
+        f"{args.dataset}-lr-{args.lr}-mmtm-{args.momentum}"
+        + f"-npert-{args.num_pert}-{args.grad_estimate_method}"
+    )
     # only add to string if it's different from default
     advanced_items = []
     for key in ["mu", "seed", "sparsity_file", "mask_shuffle_interval"]:
