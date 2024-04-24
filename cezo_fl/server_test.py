@@ -1,4 +1,11 @@
-from cezo_fl.server import SeedAndGradientRecords, update_model_given_seed_and_grad
+from cezo_fl.server import (
+    AbstractClient,
+    CeZO_Server,
+    SeedAndGradientRecords,
+    update_model_given_seed_and_grad,
+)
+from typing import Sequence
+from unittest.mock import MagicMock, patch
 
 import torch
 import pytest
@@ -48,3 +55,36 @@ def test_update_model_given_seed_and_grad():
     assert ouputs[0].shape == (3, 2)
     assert ouputs[1].shape == (3, 2)
     torch.testing.assert_close(ouputs[0], ouputs[1])
+
+
+class FakeClient(AbstractClient):
+    def local_update(self, seeds: Sequence[int]) -> Sequence[torch.Tensor]:
+        return [torch.tensor([0.1, 0.2, 0.3]) for _ in range(len(seeds))]
+
+    def reset_model(self) -> None:
+        return
+
+    def pull_model(
+        self,
+        seeds_list: Sequence[Sequence[int]],
+        gradient_scalar: Sequence[Sequence[torch.Tensor]],
+    ) -> None:
+        return
+
+
+@patch.object(CeZO_Server, "get_sampled_client_index", return_value=[0, 1])
+def test_server_train_one_step(mocke_get_sampled_client_index):
+    clients = [FakeClient() for _ in range(4)]
+    for client in clients:
+        client.pull_model = MagicMock()
+
+    server = CeZO_Server(
+        clients=clients,
+        device=torch.device("cpu"),
+        num_sample_clients=2,
+        local_update_steps=3,
+    )
+    # Just make sure it can execute
+    server.train_one_step(0)
+    server.train_one_step(1)
+    server.train_one_step(2)

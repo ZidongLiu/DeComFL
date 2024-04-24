@@ -142,13 +142,13 @@ class CeZO_Server:
     def train_one_step(self, iteration: int) -> None:
         # Step 0: initiate something
         sampled_client_index = self.get_sampled_client_index()
-        seeds = [random.randint(0, 1e6) for _ in range(self.local_update_steps)]
+        seeds = [random.randint(0, 1000000) for _ in range(self.local_update_steps)]
 
         # Step 1 & 2: pull model and local update
-        local_grad_scalar_list: list[list[torch.Tensor]] = []
+        local_grad_scalar_list: list[list[torch.Tensor]] = []  # Clients X Local_update
         for index in sampled_client_index:
             client = self.clients[index]
-            last_update_iter = self.client_last_updates
+            last_update_iter = self.client_last_updates[index]
             # The seed and grad in last_update_iter is fetched as well
             # Note at that iteration, we just reset the client model so that iteration
             # information is needed as well.
@@ -160,13 +160,17 @@ class CeZO_Server:
             self.client_last_updates[index] = iteration
 
         # Step 3: server-side aggregation
-        avg_grad_scalar = sum(local_grad_scalar_list).div_(self.num_sample_clients)
+        avg_grad_scalar: list[torch.Tensor] = []
+        for each_client_update in zip(*local_grad_scalar_list):
+            avg_grad_scalar.append(
+                sum(each_client_update).div_(self.num_sample_clients)
+            )
+
         self.seed_grad_records.add_records(seeds=seeds, grad=avg_grad_scalar)
 
-        # Step 4: client sync-to server (older version).
+        # Step 4: client sync-to server's older version.
         for index in sampled_client_index:
-            client = self.clients[index]
-            client.reset_model(seeds=seeds, gradient_scalar=grad)
+            self.clients[index].reset_model()
 
         # Optional: optimize the memory. Remove is exclusive, i.e., the min last updates
         # information is still kept.
