@@ -74,7 +74,7 @@ class FakeClient(AbstractClient):
 
 @patch.object(CeZO_Server, "get_sampled_client_index", return_value=[0, 1])
 def test_server_train_one_step(mocke_get_sampled_client_index):
-    clients = [FakeClient() for _ in range(4)]
+    clients = [FakeClient() for _ in range(3)]
     for client in clients:
         client.pull_model = MagicMock()
 
@@ -84,7 +84,32 @@ def test_server_train_one_step(mocke_get_sampled_client_index):
         num_sample_clients=2,
         local_update_steps=3,
     )
-    # Just make sure it can execute
+    # Mock the execution
     server.train_one_step(0)
+    assert server.seed_grad_records.current_iteration == 0
+    assert server.seed_grad_records.earliest_records == 0
+    assert server.client_last_updates == [0, 0, 0]
+
+    mocke_get_sampled_client_index.return_value = [1, 2]
     server.train_one_step(1)
+    assert server.seed_grad_records.current_iteration == 1
+    assert server.seed_grad_records.earliest_records == 0
+    assert server.client_last_updates == [0, 1, 1]
+
+    mocke_get_sampled_client_index.return_value = [0, 1]
     server.train_one_step(2)
+    assert server.seed_grad_records.current_iteration == 2
+    assert server.seed_grad_records.earliest_records == 1
+    assert server.client_last_updates == [2, 2, 1]
+
+    mocke_get_sampled_client_index.return_value = [1, 2]
+    server.train_one_step(3)
+    assert server.seed_grad_records.current_iteration == 3
+    assert server.seed_grad_records.earliest_records == 2
+    assert server.client_last_updates == [2, 3, 3]
+
+    assert len(clients[2].pull_model.call_args_list) == 2  # client 2 is called twice.
+    first_pull_model_args = clients[2].pull_model.call_args_list[0][0]
+    second_pull_model_args = clients[2].pull_model.call_args_list[1][0]
+    assert len(first_pull_model_args[0]) == 1  # Pull the 0-th round seeds.
+    assert len(second_pull_model_args[0]) == 2  # Pull the 1-st and 2-nd round seeds.
