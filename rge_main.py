@@ -13,6 +13,7 @@ from models.cnn_mnist import CNN_MNIST
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
+from models.lstm import CharLSTM
 
 
 def prepare_settings(args, device):
@@ -39,7 +40,16 @@ def prepare_settings(args, device):
             model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
         )
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            optimizer, milestones=[10000], gamma=0.1
+            optimizer, milestones=[200], gamma=0.1
+        )
+    elif args.dataset == "shakespeare":
+        model = CharLSTM().to(device)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4
+        )
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            optimizer, milestones=[200], gamma=0.1
         )
 
     rge = RGE(
