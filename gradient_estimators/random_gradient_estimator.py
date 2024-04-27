@@ -41,9 +41,9 @@ class RandomGradientEstimator:
         self.device = device
         self.prune_mask_arr = None
         if prune_mask_arr:
-            self.set_prune_mask_arr(prune_mask_arr)
+            self.set_prune_mask(prune_mask_arr)
 
-    def set_prune_mask_arr(self, prune_mask_arr):
+    def set_prune_mask(self, prune_mask_arr):
         self.prune_mask_arr = prune_mask_arr
 
     def generate_perturbation_norm(self) -> torch.Tensor:

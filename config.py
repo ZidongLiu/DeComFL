@@ -13,7 +13,7 @@ DEFAULTS = {
     "warmup_epochs": 5,
     "sparsity_file": None,
     "mask_shuffle_interval": 5,
-    "grad_estimate_method": "central",
+    "grad_estimate_method": "rge-central",
     "seed": 365,
     "num_workers": 2,
     "log_to_tensorboard": None,
@@ -58,6 +58,7 @@ def get_params():
         "--grad-estimate-method",
         type=str,
         default=DEFAULTS["grad_estimate_method"],
+        choices=["rge-central", "rge-forward", "cge-forward"],
     )
     parser.add_argument(
         "--seed", type=int, default=DEFAULTS["seed"], help="random seed"

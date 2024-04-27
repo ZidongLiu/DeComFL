@@ -11,6 +11,9 @@ from config import get_params, get_args_str
 from preprocess import preprocess, use_sparsity_dict
 from models.cnn_mnist import CNN_MNIST
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
+from gradient_estimators.coordinate_gradient_estimator import (
+    CoordinateGradientEstimator as CGE,
+)
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
 
@@ -42,14 +45,24 @@ def prepare_settings(args, device):
             optimizer, milestones=[10000], gamma=0.1
         )
 
-    rge = RGE(
-        model,
-        mu=args.mu,
-        num_pert=args.num_pert,
-        grad_estimate_method=args.grad_estimate_method,
-        device=device,
-    )
-    return model, criterion, optimizer, scheduler, rge
+    if args.grad_estimate_method in ["rge-central", "rge-forward"]:
+        method = args.grad_estimate_method[4:]
+        print(f"Using RGE {method}")
+        grad_estimator = RGE(
+            model,
+            mu=args.mu,
+            num_pert=args.num_pert,
+            grad_estimate_method=method,
+            device=device,
+        )
+    elif args.grad_estimate_method in ["cge-forward"]:
+        print("Using CGE forward")
+        grad_estimator = CGE(
+            model,
+            mu=args.mu,
+            device=device,
+        )
+    return model, criterion, optimizer, scheduler, grad_estimator
 
 
 def get_warmup_lr(
@@ -76,7 +89,7 @@ def train_model(epoch: int) -> tuple[float, float]:
                 images, labels = images.to(device), labels.to(device)
             # update models
             optimizer.zero_grad()
-            rge.compute_grad(images, labels, criterion)
+            grad_estimator.compute_grad(images, labels, criterion)
             optimizer.step()
 
             pred = model(images)
@@ -112,9 +125,11 @@ if __name__ == "__main__":
     torch.manual_seed(args.seed)
 
     device, train_loader, test_loader = preprocess(args)
-    model, criterion, optimizer, scheduler, rge = prepare_settings(args, device)
+    model, criterion, optimizer, scheduler, grad_estimator = prepare_settings(
+        args, device
+    )
 
-    checkpoint = CheckPoint(args, model, optimizer, rge)
+    checkpoint = CheckPoint(args, model, optimizer, grad_estimator)
 
     args_str = get_args_str(args) + "-" + model.model_name
     if args.log_to_tensorboard:
@@ -133,7 +148,7 @@ if __name__ == "__main__":
         if sparsity_dict is not None and epoch % args.mask_shuffle_interval == 0:
             print("Updating gradient mask!")
             mask_arr = generate_random_mask_arr(model, sparsity_dict, device)
-            rge.set_prune_mask_arr(mask_arr)
+            grad_estimator.set_prune_mask(mask_arr)
 
         train_loss, train_accuracy = train_model(epoch)
         if args.log_to_tensorboard:
