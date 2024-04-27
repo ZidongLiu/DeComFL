@@ -72,6 +72,10 @@ def prepare_settings(args, device):
             mu=args.mu,
             device=device,
         )
+    else:
+        raise Exception(
+            f"Grad estimate method {args.grad_estimate_method} not supported"
+        )
     return model, criterion, optimizer, scheduler, grad_estimator
 
 
