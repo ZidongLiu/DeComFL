@@ -3,6 +3,7 @@ import torchvision
 import torchvision.transforms as transforms
 import json
 from typing import Union
+from shared.dataset import ShakeSpeare
 
 
 def use_device(args):
@@ -109,5 +110,17 @@ def preprocess(args):
         )
         test_loader = torch.utils.data.DataLoader(
             testset, batch_size=args.test_batch_size, **kwargs
+        )
+    elif args.dataset == "shakespeare":
+        device, kwargs = use_device(args)
+        train_dataset = ShakeSpeare(train=True)
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=args.train_batch_size,
+            **kwargs,
+        )
+        test_dataset = ShakeSpeare(train=False)
+        test_loader = torch.utils.data.DataLoader(
+            test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
         )
     return device, train_loader, test_loader
