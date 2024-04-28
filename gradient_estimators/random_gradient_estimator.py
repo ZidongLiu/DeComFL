@@ -69,14 +69,16 @@ class RandomGradientEstimator:
             p.grad = grad[start : (start + p.numel())].view(p.shape)
             start += p.numel()
 
-    def compute_grad(self, batch_inputs, labels, criterion) -> None:
+    def compute_grad(self, batch_inputs, labels, criterion) -> torch.Tensor:
         estimation_method = self.method_func_dict[self.grad_estimate_method]
-        grad = estimation_method(batch_inputs, labels, criterion)
+        grad, dir_grads = estimation_method(batch_inputs, labels, criterion)
 
         self.put_grad(grad)
+        return torch.tensor(dir_grads, device=self.device)
 
     def _forward_method(self, batch_inputs, labels, criterion):
         grad = 0
+        dir_grads = []
         initial_loss = criterion(self.model(batch_inputs), labels)
         for _ in range(self.num_pert):
             pb_norm = self.generate_perturbation_norm()  # TODO add random seed
@@ -86,11 +88,13 @@ class RandomGradientEstimator:
             self.perturb_model(pb_norm, alpha=-self.mu)  # Restore model
 
             dir_grad = (pert_plus_loss - initial_loss) / self.mu
+            dir_grads += [dir_grad]
             grad += dir_grad * pb_norm
-        return grad / self.num_pert
+        return grad / self.num_pert, dir_grads
 
     def _central_method(self, batch_inputs, labels, criterion):
         grad = 0
+        dir_grads = []
         for _ in range(self.num_pert):
             pb_norm = self.generate_perturbation_norm()  # TODO add random seed
 
@@ -101,8 +105,9 @@ class RandomGradientEstimator:
             self.perturb_model(pb_norm, alpha=self.mu)  # Restore model
 
             dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)
+            dir_grads += [dir_grad]
             grad += dir_grad * pb_norm
-        return grad / self.num_pert
+        return grad / self.num_pert, dir_grads
 
 
 # Copied from DeepZero and slightly modified

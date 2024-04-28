@@ -8,7 +8,6 @@ from typing import Sequence
 from unittest.mock import MagicMock, patch
 
 import torch
-import pytest
 
 
 def test_seed_records():

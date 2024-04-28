@@ -4,7 +4,6 @@ import torch
 from typing import Any, Iterable, Sequence
 from collections import deque
 
-from dataclasses import dataclass
 from shared.metrics import Metric, accuracy
 
 
@@ -68,6 +67,15 @@ def update_model_given_seed_and_grad(
 
 class SeedAndGradientRecords:
     def __init__(self):
+        # For seed_records/grad_records, each entry stores info related to 1 iteration
+        # seed_records[i]: length = number of local updates K
+        # seed_records[i][k]: seed_k
+        # grad_records[i]: [grad_scalar/vector for local_update_k for k in range(K)] TODO: discuss if we only allow vector here to simply code?
+        # grad_records[i][k]: scalar for 1 perturb or vector for >=1 perturb
+        # What should happen on clients pull server using grad_records[i][k]
+        # client use seed_records[i][k] to generate perturbation(s)
+        # client_grad[i][k]: vector = sum(perturbations[j] * grad_records[i][k][j] for j in range(num_pert)) / num_pert
+
         self.seed_records: deque[list[int]] = deque()
         self.grad_records: deque[list[torch.Tensor]] = deque()
         self.earliest_records = 0
@@ -169,6 +177,7 @@ class CeZO_Server:
         self.seed_grad_records.add_records(seeds=seeds, grad=avg_grad_scalar)
 
         # Step 4: client sync-to server's older version.
+        # TODO: Zidong's question, should we just do this at client.pull step?
         for index in sampled_client_index:
             self.clients[index].reset_model()
 
@@ -197,7 +206,8 @@ class CeZO_Server:
                 eval_loss.update(self.criterion(pred, labels))
                 eval_accuracy.update(accuracy(pred, labels))
         print(
-            f"Evaluation(round {epoch}): Eval Loss:{eval_loss.avg:.4f}, "
-            f"Accuracy:{eval_accuracy.avg * 100:.2f}%"
+            f"Evaluation(Iteration {self.seed_grad_records.current_iteration}): ",
+            f"Eval Loss:{eval_loss.avg:.4f}, "
+            f"Accuracy:{eval_accuracy.avg * 100:.2f}%",
         )
         return eval_loss.avg, eval_accuracy.avg
