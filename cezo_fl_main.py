@@ -13,6 +13,8 @@ from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
 from models.lstm import CharLSTM
 
+from shared.metrics import Metric, accuracy
+
 
 def prepare_settings(args, device):
     if args.dataset == "mnist":
@@ -39,10 +41,29 @@ def prepare_settings(args, device):
 #     return args.lr * current_iterations / overall_iterations
 
 
+def eval_model(client, epoch: int) -> tuple[float, float]:
+    model = client.model
+    model.eval()
+    eval_loss = Metric("Eval loss")
+    eval_accuracy = Metric("Eval accuracy")
+    with torch.no_grad():
+        for _, (images, labels) in enumerate(test_loader):
+            if device != torch.device("cpu"):
+                images, labels = images.to(device), labels.to(device)
+            pred = model(images)
+            eval_loss.update(criterion(pred, labels))
+            eval_accuracy.update(accuracy(pred, labels))
+    print(
+        f"Evaluation(round {epoch}): Eval Loss:{eval_loss.avg:.4f}, "
+        f"Accuracy:{eval_accuracy.avg * 100:.2f}%"
+    )
+    return eval_loss.avg, eval_accuracy.avg
+
+
 if __name__ == "__main__":
     args = get_params().parse_args()
 
-    device, _, _ = preprocess(args)
+    device, _, test_loader = preprocess(args)
     model, criterion = prepare_settings(args, device)
     model.to(device)
     num_of_device = 5
@@ -74,3 +95,5 @@ if __name__ == "__main__":
             server.train_one_step(ite)
             # TODO: train error
             # TODO: eval error
+            if (ite + 1) % 20 == 0:
+                eval_model(clients[0], ite)
