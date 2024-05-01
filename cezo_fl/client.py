@@ -5,6 +5,7 @@ from copy import deepcopy
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 from torch.optim import SGD
 from cezo_fl.server import AbstractClient
+from cezo_fl.shared import update_model_given_seed_and_grad
 
 
 class Client(AbstractClient):
@@ -14,8 +15,8 @@ class Client(AbstractClient):
         model,
         dataloader,
         device,
-        grad_estimator_params: dict,
-        optimzier_params: dict,
+        grad_estimator,
+        optimizer,
         criterion,
     ):
         self.model = model
@@ -23,9 +24,8 @@ class Client(AbstractClient):
 
         self.device = device
 
-        self.grad_estimator = self._initialize_grad_estimator(grad_estimator_params)
-
-        self.optimizer = self._initialize_optimizer(optimzier_params)
+        self.grad_estimator = grad_estimator
+        self.optimizer = optimizer
         self.criterion = criterion
 
         self.data_iterator = self._get_train_batch_iterator()
@@ -104,35 +104,18 @@ class Client(AbstractClient):
     def pull_model(
         self,
         seeds_list: Sequence[Sequence[int]],
-        gradient_scalar: Sequence[Sequence[torch.Tensor]],
+        grad_scalar_list: Sequence[Sequence[torch.Tensor]],
     ) -> None:
         # reset model
         self.reset_model()
         # update model to latest version
-        for iteration_seeds, iteration_grad_avgs in zip(seeds_list, gradient_scalar):
-            for local_update_seed, local_update_grad_vector in zip(
-                iteration_seeds, iteration_grad_avgs
-            ):
-                # create gradient
-                torch.manual_seed(local_update_seed)
-                this_num_pert = local_update_grad_vector.shape[0]
-                perturbations = [
-                    self.grad_estimator.generate_perturbation_norm()
-                    for _ in range(this_num_pert)
-                ]
-                # NOTE: this following code only works when local_update_grad_vector is vector
-                update_grad = (
-                    sum(
-                        [
-                            perturb * local_update_grad_vector[j]
-                            for j, perturb in enumerate(perturbations)
-                        ]
-                    )
-                    / this_num_pert
-                )
-                self.grad_estimator.put_grad(update_grad)
-                # update model
-                self.optimizer.step()
+        update_model_given_seed_and_grad(
+            self.model,
+            self.optimizer,
+            self.grad_estimator,
+            seeds_list,
+            grad_scalar_list,
+        )
 
         # screenshot current pulled model
         self.last_pull_state_dict = self.screenshot()
