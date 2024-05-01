@@ -11,6 +11,7 @@ def update_model_given_seed_and_grad(
     grad_scalar_list: Sequence[Sequence[torch.Tensor]],
 ) -> None:
     assert len(seeds_list) == len(grad_scalar_list)
+    optimizer.zero_grad()
     for iteration_seeds, iteration_grad_avgs in zip(seeds_list, grad_scalar_list):
         for local_update_seed, local_update_grad_vector in zip(
             iteration_seeds, iteration_grad_avgs

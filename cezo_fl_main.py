@@ -92,10 +92,10 @@ if __name__ == "__main__":
         client = Client(
             client_model,
             train_loader,
-            device,
             client_grad_estimator,
             client_optimizer,
             client_criterion,
+            device,
         )
         clients.append(client)
 

@@ -1,9 +1,8 @@
 import torch
-from typing import Sequence
+from typing import Sequence, Optional
 from copy import deepcopy
 
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from torch.optim import SGD
 from cezo_fl.server import AbstractClient
 from cezo_fl.shared import update_model_given_seed_and_grad
 
@@ -12,12 +11,12 @@ class Client(AbstractClient):
 
     def __init__(
         self,
-        model,
-        dataloader,
-        device,
-        grad_estimator,
-        optimizer,
-        criterion,
+        model: torch.nn.Module,
+        dataloader: torch.utils.data.DataLoader,
+        grad_estimator: RGE,
+        optimizer: torch.optim.Optimizer,
+        criterion: torch.nn.Module,
+        device: Optional[str] = None,
     ):
         self.model = model
         self.dataloader = dataloader
@@ -30,31 +29,6 @@ class Client(AbstractClient):
 
         self.data_iterator = self._get_train_batch_iterator()
         self.last_pull_state_dict = self.screenshot()
-
-    def _initialize_grad_estimator(self, grad_estimator_params):
-        if grad_estimator_params["method"] in ["rge-forward", "rge-central"]:
-            method = grad_estimator_params["method"][4:]
-
-            return RGE(
-                self.model,
-                grad_estimate_method=method,
-                mu=grad_estimator_params["mu"],
-                num_pert=grad_estimator_params["num_pert"],
-                device=self.device,
-            )
-        else:
-            raise Exception(f'{grad_estimator_params["method"]} is not supported')
-
-    def _initialize_optimizer(self, optimzier_params):
-        if optimzier_params["method"] == "SGD":
-            return SGD(
-                self.model.parameters(),
-                lr=optimzier_params["lr"],
-                momentum=optimzier_params["momentum"],
-                weight_decay=1e-5,
-            )
-        else:
-            raise Exception(f'{optimzier_params["method"]} is not supported')
 
     def _get_train_batch_iterator(self):
         # NOTE: used only in init, will generate an infinite iterator from dataloader
@@ -71,6 +45,7 @@ class Client(AbstractClient):
         """
         ret: Sequence[torch.Tensor] = []
         for seed in seeds:
+            self.optimizer.zero_grad()
             # NOTE:dataloader manage its own randomnes state thus not affected by seed
             batch_inputs, labels = next(self.data_iterator)
             if self.device != torch.device("cpu"):
