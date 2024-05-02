@@ -73,9 +73,7 @@ class SeedAndGradientRecords:
             for i in range(earliest_record_needs, self.current_iteration + 1)
         ]
 
-    def fetch_grad_records(
-        self, earliest_record_needs: int
-    ) -> list[list[torch.Tensor]]:
+    def fetch_grad_records(self, earliest_record_needs: int) -> list[list[torch.Tensor]]:
         assert earliest_record_needs >= self.earliest_records
         return [
             self.grad_records[i - self.earliest_records]
@@ -148,9 +146,7 @@ class CeZO_Server:
         # Step 3: server-side aggregation
         avg_grad_scalar: list[torch.Tensor] = []
         for each_client_update in zip(*local_grad_scalar_list):
-            avg_grad_scalar.append(
-                sum(each_client_update).div_(self.num_sample_clients)
-            )
+            avg_grad_scalar.append(sum(each_client_update).div_(self.num_sample_clients))
 
         self.seed_grad_records.add_records(seeds=seeds, grad=avg_grad_scalar)
 
@@ -161,18 +157,15 @@ class CeZO_Server:
 
         # Optional: optimize the memory. Remove is exclusive, i.e., the min last updates
         # information is still kept.
-        self.seed_grad_records.remove_too_old(
-            earliest_record_needs=min(self.client_last_updates)
-        )
+        self.seed_grad_records.remove_too_old(earliest_record_needs=min(self.client_last_updates))
 
         if self.server_model:
-            # self.train()
+            self.train()
             update_model_given_seed_and_grad(
-                self.server_model,
                 self.optim,
                 self.random_gradient_estimator,
-                [seeds],
-                [avg_grad_scalar],
+                seeds,
+                avg_grad_scalar,
             )
 
     def eval_model(self, test_loader: Iterable[Any]) -> tuple[float, float]:
@@ -190,7 +183,6 @@ class CeZO_Server:
                 eval_accuracy.update(accuracy(pred, labels))
         print(
             f"\nEvaluation(Iteration {self.seed_grad_records.current_iteration}): ",
-            f"Eval Loss:{eval_loss.avg:.4f}, "
-            f"Accuracy:{eval_accuracy.avg * 100:.2f}%",
+            f"Eval Loss:{eval_loss.avg:.4f}, " f"Accuracy:{eval_accuracy.avg * 100:.2f}%",
         )
         return eval_loss.avg, eval_accuracy.avg

@@ -6,7 +6,7 @@ from cezo_fl.server import (
 )
 from typing import Sequence
 from unittest.mock import MagicMock, patch
-
+from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 import torch
 
 
@@ -33,23 +33,20 @@ def test_update_model_given_seed_and_grad():
             torch.nn.ReLU(),
             torch.nn.Linear(5, 2),
         )
+
         optim = torch.optim.SGD(fake_model.parameters(), lr=1e-3)
-        updated_model = update_model_given_seed_and_grad(
-            fake_model,
+        update_model_given_seed_and_grad(
             optim,
-            seeds=[1, 2, 3],
-            grad_scalar_list=[  # two perturbations
+            RGE(fake_model, num_pert=2),
+            iteration_seeds=[1, 2, 3],
+            iteration_grad_scalar=[  # two perturbations
                 torch.tensor([0.1, 0.2]),
                 torch.tensor([0.3, 0.4]),
                 torch.tensor([0.5, 0.6]),
             ],
         )
         ouputs.append(
-            updated_model(
-                torch.tensor(
-                    [list(range(i, 10 + i)) for i in range(3)], dtype=torch.float
-                )
-            )
+            fake_model(torch.tensor([list(range(i, 10 + i)) for i in range(3)], dtype=torch.float))
         )
     assert ouputs[0].shape == (3, 2)
     assert ouputs[1].shape == (3, 2)

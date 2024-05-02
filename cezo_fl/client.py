@@ -49,14 +49,10 @@ class Client(AbstractClient):
             # NOTE:dataloader manage its own randomnes state thus not affected by seed
             batch_inputs, labels = next(self.data_iterator)
             if self.device != torch.device("cpu"):
-                batch_inputs, labels = batch_inputs.to(self.device), labels.to(
-                    self.device
-                )
+                batch_inputs, labels = batch_inputs.to(self.device), labels.to(self.device)
             # generate grads and update model's gradient
             torch.manual_seed(seed)
-            seed_grads = self.grad_estimator.compute_grad(
-                batch_inputs, labels, self.criterion
-            )
+            seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion)
             ret.append(seed_grads)
 
             # update model
@@ -84,13 +80,13 @@ class Client(AbstractClient):
         # reset model
         self.reset_model()
         # update model to latest version
-        update_model_given_seed_and_grad(
-            self.model,
-            self.optimizer,
-            self.grad_estimator,
-            seeds_list,
-            grad_scalar_list,
-        )
+        for iteration_seeds, iteration_grad_sclar in zip(seeds_list, grad_scalar_list):
+            update_model_given_seed_and_grad(
+                self.optimizer,
+                self.grad_estimator,
+                iteration_seeds,
+                iteration_grad_sclar,
+            )
 
         # screenshot current pulled model
         self.last_pull_state_dict = self.screenshot()
