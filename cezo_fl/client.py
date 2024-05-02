@@ -43,7 +43,7 @@ class Client(AbstractClient):
         The inner tensor can be a scalar or a vector. The length of vector is the number
         of perturbations.
         """
-        ret: Sequence[torch.Tensor] = []
+        iteration_local_update_grad_vectors: Sequence[torch.Tensor] = []
         for seed in seeds:
             self.optimizer.zero_grad()
             # NOTE:dataloader manage its own randomnes state thus not affected by seed
@@ -53,13 +53,13 @@ class Client(AbstractClient):
             # generate grads and update model's gradient
             torch.manual_seed(seed)
             seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion)
-            ret.append(seed_grads)
+            iteration_local_update_grad_vectors.append(seed_grads)
 
             # update model
             # NOTE: local model update also uses momentum and other states
             self.optimizer.step()
 
-        return ret
+        return iteration_local_update_grad_vectors
 
     def reset_model(self) -> None:
         """Reset the mode to the state before the local_update."""

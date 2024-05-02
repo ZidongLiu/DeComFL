@@ -43,7 +43,7 @@ class RandomGradientEstimator:
         if prune_mask_arr:
             self.set_prune_mask(prune_mask_arr)
 
-    def set_prune_mask(self, prune_mask_arr):
+    def set_prune_mask(self, prune_mask_arr) -> None:
         self.prune_mask_arr = prune_mask_arr
 
     def generate_perturbation_norm(self) -> torch.Tensor:
@@ -71,12 +71,12 @@ class RandomGradientEstimator:
 
     def compute_grad(self, batch_inputs, labels, criterion) -> torch.Tensor:
         estimation_method = self.method_func_dict[self.grad_estimate_method]
-        grad, dir_grads = estimation_method(batch_inputs, labels, criterion)
+        grad, perturbation_dir_grads = estimation_method(batch_inputs, labels, criterion)
 
         self.put_grad(grad)
-        return torch.tensor(dir_grads, device=self.device)
+        return perturbation_dir_grads
 
-    def _forward_method(self, batch_inputs, labels, criterion):
+    def _forward_method(self, batch_inputs, labels, criterion) -> tuple[torch.Tensor, torch.Tensor]:
         grad = 0
         dir_grads = []
         initial_loss = criterion(self.model(batch_inputs), labels)
@@ -90,9 +90,9 @@ class RandomGradientEstimator:
             dir_grad = (pert_plus_loss - initial_loss) / self.mu
             dir_grads += [dir_grad]
             grad += dir_grad * pb_norm
-        return grad / self.num_pert, dir_grads
+        return grad / self.num_pert, torch.tensor(dir_grads, device=self.device)
 
-    def _central_method(self, batch_inputs, labels, criterion):
+    def _central_method(self, batch_inputs, labels, criterion) -> tuple[torch.Tensor, torch.Tensor]:
         grad = 0
         dir_grads = []
         for _ in range(self.num_pert):
@@ -107,7 +107,7 @@ class RandomGradientEstimator:
             dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)
             dir_grads += [dir_grad]
             grad += dir_grad * pb_norm
-        return grad / self.num_pert, dir_grads
+        return grad / self.num_pert, torch.tensor(dir_grads, device=self.device)
 
 
 # Copied from DeepZero and slightly modified
