@@ -138,6 +138,7 @@ class CeZO_Server:
             # information is needed as well.
             seeds_list = self.seed_grad_records.fetch_seed_records(last_update_iter)
             grad_list = self.seed_grad_records.fetch_grad_records(last_update_iter)
+            # client will reset model to last pull states before update its model to match server
             client.pull_model(seeds_list, grad_list)
 
             local_grad_scalar_list.append(client.local_update(seeds=seeds))
@@ -149,11 +150,6 @@ class CeZO_Server:
             avg_grad_scalar.append(sum(each_client_update).div_(self.num_sample_clients))
 
         self.seed_grad_records.add_records(seeds=seeds, grad=avg_grad_scalar)
-
-        # Step 4: client sync-to server's older version.
-        # Moved this step into client.pull
-        # for index in sampled_client_index:
-        #     self.clients[index].reset_model()
 
         # Optional: optimize the memory. Remove is exclusive, i.e., the min last updates
         # information is still kept.
