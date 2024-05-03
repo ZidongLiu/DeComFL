@@ -1,7 +1,7 @@
 import abc
 import random
 import torch
-from typing import Any, Iterable, Sequence, Optional
+from typing import Any, Iterable, Sequence
 from collections import deque
 
 from cezo_fl.shared import update_model_given_seed_and_grad
@@ -99,10 +99,10 @@ class CeZO_Server:
         self.seed_grad_records = SeedAndGradientRecords()
         self.client_last_updates = [0 for _ in range(len(self.clients))]
 
-        self.server_model: Optional[torch.nn.Module] = None
-        self.server_criterion: Optional[torch.nn.Module] = None
-        self.optim: Optional[torch.optim.Optimizer] = None
-        self.random_gradient_estimator: Optional[RGE] = None
+        self.server_model: torch.nn.Module | None = None
+        self.server_criterion: torch.nn.Module | None = None
+        self.optim: torch.optim.Optimizer | None = None
+        self.random_gradient_estimator: RGE | None = None
 
     def set_server_model_and_criterion(
         self,

@@ -1,6 +1,6 @@
 import torch
 from torch.nn import Parameter
-from typing import Iterator, Optional
+from typing import Iterator
 from enum import Enum
 
 
@@ -14,13 +14,13 @@ class RandomGradientEstimator:
     def __init__(
         self,
         model,
-        parameters: Optional[Iterator[Parameter]] = None,
+        parameters: Iterator[Parameter] | None = None,
         mu=1e-3,
         num_pert=1,
         grad_estimate_method: GradEstimateMethod = GradEstimateMethod.central.value,
         normalize_perturbation: bool = False,
-        device: Optional[str] = None,
-        prune_mask_arr: Optional[torch.Tensor] = None,
+        device: str | None = None,
+        prune_mask_arr: torch.Tensor | None = None,
     ):
         self.model = model
         if parameters is None:
@@ -90,7 +90,13 @@ class RandomGradientEstimator:
             dir_grad = (pert_plus_loss - initial_loss) / self.mu
             dir_grads += [dir_grad]
             grad += dir_grad * pb_norm
-        return grad / self.num_pert, torch.tensor(dir_grads, device=self.device)
+        print("num-pert: ", self.num_pert)
+        print("dir_grads: ", dir_grads)
+        print("dir_grads[0].shape: ", dir_grads[0].shape)
+        dir_grads_tensor = torch.tensor(dir_grads, device=self.device)
+        print("dir_grads_tensor: ", dir_grads_tensor)
+        print("dir_grads_tensor.shape: ", dir_grads_tensor.shape)
+        return grad / self.num_pert, dir_grads_tensor
 
     def _central_method(self, batch_inputs, labels, criterion) -> tuple[torch.Tensor, torch.Tensor]:
         grad = 0

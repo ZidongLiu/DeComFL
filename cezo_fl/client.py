@@ -1,5 +1,5 @@
 import torch
-from typing import Sequence, Optional
+from typing import Sequence
 from copy import deepcopy
 
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
@@ -16,7 +16,7 @@ class Client(AbstractClient):
         grad_estimator: RGE,
         optimizer: torch.optim.Optimizer,
         criterion: torch.nn.Module,
-        device: Optional[str] = None,
+        device: str | None = None,
     ):
         self.model = model
         self.dataloader = dataloader
