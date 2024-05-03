@@ -69,9 +69,7 @@ def preprocess(args):
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
-                ),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ]
         )
         trainset = torchvision.datasets.CIFAR10(
@@ -83,9 +81,7 @@ def preprocess(args):
         transform_test = transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
-                ),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ]
         )
         testset = torchvision.datasets.CIFAR10(
@@ -113,14 +109,91 @@ def preprocess(args):
         )
     elif args.dataset == "shakespeare":
         device, kwargs = use_device(args)
-        train_dataset = ShakeSpeare(train=True)
+        trainset = ShakeSpeare(train=True)
         train_loader = torch.utils.data.DataLoader(
-            train_dataset,
+            trainset,
             batch_size=args.train_batch_size,
             **kwargs,
         )
-        test_dataset = ShakeSpeare(train=False)
+        testset = ShakeSpeare(train=False)
         test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
+            testset, batch_size=args.test_batch_size, shuffle=False, **kwargs
         )
     return device, train_loader, test_loader
+
+
+def preprocess_cezo_fl(args):
+    if args.dataset == "mnist":
+        device, kwargs = use_device(args)
+        transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+        )
+        trainset = torchvision.datasets.MNIST(
+            root="./data", train=True, download=True, transform=transform
+        )
+        testset = torchvision.datasets.MNIST(
+            root="./data", train=False, download=True, transform=transform
+        )
+        test_loader = torch.utils.data.DataLoader(
+            testset, batch_size=args.test_batch_size, **kwargs
+        )
+    elif args.dataset == "cifar10":
+        device, kwargs = use_device(args)
+        transform_train = transforms.Compose(
+            [
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+            ]
+        )
+        trainset = torchvision.datasets.CIFAR10(
+            root="./data", train=True, download=True, transform=transform_train
+        )
+        transform_test = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+            ]
+        )
+        testset = torchvision.datasets.CIFAR10(
+            root="./data", train=False, download=True, transform=transform_test
+        )
+        test_loader = torch.utils.data.DataLoader(
+            testset, batch_size=args.test_batch_size, **kwargs
+        )
+    elif args.dataset == "fashion":
+        device, kwargs = use_device(args)
+        transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
+        )
+        trainset = torchvision.datasets.FashionMNIST(
+            root="./data", train=True, download=True, transform=transform
+        )
+        testset = torchvision.datasets.FashionMNIST(
+            root="./data", train=False, download=True, transform=transform
+        )
+        test_loader = torch.utils.data.DataLoader(
+            testset, batch_size=args.test_batch_size, **kwargs
+        )
+    elif args.dataset == "shakespeare":
+        device, kwargs = use_device(args)
+        trainset = ShakeSpeare(train=True)
+        testset = ShakeSpeare(train=False)
+        test_loader = torch.utils.data.DataLoader(
+            testset, batch_size=args.test_batch_size, shuffle=False, **kwargs
+        )
+
+    generator = torch.Generator().manual_seed(args.seed)
+    num_clients = args.num_clients
+    splitted_train_sets = torch.utils.data.random_split(
+        trainset, [1 / num_clients for _ in range(num_clients)], generator=generator
+    )
+    splitted_train_loaders = []
+    for i in range(num_clients):
+        splitted_train_loaders.append(
+            torch.utils.data.DataLoader(
+                splitted_train_sets[i], batch_size=args.train_batch_size, **kwargs
+            )
+        )
+    return device, splitted_train_loaders, test_loader

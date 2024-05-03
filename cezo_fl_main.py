@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch
 
 from config import get_params
-from preprocess import preprocess
+from preprocess import preprocess_cezo_fl
 
 from cezo_fl.server import CeZO_Server
 from cezo_fl.client import Client
@@ -45,9 +45,7 @@ def prepare_settings_underseed(args, device):
     elif args.dataset == "shakespeare":
         model = CharLSTM().to(device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4
-        )
+        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
         #     optimizer, milestones=[200], gamma=0.1
         # )
@@ -63,9 +61,7 @@ def prepare_settings_underseed(args, device):
             device=device,
         )
     else:
-        raise Exception(
-            f"Grad estimate method {args.grad_estimate_method} not supported"
-        )
+        raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
     return model, criterion, optimizer, grad_estimator
 
 
@@ -79,11 +75,11 @@ def prepare_settings_underseed(args, device):
 
 if __name__ == "__main__":
     args = get_params().parse_args()
+    device, train_loaders, test_loader = preprocess_cezo_fl(args)
 
     clients = []
 
     for i in range(args.num_clients):
-        device, train_loader, _ = preprocess(args)
         client_model, client_criterion, client_optimizer, client_grad_estimator = (
             prepare_settings_underseed(args, device)
         )
@@ -91,7 +87,7 @@ if __name__ == "__main__":
 
         client = Client(
             client_model,
-            train_loader,
+            train_loaders[i],
             client_grad_estimator,
             client_optimizer,
             client_criterion,
@@ -99,10 +95,14 @@ if __name__ == "__main__":
         )
         clients.append(client)
 
-    server = CeZO_Server(clients, device, num_sample_clients=3, local_update_steps=5)
+    server = CeZO_Server(
+        clients,
+        device,
+        num_sample_clients=args.num_sample_clients,
+        local_update_steps=args.local_update_steps,
+    )
 
     # set server tools
-    device, _, test_loader = preprocess(args)
     server_model, server_criterion, server_optimizer, server_grad_estimator = (
         prepare_settings_underseed(args, device)
     )
@@ -111,12 +111,14 @@ if __name__ == "__main__":
         server_model, server_criterion, server_optimizer, server_grad_estimator
     )
 
+    eval_iterations = 20
+
     with tqdm(total=args.iterations, desc="Training:") as t, torch.no_grad():
         for ite in range(args.iterations):
             server.train_one_step(ite)
             t.update(1)
 
             # eval loss
-            if (ite + 1) % 20 == 0:
+            if (ite + 1) % eval_iterations == 0:
                 eval_loss, eval_accuracy = server.eval_model(test_loader)
                 t.set_postfix({"Loss": eval_loss, "Accuracy": eval_loss})
