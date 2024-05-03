@@ -16,11 +16,10 @@ def update_model_given_seed_and_grad(
     for local_update_seed, local_update_grad_vector in zip(iteration_seeds, iteration_grad_scalar):
         # create gradient
         torch.manual_seed(local_update_seed)
-        this_num_pert = local_update_grad_vector.shape[0]
         update_grad = 0
-        for j in range(this_num_pert):
+        for local_update_grad in local_update_grad_vector:
             perturb = grad_estimator.generate_perturbation_norm()
-            update_grad += perturb * local_update_grad_vector[j]
-        grad_estimator.put_grad(update_grad.div_(this_num_pert))
+            update_grad += perturb * local_update_grad
+        grad_estimator.put_grad(update_grad.div_(local_update_grad_vector.shape[0]))
         # update model
         optimizer.step()
