@@ -50,17 +50,17 @@ def preprocess(args):
         transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
         )
-        trainset = torchvision.datasets.MNIST(
+        train_dataset = torchvision.datasets.MNIST(
             root="./data", train=True, download=True, transform=transform
         )
         train_loader = torch.utils.data.DataLoader(
-            trainset, batch_size=args.train_batch_size, **kwargs
+            train_dataset, batch_size=args.train_batch_size, **kwargs
         )
-        testset = torchvision.datasets.MNIST(
+        test_dataset = torchvision.datasets.MNIST(
             root="./data", train=False, download=True, transform=transform
         )
         test_loader = torch.utils.data.DataLoader(
-            testset, batch_size=args.test_batch_size, **kwargs
+            test_dataset, batch_size=args.test_batch_size, **kwargs
         )
     elif args.dataset == "cifar10":
         device, kwargs = use_device(args)
@@ -72,11 +72,11 @@ def preprocess(args):
                 transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ]
         )
-        trainset = torchvision.datasets.CIFAR10(
+        train_dataset = torchvision.datasets.CIFAR10(
             root="./data", train=True, download=True, transform=transform_train
         )
         train_loader = torch.utils.data.DataLoader(
-            trainset, batch_size=args.train_batch_size, **kwargs
+            train_dataset, batch_size=args.train_batch_size, **kwargs
         )
         transform_test = transforms.Compose(
             [
@@ -84,40 +84,38 @@ def preprocess(args):
                 transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ]
         )
-        testset = torchvision.datasets.CIFAR10(
+        test_dataset = torchvision.datasets.CIFAR10(
             root="./data", train=False, download=True, transform=transform_test
         )
         test_loader = torch.utils.data.DataLoader(
-            testset, batch_size=args.test_batch_size, **kwargs
+            test_dataset, batch_size=args.test_batch_size, **kwargs
         )
     elif args.dataset == "fashion":
         device, kwargs = use_device(args)
         transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
         )
-        trainset = torchvision.datasets.FashionMNIST(
+        train_dataset = torchvision.datasets.FashionMNIST(
             root="./data", train=True, download=True, transform=transform
         )
         train_loader = torch.utils.data.DataLoader(
-            trainset, batch_size=args.train_batch_size, **kwargs
+            train_dataset, batch_size=args.train_batch_size, **kwargs
         )
-        testset = torchvision.datasets.FashionMNIST(
+        test_dataset = torchvision.datasets.FashionMNIST(
             root="./data", train=False, download=True, transform=transform
         )
         test_loader = torch.utils.data.DataLoader(
-            testset, batch_size=args.test_batch_size, **kwargs
+            test_dataset, batch_size=args.test_batch_size, **kwargs
         )
     elif args.dataset == "shakespeare":
         device, kwargs = use_device(args)
-        trainset = ShakeSpeare(train=True)
+        train_dataset = ShakeSpeare(train=True)
         train_loader = torch.utils.data.DataLoader(
-            trainset,
-            batch_size=args.train_batch_size,
-            **kwargs,
+            train_dataset, batch_size=args.train_batch_size, **kwargs
         )
-        testset = ShakeSpeare(train=False)
+        test_dataset = ShakeSpeare(train=False)
         test_loader = torch.utils.data.DataLoader(
-            testset, batch_size=args.test_batch_size, shuffle=False, **kwargs
+            test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
         )
     return device, train_loader, test_loader
 
@@ -128,14 +126,14 @@ def preprocess_cezo_fl(args):
         transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
         )
-        trainset = torchvision.datasets.MNIST(
+        train_dataset = torchvision.datasets.MNIST(
             root="./data", train=True, download=True, transform=transform
         )
-        testset = torchvision.datasets.MNIST(
+        test_dataset = torchvision.datasets.MNIST(
             root="./data", train=False, download=True, transform=transform
         )
         test_loader = torch.utils.data.DataLoader(
-            testset, batch_size=args.test_batch_size, **kwargs
+            test_dataset, batch_size=args.test_batch_size, **kwargs
         )
     elif args.dataset == "cifar10":
         device, kwargs = use_device(args)
@@ -147,7 +145,7 @@ def preprocess_cezo_fl(args):
                 transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ]
         )
-        trainset = torchvision.datasets.CIFAR10(
+        train_dataset = torchvision.datasets.CIFAR10(
             root="./data", train=True, download=True, transform=transform_train
         )
         transform_test = transforms.Compose(
@@ -156,38 +154,38 @@ def preprocess_cezo_fl(args):
                 transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ]
         )
-        testset = torchvision.datasets.CIFAR10(
+        test_dataset = torchvision.datasets.CIFAR10(
             root="./data", train=False, download=True, transform=transform_test
         )
         test_loader = torch.utils.data.DataLoader(
-            testset, batch_size=args.test_batch_size, **kwargs
+            test_dataset, batch_size=args.test_batch_size, **kwargs
         )
     elif args.dataset == "fashion":
         device, kwargs = use_device(args)
         transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
         )
-        trainset = torchvision.datasets.FashionMNIST(
+        train_dataset = torchvision.datasets.FashionMNIST(
             root="./data", train=True, download=True, transform=transform
         )
-        testset = torchvision.datasets.FashionMNIST(
+        test_dataset = torchvision.datasets.FashionMNIST(
             root="./data", train=False, download=True, transform=transform
         )
         test_loader = torch.utils.data.DataLoader(
-            testset, batch_size=args.test_batch_size, **kwargs
+            test_dataset, batch_size=args.test_batch_size, **kwargs
         )
     elif args.dataset == "shakespeare":
         device, kwargs = use_device(args)
-        trainset = ShakeSpeare(train=True)
-        testset = ShakeSpeare(train=False)
+        train_dataset = ShakeSpeare(train=True)
+        test_dataset = ShakeSpeare(train=False)
         test_loader = torch.utils.data.DataLoader(
-            testset, batch_size=args.test_batch_size, shuffle=False, **kwargs
+            test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
         )
 
     generator = torch.Generator().manual_seed(args.seed)
     num_clients = args.num_clients
     splitted_train_sets = torch.utils.data.random_split(
-        trainset, [1 / num_clients for _ in range(num_clients)], generator=generator
+        train_dataset, [1 / num_clients for _ in range(num_clients)], generator=generator
     )
     splitted_train_loaders = []
     for i in range(num_clients):
