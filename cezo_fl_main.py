@@ -121,4 +121,4 @@ if __name__ == "__main__":
             # eval loss
             if (ite + 1) % eval_iterations == 0:
                 eval_loss, eval_accuracy = server.eval_model(test_loader)
-                t.set_postfix({"Loss": eval_loss, "Accuracy": eval_loss})
+                t.set_postfix({"Loss": eval_loss, "Accuracy": eval_accuracy})

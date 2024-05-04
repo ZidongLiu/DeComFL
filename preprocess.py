@@ -44,7 +44,7 @@ def use_sparsity_dict(args, model_name: str) -> Union[dict[str, float], None]:
     return sparsity_data["sparsity_dict"]
 
 
-def preprocess(args):
+def preprocess(args) -> tuple[str, torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
     if args.dataset == "mnist":
         device, kwargs = use_device(args)
         transform = transforms.Compose(
@@ -117,10 +117,14 @@ def preprocess(args):
         test_loader = torch.utils.data.DataLoader(
             test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
         )
+    else:
+        raise Exception(f'Dataset {args.dataset} is not supported')
     return device, train_loader, test_loader
 
 
-def preprocess_cezo_fl(args):
+def preprocess_cezo_fl(
+    args,
+) -> tuple[str, list[torch.utils.data.DataLoader], torch.utils.data.DataLoader]:
     if args.dataset == "mnist":
         device, kwargs = use_device(args)
         transform = transforms.Compose(
@@ -181,6 +185,8 @@ def preprocess_cezo_fl(args):
         test_loader = torch.utils.data.DataLoader(
             test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
         )
+    else:
+        raise Exception(f'Dataset {args.dataset} is not supported')
 
     generator = torch.Generator().manual_seed(args.seed)
     num_clients = args.num_clients
