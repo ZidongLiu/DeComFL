@@ -22,12 +22,28 @@ DEFAULTS = {
     "checkpoint": None,
     "create_many_checkpoint": True,
     "checkpoint_update_plan": "every10",
+    # Cezo_fl
+    "iterations": 100,
+    "num_clients": 5,
+    "num_sample_clients": 3,
+    "local_update_steps": 1,
 }
 
 
 # Parameters
 def get_params():
     parser = argparse.ArgumentParser(description="PyTorch training")
+
+    # cezo-fl
+    parser.add_argument("--iterations", type=int, default=DEFAULTS["iterations"])
+    parser.add_argument("--num-clients", type=int, default=DEFAULTS["num_clients"])
+    parser.add_argument(
+        "--num-sample-clients", type=int, default=DEFAULTS["num_sample_clients"]
+    )
+    parser.add_argument(
+        "--local-update-steps", type=int, default=DEFAULTS["local_update_steps"]
+    )
+    # rge_main
     parser.add_argument(
         "--train-batch-size", type=int, default=DEFAULTS["train_batch_size"]
     )

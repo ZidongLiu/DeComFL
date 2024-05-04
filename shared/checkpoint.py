@@ -1,4 +1,3 @@
-from typing import Optional
 import torch
 import os
 
@@ -41,7 +40,7 @@ class CheckPoint:
         self.best_acc = None
         self.new_checkpoint_file_path = None
 
-        checkpoint_file_path: Optional[str] = args.checkpoint
+        checkpoint_file_path: str | None = args.checkpoint
         self.last_checkpoint_file = checkpoint_file_path
         if checkpoint_file_path is not None:
             try:
