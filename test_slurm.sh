@@ -13,7 +13,7 @@
 #SBATCH --mail-user=slack:@zl4063	# Slack username to notify
 #SBATCH --mail-type=BEGIN			# Type of slack notifications to send
 #SBATCH --account=fl-het          # Slurm account
-#SBATCH --partition=tier3             # Partition to run on
+#SBATCH --partition=debug             # Partition to run on
 #SBATCH --cpus-per-task=2
 
 module load python/3.10.12-gcc-11.2.0-ubv7zcio
