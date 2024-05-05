@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 from torch.nn.utils import prune
-from typing import Optional
 
 
 def get_module_weight_sparsity(model):
@@ -25,7 +24,7 @@ def get_module_weight_sparsity(model):
 
 
 def generate_random_mask_arr(
-    model: nn.Module, sparsity_dict: dict[str, float], device: Optional[str] = None
+    model: nn.Module, sparsity_dict: dict[str, float], device: str | None = None
 ) -> torch.Tensor:
     ret = []
     for name, p in model.named_parameters():

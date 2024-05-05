@@ -4,8 +4,9 @@ import torch
 from typing import Any, Iterable, Sequence
 from collections import deque
 
-from dataclasses import dataclass
+from cezo_fl.shared import update_model_given_seed_and_grad
 from shared.metrics import Metric, accuracy
+from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 
 
 class AbstractClient:
@@ -34,40 +35,18 @@ class AbstractClient:
         return NotImplemented
 
 
-def update_model_given_seed_and_grad(
-    model: torch.nn.Module,
-    optim: torch.optim.Optimizer,
-    seeds: Sequence[int],
-    grad_scalar_list: Sequence[torch.Tensor],
-    device=None,
-) -> None:
-    assert len(seeds) == len(grad_scalar_list)
-    param_len = sum([p.numel() for p in model.parameters()])
-
-    def generate_perturbation_norm() -> torch.Tensor:
-        p = torch.randn(param_len, device=device)
-        return p
-
-    def put_grad(grad: torch.Tensor) -> None:
-        start = 0
-        for p in model.parameters():
-            p.grad = grad[start : (start + p.numel())].view(p.shape)
-            start += p.numel()
-
-    with torch.no_grad():
-        # K-local update
-        for seed, grad in zip(seeds, grad_scalar_list):
-            optim.zero_grad()
-            torch.manual_seed(seed)
-            put_grad(
-                sum(g * generate_perturbation_norm() for g in grad)
-            )  # For multiple perturb
-            optim.step()
-    return model
-
-
 class SeedAndGradientRecords:
     def __init__(self):
+        # For seed_records/grad_records, each entry stores info related to 1 iteration
+        # seed_records[i]: length = number of local updates K
+        # seed_records[i][k]: seed_k
+        # grad_records[i]: [vector for local_update_k for k in range(K)]
+        # grad_records[i][k]: scalar for 1 perturb or vector for >=1 perturb
+        # What should happen on clients pull server using grad_records[i][k]
+        # client use seed_records[i][k] to generate perturbation(s)
+        # client_grad[i][k]:
+        # vector = mean(perturbations[j] * grad_records[i][k][j] for j)
+
         self.seed_records: deque[list[int]] = deque()
         self.grad_records: deque[list[torch.Tensor]] = deque()
         self.earliest_records = 0
@@ -94,9 +73,7 @@ class SeedAndGradientRecords:
             for i in range(earliest_record_needs, self.current_iteration + 1)
         ]
 
-    def fetch_grad_records(
-        self, earliest_record_needs: int
-    ) -> list[list[torch.Tensor]]:
+    def fetch_grad_records(self, earliest_record_needs: int) -> list[list[torch.Tensor]]:
         assert earliest_record_needs >= self.earliest_records
         return [
             self.grad_records[i - self.earliest_records]
@@ -125,16 +102,23 @@ class CeZO_Server:
         self.server_model: torch.nn.Module | None = None
         self.server_criterion: torch.nn.Module | None = None
         self.optim: torch.optim.Optimizer | None = None
+        self.random_gradient_estimator: RGE | None = None
 
     def set_server_model_and_criterion(
         self,
         model: torch.nn.Module,
         criterion: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
+        random_gradient_estimator: RGE,
     ) -> None:
         self.server_model = model
         self.server_criterion = criterion
         self.optim = optimizer
+        self.random_gradient_estimator = random_gradient_estimator
+
+    def train(self):
+        if self.server_model:
+            self.server_model.train()
 
     def get_sampled_client_index(self):
         return random.sample(range(len(self.clients)), self.num_sample_clients)
@@ -154,6 +138,7 @@ class CeZO_Server:
             # information is needed as well.
             seeds_list = self.seed_grad_records.fetch_seed_records(last_update_iter)
             grad_list = self.seed_grad_records.fetch_grad_records(last_update_iter)
+            # client will reset model to last pull states before update its model to match server
             client.pull_model(seeds_list, grad_list)
 
             local_grad_scalar_list.append(client.local_update(seeds=seeds))
@@ -162,25 +147,21 @@ class CeZO_Server:
         # Step 3: server-side aggregation
         avg_grad_scalar: list[torch.Tensor] = []
         for each_client_update in zip(*local_grad_scalar_list):
-            avg_grad_scalar.append(
-                sum(each_client_update).div_(self.num_sample_clients)
-            )
+            avg_grad_scalar.append(sum(each_client_update).div_(self.num_sample_clients))
 
         self.seed_grad_records.add_records(seeds=seeds, grad=avg_grad_scalar)
 
-        # Step 4: client sync-to server's older version.
-        for index in sampled_client_index:
-            self.clients[index].reset_model()
-
         # Optional: optimize the memory. Remove is exclusive, i.e., the min last updates
         # information is still kept.
-        self.seed_grad_records.remove_too_old(
-            earliest_record_needs=min(self.client_last_updates)
-        )
+        self.seed_grad_records.remove_too_old(earliest_record_needs=min(self.client_last_updates))
 
         if self.server_model:
+            self.train()
             update_model_given_seed_and_grad(
-                self.server_model, self.optim, self.device, seeds, avg_grad_scalar
+                self.optim,
+                self.random_gradient_estimator,
+                seeds,
+                avg_grad_scalar,
             )
 
     def eval_model(self, test_loader: Iterable[Any]) -> tuple[float, float]:
@@ -194,10 +175,10 @@ class CeZO_Server:
                 if self.device != torch.device("cpu"):
                     images, labels = images.to(self.device), labels.to(self.device)
                 pred = self.server_model(images)
-                eval_loss.update(self.criterion(pred, labels))
+                eval_loss.update(self.server_criterion(pred, labels))
                 eval_accuracy.update(accuracy(pred, labels))
         print(
-            f"Evaluation(round {epoch}): Eval Loss:{eval_loss.avg:.4f}, "
-            f"Accuracy:{eval_accuracy.avg * 100:.2f}%"
+            f"\nEvaluation(Iteration {self.seed_grad_records.current_iteration}): ",
+            f"Eval Loss:{eval_loss.avg:.4f}, " f"Accuracy:{eval_accuracy.avg * 100:.2f}%",
         )
         return eval_loss.avg, eval_accuracy.avg

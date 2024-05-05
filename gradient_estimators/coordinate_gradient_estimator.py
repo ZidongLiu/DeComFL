@@ -1,6 +1,6 @@
 import torch
 from torch.nn import Parameter
-from typing import Iterator, Optional
+from typing import Iterator
 
 
 def get_parameter_indices_for_ith_elem(i, cumsum_dimension):
@@ -21,10 +21,10 @@ class CoordinateGradientEstimator:
     def __init__(
         self,
         model,
-        parameters: Optional[Iterator[Parameter]] = None,
+        parameters: Iterator[Parameter] | None = None,
         mu=1e-3,
-        device: Optional[str] = None,
-        prune_mask_arr: Optional[torch.Tensor] = None,
+        device: str | None = None,
+        prune_mask_arr: torch.Tensor | None = None,
     ):
         self.device = device
         self.model = model
@@ -54,9 +54,7 @@ class CoordinateGradientEstimator:
         index_of_parameter_in_parameters_list, index_within_parameter = (
             get_parameter_indices_for_ith_elem(i, self.cumsum_dimension)
         )
-        flatten_parameter = self.flatten_parameters_list[
-            index_of_parameter_in_parameters_list
-        ]
+        flatten_parameter = self.flatten_parameters_list[index_of_parameter_in_parameters_list]
         # clone to be safe, might not need
         orig_value = flatten_parameter[index_within_parameter].clone()
 
