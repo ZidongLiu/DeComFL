@@ -118,7 +118,7 @@ def preprocess(args) -> tuple[str, torch.utils.data.DataLoader, torch.utils.data
             test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
         )
     else:
-        raise Exception(f'Dataset {args.dataset} is not supported')
+        raise Exception(f"Dataset {args.dataset} is not supported")
     return device, train_loader, test_loader
 
 
@@ -186,12 +186,14 @@ def preprocess_cezo_fl(
             test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
         )
     else:
-        raise Exception(f'Dataset {args.dataset} is not supported')
+        raise Exception(f"Dataset {args.dataset} is not supported")
 
     generator = torch.Generator().manual_seed(args.seed)
     num_clients = args.num_clients
+    if len(train_dataset) % num_clients != 0:
+        raise RuntimeError("len(train_dataset) cannot be divided by num_clients")
     splitted_train_sets = torch.utils.data.random_split(
-        train_dataset, [1 / num_clients for _ in range(num_clients)], generator=generator
+        train_dataset, [len(train_dataset) // num_clients] * num_clients, generator=generator
     )
     splitted_train_loaders = []
     for i in range(num_clients):
