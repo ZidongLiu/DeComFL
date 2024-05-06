@@ -1,15 +1,17 @@
 import abc
 import random
 import torch
-from typing import Any, Iterable, Sequence, TypedDict
+from typing import Any, Iterable, Sequence
 from collections import deque
 
 from cezo_fl.shared import update_model_given_seed_and_grad
 from shared.metrics import Metric, accuracy
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
+from dataclasses import dataclass
 
 
-class LocalUpdateResult(TypedDict):
+@dataclass
+class LocalUpdateResult:
     grad_tensors: Sequence[torch.Tensor]
     step_accuracy: float
     step_loss: float
@@ -151,9 +153,9 @@ class CeZO_Server:
 
             client_local_update_result = client.local_update(seeds=seeds)
 
-            step_train_loss.update(client_local_update_result["step_loss"])
-            step_train_accuracy.update(client_local_update_result["step_accuracy"])
-            local_grad_scalar_list.append(client_local_update_result["grad_tensors"])
+            step_train_loss.update(client_local_update_result.step_loss)
+            step_train_accuracy.update(client_local_update_result.step_accuracy)
+            local_grad_scalar_list.append(client_local_update_result.grad_tensors)
 
             self.client_last_updates[index] = iteration
 

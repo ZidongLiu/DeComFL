@@ -68,11 +68,11 @@ class Client(AbstractClient):
             train_loss.update(self.criterion(pred, labels))
             train_accuracy.update(accuracy(pred, labels))
 
-        return {
-            "grad_tensors": iteration_local_update_grad_vectors,
-            "step_accuracy": train_accuracy.avg,
-            "step_loss": train_loss.avg,
-        }
+        return LocalUpdateResult(
+            grad_tensors=iteration_local_update_grad_vectors,
+            step_accuracy=train_accuracy.avg,
+            step_loss=train_loss.avg,
+        )
 
     def reset_model(self) -> None:
         """Reset the mode to the state before the local_update."""
