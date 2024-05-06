@@ -34,6 +34,10 @@ class AbstractClient:
     ) -> None:
         return NotImplemented
 
+    @abc.abstractmethod
+    def random_gradient_estimator(self) -> RGE:
+        return NotImplemented
+
 
 class SeedAndGradientRecords:
     def __init__(self):
@@ -116,12 +120,16 @@ class CeZO_Server:
         self.optim = optimizer
         self.random_gradient_estimator = random_gradient_estimator
 
-    def train(self):
+    def train(self) -> None:
         if self.server_model:
             self.server_model.train()
 
-    def get_sampled_client_index(self):
+    def get_sampled_client_index(self) -> list[int]:
         return random.sample(range(len(self.clients)), self.num_sample_clients)
+
+    def set_perturbation(self, num_pert: int) -> None:
+        for client in self.clients:
+            client.random_gradient_estimator().num_pert = num_pert
 
     def train_one_step(self, iteration: int) -> None:
         # Step 0: initiate something

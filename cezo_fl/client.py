@@ -30,6 +30,9 @@ class Client(AbstractClient):
         self.data_iterator = self._get_train_batch_iterator()
         self.last_pull_state_dict = self.screenshot()
 
+    def random_gradient_estimator(self):
+        return self.grad_estimator
+
     def _get_train_batch_iterator(self):
         # NOTE: used only in init, will generate an infinite iterator from dataloader
         while True:
