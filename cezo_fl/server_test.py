@@ -1,5 +1,6 @@
 from cezo_fl.server import (
     AbstractClient,
+    LocalUpdateResult,
     CeZO_Server,
     SeedAndGradientRecords,
     update_model_given_seed_and_grad,
@@ -54,8 +55,12 @@ def test_update_model_given_seed_and_grad():
 
 
 class FakeClient(AbstractClient):
-    def local_update(self, seeds: Sequence[int]) -> Sequence[torch.Tensor]:
-        return [torch.tensor([0.1, 0.2, 0.3]) for _ in range(len(seeds))]
+    def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
+        return LocalUpdateResult(
+            grad_tensors=[torch.tensor([0.1, 0.2, 0.3]) for _ in range(len(seeds))],
+            step_loss=0.1,
+            step_accuracy=0.1,
+        )
 
     def reset_model(self) -> None:
         return
