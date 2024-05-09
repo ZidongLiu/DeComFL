@@ -15,4 +15,4 @@
 
 module load python/3.10.12-gcc-11.2.0-ubv7zcio
 
-python rge_main.py --log-to-tensorboard= --checkpoint-update-plan=every5 --epoch=20 --num-pert=5 --grad-estimate-method=rge-forward
+python cezo_fl_main.py --dataset=shakespeare --iterations=1000 --eval-iterations=200 --num-clients=5 --num-sample-clients=3 --local-update-steps=1 --num-pert=5 --grad-estimate-method=rge-forward
