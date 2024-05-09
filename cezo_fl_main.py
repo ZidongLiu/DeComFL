@@ -133,8 +133,6 @@ if __name__ == "__main__":
             )
         )
 
-    eval_iterations = 20
-
     with tqdm(total=args.iterations, desc="Training:") as t, torch.no_grad():
         for ite in range(args.iterations):
             step_loss, step_accuracy = server.train_one_step(ite)
@@ -145,7 +143,7 @@ if __name__ == "__main__":
                 writer.add_scalar("Loss/train", step_loss, ite)
                 writer.add_scalar("Accuracy/train", step_accuracy, ite)
             # eval
-            if (ite + 1) % eval_iterations == 0:
+            if args.eval_iterations != 0 and (ite + 1) % args.eval_iterations == 0:
                 eval_loss, eval_accuracy = server.eval_model(test_loader)
                 if args.log_to_tensorboard:
                     writer.add_scalar("Loss/test", eval_loss, ite)
