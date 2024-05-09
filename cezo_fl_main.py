@@ -117,7 +117,7 @@ if __name__ == "__main__":
     args = get_params().parse_args()
     if args.dataset == "shakespeare":
         args.num_clients = 139
-
+    print(args)
     device, train_loaders, test_loader = preprocess_cezo_fl(args)
 
     server = setup_server_and_clients(args, device, train_loaders)
