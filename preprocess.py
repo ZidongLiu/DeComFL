@@ -11,11 +11,9 @@ def use_device(args):
     use_mps = not args.no_mps and torch.backends.mps.is_available()
     if use_cuda:
         print("----- Using cuda -----")
-        kwargs = (
-            {"num_workers": args.num_workers, "pin_memory": True, "shuffle": True}
-            if use_cuda
-            else {}
-        )
+        # num_workers will make dataloader very slow especially when number clients is large
+        # Do not shuffle shakespeare
+        kwargs = {"pin_memory": True, "shuffle": args.dataset != "shakespeare"} if use_cuda else {}
         return torch.device("cuda"), kwargs
     elif use_mps:
         print("----- Using mps -----")
@@ -115,7 +113,9 @@ def preprocess(args) -> tuple[str, torch.utils.data.DataLoader, torch.utils.data
         )
         test_dataset = ShakeSpeare(train=False)
         test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
+            test_dataset,
+            batch_size=args.test_batch_size,
+            **kwargs,
         )
     else:
         raise Exception(f"Dataset {args.dataset} is not supported")
@@ -183,7 +183,7 @@ def preprocess_cezo_fl(
         train_dataset = ShakeSpeare(train=True)
         test_dataset = ShakeSpeare(train=False)
         test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
+            test_dataset, batch_size=args.test_batch_size, **kwargs
         )
     else:
         raise Exception(f"Dataset {args.dataset} is not supported")

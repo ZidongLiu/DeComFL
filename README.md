@@ -5,4 +5,4 @@
   - When have default sparsity file: `python rge_main.py --dataset=cifar10 --sparsity-file=saved_sparsity/cifar10/zoo_grasp_0.9.json`
   - When do not intend to prune: `python rge_main.py --dataset=cifar10`
 
-- CeZO-FL: Follow FL routine. And split data into chunks and train on different clients. example usage: `python cezo_fl_main.py --dataset=fashion --iterations=100 --num-clients=5 --num-sample-clients=3 --local-update-steps=5 --num-pert=5 --grad-estimate-method=rge-forward`
+- CeZO-FL: Follow FL routine. And split data into chunks and train on different clients. example usage: `python cezo_fl_main.py --dataset=shakespeare --iterations=1000 --eval-iterations=200 --num-clients=5 --num-sample-clients=3 --local-update-steps=1 --num-pert=5 --grad-estimate-method=rge-forward`
