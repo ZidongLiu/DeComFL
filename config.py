@@ -114,6 +114,7 @@ def get_args_str(args):
     # important ones, add to string regardless of it's different from default
     base_str = (
         f"{args.dataset}-lr-{args.lr}-mmtm-{args.momentum}"
+        + f"-k-{args.local_update_steps}"
         + f"-npert-{args.num_pert}-{args.grad_estimate_method}"
     )
     # only add to string if it's different from default
