@@ -188,13 +188,20 @@ def preprocess_cezo_fl(
     else:
         raise Exception(f"Dataset {args.dataset} is not supported")
 
-    generator = torch.Generator().manual_seed(args.seed)
+    # already updated at main function
     num_clients = args.num_clients
-    if len(train_dataset) % num_clients != 0:
-        raise RuntimeError("len(train_dataset) cannot be divided by num_clients")
-    splitted_train_sets = torch.utils.data.random_split(
-        train_dataset, [len(train_dataset) // num_clients] * num_clients, generator=generator
-    )
+    if args.dataset == "shakespeare":
+        dict_users = train_dataset.get_client_dic()
+        splitted_train_sets = [
+            DatasetSplit(train_dataset, dict_users[client_idx]) for client_idx in range(num_clients)
+        ]
+    else:
+        generator = torch.Generator().manual_seed(args.seed)
+        splitted_train_sets = torch.utils.data.random_split(
+            train_dataset,
+            get_random_split_chunk_length(len(train_dataset), num_clients),
+            generator=generator,
+        )
     splitted_train_loaders = []
     for i in range(num_clients):
         splitted_train_loaders.append(
@@ -203,3 +210,27 @@ def preprocess_cezo_fl(
             )
         )
     return device, splitted_train_loaders, test_loader
+
+
+class DatasetSplit(torch.utils.data.Dataset):
+    def __init__(self, dataset, idxs):
+        self.dataset = dataset
+        self.idxs = list(idxs)
+
+    def __len__(self):
+        return len(self.idxs)
+
+    def __getitem__(self, item):
+        image, label = self.dataset[self.idxs[item]]
+        return image, label
+
+
+def get_random_split_chunk_length(total_length: int, num_split: int) -> list[int]:
+    int_len = total_length // num_split
+    rem = total_length % num_split
+
+    ret_base = [int_len] * num_split
+    for i in range(rem):
+        ret_base[i] += 1
+
+    return ret_base
