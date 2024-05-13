@@ -7,12 +7,20 @@ from collections import deque
 from cezo_fl.shared import update_model_given_seed_and_grad
 from shared.metrics import Metric, accuracy
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
+from dataclasses import dataclass
+
+
+@dataclass
+class LocalUpdateResult:
+    grad_tensors: Sequence[torch.Tensor]
+    step_accuracy: float
+    step_loss: float
 
 
 class AbstractClient:
 
     @abc.abstractmethod
-    def local_update(self, seeds: Sequence[int]) -> Sequence[torch.Tensor]:
+    def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
         """Returns a sequence of gradient scalar tensors for each local update.
 
         The length of the returned sequence should be the same as the length of seeds.
@@ -131,13 +139,15 @@ class CeZO_Server:
         for client in self.clients:
             client.random_gradient_estimator().num_pert = num_pert
 
-    def train_one_step(self, iteration: int) -> None:
+    def train_one_step(self, iteration: int) -> tuple[float, float]:
         # Step 0: initiate something
         sampled_client_index = self.get_sampled_client_index()
         seeds = [random.randint(0, 1000000) for _ in range(self.local_update_steps)]
 
         # Step 1 & 2: pull model and local update
         local_grad_scalar_list: list[list[torch.Tensor]] = []  # Clients X Local_update
+        step_train_loss = Metric("Step train loss")
+        step_train_accuracy = Metric("Step train accuracy")
         for index in sampled_client_index:
             client = self.clients[index]
             last_update_iter = self.client_last_updates[index]
@@ -149,7 +159,12 @@ class CeZO_Server:
             # client will reset model to last pull states before update its model to match server
             client.pull_model(seeds_list, grad_list)
 
-            local_grad_scalar_list.append(client.local_update(seeds=seeds))
+            client_local_update_result = client.local_update(seeds=seeds)
+
+            step_train_loss.update(client_local_update_result.step_loss)
+            step_train_accuracy.update(client_local_update_result.step_accuracy)
+            local_grad_scalar_list.append(client_local_update_result.grad_tensors)
+
             self.client_last_updates[index] = iteration
 
         # Step 3: server-side aggregation
@@ -171,6 +186,8 @@ class CeZO_Server:
                 seeds,
                 avg_grad_scalar,
             )
+
+        return step_train_loss.avg, step_train_accuracy.avg
 
     def eval_model(self, test_loader: Iterable[Any]) -> tuple[float, float]:
         if self.server_model is None:

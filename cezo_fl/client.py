@@ -2,8 +2,9 @@ import torch
 from typing import Sequence
 from copy import deepcopy
 
+from shared.metrics import Metric, accuracy
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from cezo_fl.server import AbstractClient
+from cezo_fl.server import AbstractClient, LocalUpdateResult
 from cezo_fl.shared import update_model_given_seed_and_grad
 
 
@@ -39,7 +40,7 @@ class Client(AbstractClient):
             for v in self.dataloader:
                 yield v
 
-    def local_update(self, seeds: Sequence[int]) -> Sequence[torch.Tensor]:
+    def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
         """Returns a sequence of gradient scalar tensors for each local update.
 
         The length of the returned sequence should be the same as the length of seeds.
@@ -47,6 +48,9 @@ class Client(AbstractClient):
         of perturbations.
         """
         iteration_local_update_grad_vectors: Sequence[torch.Tensor] = []
+        train_loss = Metric("Client train loss")
+        train_accuracy = Metric("Client train accuracy")
+
         for seed in seeds:
             self.optimizer.zero_grad()
             # NOTE:dataloader manage its own randomnes state thus not affected by seed
@@ -62,7 +66,16 @@ class Client(AbstractClient):
             # NOTE: local model update also uses momentum and other states
             self.optimizer.step()
 
-        return iteration_local_update_grad_vectors
+            # get_train_info
+            pred = self.model(batch_inputs)
+            train_loss.update(self.criterion(pred, labels))
+            train_accuracy.update(accuracy(pred, labels))
+
+        return LocalUpdateResult(
+            grad_tensors=iteration_local_update_grad_vectors,
+            step_accuracy=train_accuracy.avg,
+            step_loss=train_loss.avg,
+        )
 
     def reset_model(self) -> None:
         """Reset the mode to the state before the local_update."""

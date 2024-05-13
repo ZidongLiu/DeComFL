@@ -11,11 +11,9 @@ def use_device(args):
     use_mps = not args.no_mps and torch.backends.mps.is_available()
     if use_cuda:
         print("----- Using cuda -----")
-        kwargs = (
-            {"num_workers": args.num_workers, "pin_memory": True, "shuffle": True}
-            if use_cuda
-            else {}
-        )
+        # num_workers will make dataloader very slow especially when number clients is large
+        # Do not shuffle shakespeare
+        kwargs = {"pin_memory": True, "shuffle": args.dataset != "shakespeare"} if use_cuda else {}
         return torch.device("cuda"), kwargs
     elif use_mps:
         print("----- Using mps -----")
@@ -115,7 +113,9 @@ def preprocess(args) -> tuple[str, torch.utils.data.DataLoader, torch.utils.data
         )
         test_dataset = ShakeSpeare(train=False)
         test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
+            test_dataset,
+            batch_size=args.test_batch_size,
+            **kwargs,
         )
     else:
         raise Exception(f"Dataset {args.dataset} is not supported")
@@ -183,18 +183,25 @@ def preprocess_cezo_fl(
         train_dataset = ShakeSpeare(train=True)
         test_dataset = ShakeSpeare(train=False)
         test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
+            test_dataset, batch_size=args.test_batch_size, **kwargs
         )
     else:
         raise Exception(f"Dataset {args.dataset} is not supported")
 
-    generator = torch.Generator().manual_seed(args.seed)
+    # already updated at main function
     num_clients = args.num_clients
-    if len(train_dataset) % num_clients != 0:
-        raise RuntimeError("len(train_dataset) cannot be divided by num_clients")
-    splitted_train_sets = torch.utils.data.random_split(
-        train_dataset, [len(train_dataset) // num_clients] * num_clients, generator=generator
-    )
+    if args.dataset == "shakespeare":
+        dict_users = train_dataset.get_client_dic()
+        splitted_train_sets = [
+            DatasetSplit(train_dataset, dict_users[client_idx]) for client_idx in range(num_clients)
+        ]
+    else:
+        generator = torch.Generator().manual_seed(args.seed)
+        splitted_train_sets = torch.utils.data.random_split(
+            train_dataset,
+            get_random_split_chunk_length(len(train_dataset), num_clients),
+            generator=generator,
+        )
     splitted_train_loaders = []
     for i in range(num_clients):
         splitted_train_loaders.append(
@@ -203,3 +210,27 @@ def preprocess_cezo_fl(
             )
         )
     return device, splitted_train_loaders, test_loader
+
+
+class DatasetSplit(torch.utils.data.Dataset):
+    def __init__(self, dataset, idxs):
+        self.dataset = dataset
+        self.idxs = list(idxs)
+
+    def __len__(self):
+        return len(self.idxs)
+
+    def __getitem__(self, item):
+        image, label = self.dataset[self.idxs[item]]
+        return image, label
+
+
+def get_random_split_chunk_length(total_length: int, num_split: int) -> list[int]:
+    int_len = total_length // num_split
+    rem = total_length % num_split
+
+    ret_base = [int_len] * num_split
+    for i in range(rem):
+        ret_base[i] += 1
+
+    return ret_base

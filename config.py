@@ -24,6 +24,7 @@ DEFAULTS = {
     "checkpoint_update_plan": "every10",
     # Cezo_fl
     "iterations": 100,
+    "eval_iterations": 20,
     "num_clients": 5,
     "num_sample_clients": 3,
     "local_update_steps": 1,
@@ -36,23 +37,14 @@ def get_params():
 
     # cezo-fl
     parser.add_argument("--iterations", type=int, default=DEFAULTS["iterations"])
+    parser.add_argument("--eval-iterations", type=int, default=DEFAULTS["eval_iterations"])
     parser.add_argument("--num-clients", type=int, default=DEFAULTS["num_clients"])
-    parser.add_argument(
-        "--num-sample-clients", type=int, default=DEFAULTS["num_sample_clients"]
-    )
-    parser.add_argument(
-        "--local-update-steps", type=int, default=DEFAULTS["local_update_steps"]
-    )
+    parser.add_argument("--num-sample-clients", type=int, default=DEFAULTS["num_sample_clients"])
+    parser.add_argument("--local-update-steps", type=int, default=DEFAULTS["local_update_steps"])
     # rge_main
-    parser.add_argument(
-        "--train-batch-size", type=int, default=DEFAULTS["train_batch_size"]
-    )
-    parser.add_argument(
-        "--test-batch-size", type=int, default=DEFAULTS["test_batch_size"]
-    )
-    parser.add_argument(
-        "--lr", type=float, default=DEFAULTS["lr"], help="Learning rate"
-    )
+    parser.add_argument("--train-batch-size", type=int, default=DEFAULTS["train_batch_size"])
+    parser.add_argument("--test-batch-size", type=int, default=DEFAULTS["test_batch_size"])
+    parser.add_argument("--lr", type=float, default=DEFAULTS["lr"], help="Learning rate")
     parser.add_argument("--epoch", type=int, default=DEFAULTS["epoch"])
 
     parser.add_argument("--mu", type=float, default=DEFAULTS["mu"])
@@ -76,9 +68,7 @@ def get_params():
         default=DEFAULTS["grad_estimate_method"],
         choices=["rge-central", "rge-forward", "cge-forward"],
     )
-    parser.add_argument(
-        "--seed", type=int, default=DEFAULTS["seed"], help="random seed"
-    )
+    parser.add_argument("--seed", type=int, default=DEFAULTS["seed"], help="random seed")
     parser.add_argument("--num-workers", type=int, default=DEFAULTS["num_workers"])
     parser.add_argument(
         "--log-to-tensorboard",
@@ -124,6 +114,7 @@ def get_args_str(args):
     # important ones, add to string regardless of it's different from default
     base_str = (
         f"{args.dataset}-lr-{args.lr}-mmtm-{args.momentum}"
+        + f"-k-{args.local_update_steps}"
         + f"-npert-{args.num_pert}-{args.grad_estimate_method}"
     )
     # only add to string if it's different from default

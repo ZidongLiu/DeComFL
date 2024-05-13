@@ -1,12 +1,15 @@
 import torch.nn as nn
 import torch
+from tensorboardX import SummaryWriter
+from os import path
 
-from config import get_params
+from config import get_params, get_args_str
 from preprocess import preprocess_cezo_fl
 
 from cezo_fl.server import CeZO_Server
 from cezo_fl.client import Client
 
+from shared.model_helpers import get_current_datetime_str
 from models.cnn_mnist import CNN_MNIST
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
@@ -65,18 +68,7 @@ def prepare_settings_underseed(args, device):
     return model, criterion, optimizer, grad_estimator
 
 
-# def get_warmup_lr(
-#     args, current_epoch: int, current_iter: int, iters_per_epoch: int
-# ) -> float:
-#     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
-#     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
-#     return args.lr * current_iterations / overall_iterations
-
-
-if __name__ == "__main__":
-    args = get_params().parse_args()
-    device, train_loaders, test_loader = preprocess_cezo_fl(args)
-
+def setup_server_and_clients(args, device, train_loaders) -> CeZO_Server:
     clients = []
 
     for i in range(args.num_clients):
@@ -110,15 +102,52 @@ if __name__ == "__main__":
     server.set_server_model_and_criterion(
         server_model, server_criterion, server_optimizer, server_grad_estimator
     )
+    return server
 
-    eval_iterations = 20
+
+# def get_warmup_lr(
+#     args, current_epoch: int, current_iter: int, iters_per_epoch: int
+# ) -> float:
+#     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
+#     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
+#     return args.lr * current_iterations / overall_iterations
+
+
+if __name__ == "__main__":
+    args = get_params().parse_args()
+    if args.dataset == "shakespeare":
+        args.num_clients = 139
+    print(args)
+    device, train_loaders, test_loader = preprocess_cezo_fl(args)
+
+    server = setup_server_and_clients(args, device, train_loaders)
+
+    args_str = get_args_str(args) + "-" + server.server_model.model_name
+
+    if args.log_to_tensorboard:
+        tensorboard_sub_folder = args_str + "-" + get_current_datetime_str()
+        writer = SummaryWriter(
+            path.join(
+                "tensorboards",
+                "cezo_fl",
+                args.dataset,
+                args.log_to_tensorboard,
+                tensorboard_sub_folder,
+            )
+        )
 
     with tqdm(total=args.iterations, desc="Training:") as t, torch.no_grad():
         for ite in range(args.iterations):
-            server.train_one_step(ite)
+            step_loss, step_accuracy = server.train_one_step(ite)
+            t.set_postfix({"Loss": step_loss, "Accuracy": step_accuracy})
             t.update(1)
 
-            # eval loss
-            if (ite + 1) % eval_iterations == 0:
+            if args.log_to_tensorboard:
+                writer.add_scalar("Loss/train", step_loss, ite)
+                writer.add_scalar("Accuracy/train", step_accuracy, ite)
+            # eval
+            if args.eval_iterations != 0 and (ite + 1) % args.eval_iterations == 0:
                 eval_loss, eval_accuracy = server.eval_model(test_loader)
-                t.set_postfix({"Loss": eval_loss, "Accuracy": eval_accuracy})
+                if args.log_to_tensorboard:
+                    writer.add_scalar("Loss/test", eval_loss, ite)
+                    writer.add_scalar("Accuracy/test", eval_accuracy, ite)
