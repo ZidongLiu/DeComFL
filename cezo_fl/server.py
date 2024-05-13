@@ -139,6 +139,16 @@ class CeZO_Server:
         for client in self.clients:
             client.random_gradient_estimator().num_pert = num_pert
 
+    def set_learning_rate(self, lr: float) -> None:
+        # Client
+        for client in self.clients:
+            for p in client.optimizer.param_groups:
+                p["lr"] = lr
+        # Server
+        if self.server_model:
+            for p in self.optim.param_groups:
+                p["lr"] = lr
+
     def train_one_step(self, iteration: int) -> tuple[float, float]:
         # Step 0: initiate something
         sampled_client_index = self.get_sampled_client_index()
