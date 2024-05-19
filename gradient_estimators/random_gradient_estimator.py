@@ -2,6 +2,8 @@ import torch
 from torch.nn import Parameter
 from typing import Iterator
 from enum import Enum
+import transformers
+from shared.language_utils import LLMBatchInput
 
 
 class GradEstimateMethod(Enum):
@@ -13,7 +15,7 @@ class RandomGradientEstimator:
 
     def __init__(
         self,
-        model,
+        model: torch.nn.Module | transformers.models.opt.modeling_opt.OPTForCausalLM,
         parameters: Iterator[Parameter] | None = None,
         mu=1e-3,
         num_pert=1,
@@ -42,6 +44,16 @@ class RandomGradientEstimator:
         self.prune_mask_arr = None
         if prune_mask_arr:
             self.set_prune_mask(prune_mask_arr)
+
+    def model_forward(self, batch_inputs: torch.Tensor | LLMBatchInput):
+        if isinstance(self.model, transformers.models.opt.modeling_opt.OPTForCausalLM):
+            return self.model(
+                input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask
+            )
+        elif isinstance(self.model, torch.nn.Module):
+            return self.model(batch_inputs)
+        else:
+            raise Exception("This model type is not supported")
 
     def set_prune_mask(self, prune_mask_arr) -> None:
         self.prune_mask_arr = prune_mask_arr
@@ -79,19 +91,22 @@ class RandomGradientEstimator:
     def _forward_method(self, batch_inputs, labels, criterion) -> tuple[torch.Tensor, torch.Tensor]:
         grad = 0
         dir_grads = []
-        initial_loss = criterion(self.model(batch_inputs), labels)
+        initial_loss = criterion(self.model_forward(batch_inputs), labels)
         for _ in range(self.num_pert):
             pb_norm = self.generate_perturbation_norm()  # TODO add random seed
 
             self.perturb_model(pb_norm, alpha=self.mu)
-            pert_plus_loss = criterion(self.model(batch_inputs), labels)
+            pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)
             self.perturb_model(pb_norm, alpha=-self.mu)  # Restore model
 
             dir_grad = (pert_plus_loss - initial_loss) / self.mu
             dir_grads += [dir_grad]
-            grad += dir_grad * pb_norm
+            if isinstance(grad, int):
+                grad = pb_norm.mul_(dir_grad)
+            else:
+                grad.add_(pb_norm, alpha=dir_grad)
 
-        return grad / self.num_pert, torch.tensor(dir_grads, device=self.device)
+        return grad.div_(self.num_pert), torch.tensor(dir_grads, device=self.device)
 
     def _central_method(self, batch_inputs, labels, criterion) -> tuple[torch.Tensor, torch.Tensor]:
         grad = 0
@@ -100,9 +115,9 @@ class RandomGradientEstimator:
             pb_norm = self.generate_perturbation_norm()  # TODO add random seed
 
             self.perturb_model(pb_norm, alpha=self.mu)
-            pert_plus_loss = criterion(self.model(batch_inputs), labels)
+            pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)
             self.perturb_model(pb_norm, alpha=-2 * self.mu)
-            pert_minus_loss = criterion(self.model(batch_inputs), labels)
+            pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
             self.perturb_model(pb_norm, alpha=self.mu)  # Restore model
 
             dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)

@@ -2,7 +2,7 @@ import torch
 from typing import Sequence
 from copy import deepcopy
 
-from shared.metrics import Metric, accuracy
+from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 from cezo_fl.server import AbstractClient, LocalUpdateResult
 from cezo_fl.shared import update_model_given_seed_and_grad
@@ -17,6 +17,7 @@ class Client(AbstractClient):
         grad_estimator: RGE,
         optimizer: torch.optim.Optimizer,
         criterion: torch.nn.Module,
+        accuracy_func,
         device: str | None = None,
     ):
         self.model = model
@@ -27,6 +28,7 @@ class Client(AbstractClient):
         self.grad_estimator = grad_estimator
         self.optimizer = optimizer
         self.criterion = criterion
+        self.accuracy_func = accuracy_func
 
         self.data_iterator = self._get_train_batch_iterator()
         self.last_pull_state_dict = self.screenshot()
@@ -64,9 +66,9 @@ class Client(AbstractClient):
             self.optimizer.step()
 
             # get_train_info
-            pred = self.model(batch_inputs)
+            pred = self.grad_estimator.model_forward(batch_inputs)
             train_loss.update(self.criterion(pred, labels))
-            train_accuracy.update(accuracy(pred, labels))
+            train_accuracy.update(self.accuracy_func(pred, labels))
 
         return LocalUpdateResult(
             grad_tensors=iteration_local_update_grad_vectors,

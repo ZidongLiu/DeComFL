@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 from tensorboardX import SummaryWriter
 from os import path
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from config import get_params, get_args_str
 from preprocess import preprocess_cezo_fl
@@ -14,6 +15,9 @@ from models.cnn_mnist import CNN_MNIST
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
 from models.lstm import CharLSTM
+from shared.language_utils import get_sst2_loss, SST2Template
+from shared.metrics import accuracy
+
 from tqdm import tqdm
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 
@@ -26,6 +30,7 @@ def prepare_settings_underseed(args, device):
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
         )
+        accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     elif args.dataset == "cifar10":
         model = LeNet().to(device)
@@ -33,6 +38,7 @@ def prepare_settings_underseed(args, device):
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=5e-4, momentum=args.momentum
         )
+        accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
         #     optimizer, milestones=[200], gamma=0.1
         # )
@@ -42,6 +48,7 @@ def prepare_settings_underseed(args, device):
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
         )
+        accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
         #     optimizer, milestones=[200], gamma=0.1
         # )
@@ -49,9 +56,22 @@ def prepare_settings_underseed(args, device):
         model = CharLSTM().to(device)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+        accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
         #     optimizer, milestones=[200], gamma=0.1
         # )
+    elif args.dataset == "sst2":
+        model_name = "facebook/opt-125m"
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float32)
+        model.model_name = "opt-125m"
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name, padding_side="left", truncate_side="left"
+        )
+        template = SST2Template()
+        verbalizer_id_map = template.get_verbalizer_id(tokenizer)
+        criterion = get_sst2_loss("last_token", verbalizer_id_map)
+        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0, weight_decay=5e-4)
+        accuracy_func = get_sst2_loss("accuracy", verbalizer_id_map)
 
     if args.grad_estimate_method in ["rge-central", "rge-forward"]:
         method = args.grad_estimate_method[4:]
@@ -65,16 +85,20 @@ def prepare_settings_underseed(args, device):
         )
     else:
         raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
-    return model, criterion, optimizer, grad_estimator
+    return model, criterion, optimizer, grad_estimator, accuracy_func
 
 
 def setup_server_and_clients(args, device, train_loaders) -> CeZO_Server:
     clients = []
 
     for i in range(args.num_clients):
-        client_model, client_criterion, client_optimizer, client_grad_estimator = (
-            prepare_settings_underseed(args, device)
-        )
+        (
+            client_model,
+            client_criterion,
+            client_optimizer,
+            client_grad_estimator,
+            client_accuracy_func,
+        ) = prepare_settings_underseed(args, device)
         client_model.to(device)
 
         client = Client(
@@ -83,6 +107,7 @@ def setup_server_and_clients(args, device, train_loaders) -> CeZO_Server:
             client_grad_estimator,
             client_optimizer,
             client_criterion,
+            client_accuracy_func,
             device,
         )
         clients.append(client)
@@ -95,12 +120,20 @@ def setup_server_and_clients(args, device, train_loaders) -> CeZO_Server:
     )
 
     # set server tools
-    server_model, server_criterion, server_optimizer, server_grad_estimator = (
-        prepare_settings_underseed(args, device)
-    )
+    (
+        server_model,
+        server_criterion,
+        server_optimizer,
+        server_grad_estimator,
+        server_accuracy_func,
+    ) = prepare_settings_underseed(args, device)
     server_model.to(device)
     server.set_server_model_and_criterion(
-        server_model, server_criterion, server_optimizer, server_grad_estimator
+        server_model,
+        server_criterion,
+        server_accuracy_func,
+        server_optimizer,
+        server_grad_estimator,
     )
     return server
 
@@ -111,6 +144,8 @@ def setup_server_and_clients(args, device, train_loaders) -> CeZO_Server:
 #     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
 #     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
 #     return args.lr * current_iterations / overall_iterations
+def get_size_of_model(model):
+    return sum(p.numel() * p.element_size() for p in model.parameters())
 
 
 if __name__ == "__main__":
@@ -139,6 +174,7 @@ if __name__ == "__main__":
     with tqdm(total=args.iterations, desc="Training:") as t, torch.no_grad():
         for ite in range(args.iterations):
             step_loss, step_accuracy = server.train_one_step(ite)
+            torch.cuda.empty_cache()
             t.set_postfix({"Loss": step_loss, "Accuracy": step_accuracy})
             t.update(1)
 

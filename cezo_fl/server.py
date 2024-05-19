@@ -5,7 +5,7 @@ from typing import Any, Iterable, Sequence
 from collections import deque
 
 from cezo_fl.shared import update_model_given_seed_and_grad
-from shared.metrics import Metric, accuracy
+from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 from dataclasses import dataclass
 
@@ -109,6 +109,7 @@ class CeZO_Server:
 
         self.server_model: torch.nn.Module | None = None
         self.server_criterion: torch.nn.Module | None = None
+        self.server_accuracy_func = None
         self.optim: torch.optim.Optimizer | None = None
         self.random_gradient_estimator: RGE | None = None
 
@@ -116,11 +117,13 @@ class CeZO_Server:
         self,
         model: torch.nn.Module,
         criterion: torch.nn.Module,
+        accuracy_func,
         optimizer: torch.optim.Optimizer,
         random_gradient_estimator: RGE,
     ) -> None:
         self.server_model = model
         self.server_criterion = criterion
+        self.server_accuracy_func = accuracy_func
         self.optim = optimizer
         self.random_gradient_estimator = random_gradient_estimator
 
@@ -188,12 +191,14 @@ class CeZO_Server:
         eval_loss = Metric("Eval loss")
         eval_accuracy = Metric("Eval accuracy")
         with torch.no_grad():
-            for _, (images, labels) in enumerate(test_loader):
+            for _, (batch_inputs, batch_labels) in enumerate(test_loader):
                 if self.device != torch.device("cpu"):
-                    images, labels = images.to(self.device), labels.to(self.device)
-                pred = self.server_model(images)
-                eval_loss.update(self.server_criterion(pred, labels))
-                eval_accuracy.update(accuracy(pred, labels))
+                    batch_inputs, batch_labels = batch_inputs.to(self.device), batch_labels.to(
+                        self.device
+                    )
+                pred = self.random_gradient_estimator.model_forward(batch_inputs)
+                eval_loss.update(self.server_criterion(pred, batch_labels))
+                eval_accuracy.update(self.server_accuracy_func(pred, batch_labels))
         print(
             f"\nEvaluation(Iteration {self.seed_grad_records.current_iteration}): ",
             f"Eval Loss:{eval_loss.avg:.4f}, " f"Accuracy:{eval_accuracy.avg * 100:.2f}%",
