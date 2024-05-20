@@ -189,8 +189,8 @@ def preprocess_cezo_fl(
         sst2_dataset = load_dataset("glue", "sst2")
         # sst2_dataset['test'] is for online benchmarking
         # need to split train data into train/test for local fine tune
-        splitted_sst2 = sst2_dataset["train"].train_test_split(test_size=1000)
-        sst2_train, sst2_test = splitted_sst2["train"], splitted_sst2["test"]
+        sst2_train = sst2_dataset["train"]
+        sst2_test = sst2_dataset["validation"]
         template = SST2Template()
         model_name = "facebook/opt-125m"
         tokenizer = AutoTokenizer.from_pretrained(
