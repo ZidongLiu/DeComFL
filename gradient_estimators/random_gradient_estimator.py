@@ -122,8 +122,11 @@ class RandomGradientEstimator:
 
             dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)
             dir_grads += [dir_grad]
-            grad += dir_grad * pb_norm
-        return grad / self.num_pert, torch.tensor(dir_grads, device=self.device)
+            if isinstance(grad, int):
+                grad = pb_norm.mul_(dir_grad)
+            else:
+                grad.add_(pb_norm, alpha=dir_grad)
+        return grad.div_(self.num_pert), torch.tensor(dir_grads, device=self.device)
 
 
 # Copied from DeepZero and slightly modified
