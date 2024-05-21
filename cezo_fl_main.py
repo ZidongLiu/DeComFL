@@ -15,7 +15,7 @@ from models.cnn_mnist import CNN_MNIST
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
 from models.lstm import CharLSTM
-from shared.language_utils import get_sst2_loss, SST2Template
+from shared.language_utils import get_lm_loss, LM_TEMPLATE_MAP
 from shared.metrics import accuracy
 
 from tqdm import tqdm
@@ -60,18 +60,18 @@ def prepare_settings_underseed(args, device):
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
         #     optimizer, milestones=[200], gamma=0.1
         # )
-    elif args.dataset == "sst2":
+    elif args.dataset in LM_TEMPLATE_MAP.keys():
         model_name = "facebook/opt-125m"
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float32)
         model.model_name = "opt-125m"
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
         )
-        template = SST2Template()
+        template = LM_TEMPLATE_MAP[args.dataset]()
         verbalizer_id_map = template.get_verbalizer_id(tokenizer)
-        criterion = get_sst2_loss("last_token", verbalizer_id_map)
+        criterion = get_lm_loss("last_token", verbalizer_id_map)
         optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0, weight_decay=5e-4)
-        accuracy_func = get_sst2_loss("accuracy", verbalizer_id_map)
+        accuracy_func = get_lm_loss("accuracy", verbalizer_id_map)
 
     if args.grad_estimate_method in ["rge-central", "rge-forward"]:
         method = args.grad_estimate_method[4:]

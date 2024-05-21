@@ -37,22 +37,7 @@ def word_to_indices(word):
     return indices
 
 
-class SST2Template:
-    verbalizer = {0: " bad", 1: " good"}
-
-    def verbalize_for_pred(self, sample):
-        text = sample["sentence"].strip()
-        return f"{text} It was"
-
-    def verbalize(self, sample):
-        label = sample["label"]
-        return f"{self.verbalize_for_pred(sample)}{self.verbalizer[label]}"
-
-    def get_verbalizer_id(self, tokenizer):
-        return {k: tokenizer.encode(v)[-1] for k, v in self.verbalizer.items()}
-
-
-class CustomSST2Dataset(torch.utils.data.DataLoader):
+class CustomLMDataset(torch.utils.data.DataLoader):
     def __init__(self, texts, tokenizer, max_length):
         self.texts = texts
         self.tokenizer = tokenizer
@@ -68,6 +53,46 @@ class CustomSST2Dataset(torch.utils.data.DataLoader):
         if len(input_ids) > self.max_length:
             input_ids = input_ids[-self.max_length :]
         return torch.tensor(input_ids, dtype=torch.long)
+
+
+class SST2Template:
+    verbalizer = {0: " bad", 1: " good"}
+
+    def verbalize_for_pred(self, sample):
+        text = sample["sentence"].strip()
+        return f"{text} It was"
+
+    def verbalize(self, sample):
+        label = sample["label"]
+        return f"{self.verbalize_for_pred(sample)}{self.verbalizer[label]}"
+
+    def get_verbalizer_id(self, tokenizer):
+        return {k: tokenizer.encode(v)[-1] for k, v in self.verbalizer.items()}
+
+
+class RTETemplate:
+    # From PromptSource 1
+    verbalizer = {0: "Yes", 1: "No"}
+
+    def verbalize_for_pred(self, sample):
+        premise = sample["premise"]
+        hypothesis = sample["hypothesis"]
+        return f'{premise}\nDoes this mean that "{hypothesis}" is true? Yes or No?\n'
+
+    def verbalize(self, sample):
+        label = sample["label"]
+        return f"{self.verbalize_for_pred(sample)}{self.verbalizer[label]}"
+
+    def get_verbalizer_id(self, tokenizer):
+        return {k: tokenizer.encode(v)[-1] for k, v in self.verbalizer.items()}
+
+
+class LmTask(Enum):
+    sst2 = "sst2"
+    rte = "rte"
+
+
+LM_TEMPLATE_MAP = {LmTask.sst2.name: SST2Template, LmTask.rte.name: RTETemplate}
 
 
 @dataclass
@@ -103,7 +128,7 @@ class LossType(Enum):
     accuracy = "accuracy"
 
 
-def get_sst2_loss(loss_type: LossType, verbalizer_id_map: dict[int, int]):
+def get_lm_loss(loss_type: LossType, verbalizer_id_map: dict[int, int]):
     n_candidate = len(verbalizer_id_map)
     verbalizer_id_list = [verbalizer_id_map[i] for i in range(n_candidate)]
 

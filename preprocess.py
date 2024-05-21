@@ -4,7 +4,7 @@ import torchvision.transforms as transforms
 import json
 from typing import Union
 from shared.dataset import ShakeSpeare
-from shared.language_utils import SST2Template, CustomSST2Dataset, get_collate_fn
+from shared.language_utils import LM_TEMPLATE_MAP, LmTask, CustomLMDataset, get_collate_fn
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
@@ -185,22 +185,27 @@ def preprocess_cezo_fl(
         test_loader = torch.utils.data.DataLoader(
             test_dataset, batch_size=args.test_batch_size, **kwargs
         )
-    elif args.dataset == "sst2":
-        sst2_dataset = load_dataset("glue", "sst2")
-        # sst2_dataset['test'] is for online benchmarking
-        # need to split train data into train/test for local fine tune
-        sst2_train = sst2_dataset["train"]
-        sst2_test = sst2_dataset["validation"]
-        template = SST2Template()
+    elif args.dataset in LM_TEMPLATE_MAP.keys():
+        if args.dataset == LmTask.sst2.name:
+            dataset = load_dataset("glue", "sst2")
+            max_length = 32
+        else:
+            dataset = load_dataset("super_glue", "rte")
+            max_length = 2048
+
+        raw_train_dataset = dataset["train"]
+        raw_test_dataset = dataset["validation"]
+
         model_name = "facebook/opt-125m"
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
         )
-        encoded_train_texts = list(map(template.verbalize, sst2_train))
-        encoded_test_texts = list(map(template.verbalize, sst2_test))
-        max_length = 32
-        train_dataset = CustomSST2Dataset(encoded_train_texts, tokenizer, max_length=max_length)
-        test_dataset = CustomSST2Dataset(encoded_test_texts, tokenizer, max_length=max_length)
+        template = LM_TEMPLATE_MAP[args.dataset]()
+        encoded_train_texts = list(map(template.verbalize, raw_train_dataset))
+        encoded_test_texts = list(map(template.verbalize, raw_test_dataset))
+
+        train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)
+        test_dataset = CustomLMDataset(encoded_test_texts, tokenizer, max_length=max_length)
         test_loader = torch.utils.data.DataLoader(
             test_dataset,
             batch_size=args.test_batch_size,
@@ -227,7 +232,7 @@ def preprocess_cezo_fl(
         )
     splitted_train_loaders = []
     for i in range(num_clients):
-        if args.dataset == "sst2":
+        if args.dataset in LM_TEMPLATE_MAP.keys():
             dataloader = torch.utils.data.DataLoader(
                 splitted_train_sets[i],
                 batch_size=args.train_batch_size,
