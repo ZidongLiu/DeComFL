@@ -1,3 +1,8 @@
+"""
+Model Parameter pruning using ZOO Grasp
+Reference:
+[1] Chen, Aochuan, et al. "Deepzero: Scaling up zeroth-order optimization for deep model training." arXiv preprint arXiv:2310.02025 (2023).
+"""
 import torch
 from torch import nn
 from torch.nn.utils import prune
