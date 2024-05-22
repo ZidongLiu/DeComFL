@@ -93,7 +93,7 @@ class RandomGradientEstimator:
         dir_grads = []
         initial_loss = criterion(self.model_forward(batch_inputs), labels)
         for _ in range(self.num_pert):
-            pb_norm = self.generate_perturbation_norm()  # TODO add random seed
+            pb_norm = self.generate_perturbation_norm()
 
             self.perturb_model(pb_norm, alpha=self.mu)
             pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)
@@ -112,7 +112,7 @@ class RandomGradientEstimator:
         grad = 0
         dir_grads = []
         for _ in range(self.num_pert):
-            pb_norm = self.generate_perturbation_norm()  # TODO add random seed
+            pb_norm = self.generate_perturbation_norm()
 
             self.perturb_model(pb_norm, alpha=self.mu)
             pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)

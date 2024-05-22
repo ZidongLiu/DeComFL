@@ -93,8 +93,6 @@ class SeedAndGradientRecords:
         ]
 
 
-# TODO Make sure all client model intialized with same weight.
-# TODO Support Gradient Pruning
 class CeZO_Server:
     def __init__(
         self,
