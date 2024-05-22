@@ -25,8 +25,10 @@ from shared.metrics import Metric
 from cezo_fl_main import prepare_settings_underseed
 
 args = get_params().parse_args()
-args.dataset = "sst2"
-args.lr = 1e-6
+
+
+args.dataset = "cb"
+args.lr = 1e-7
 args.momentum = 0
 args.seed = 365
 args.num_clients = 1

@@ -4,7 +4,13 @@ import torchvision.transforms as transforms
 import json
 from typing import Union
 from shared.dataset import ShakeSpeare
-from shared.language_utils import LM_TEMPLATE_MAP, LmTask, CustomLMDataset, get_collate_fn
+from shared.language_utils import (
+    LM_TEMPLATE_MAP,
+    LM_DATASET_MAP,
+    LmTask,
+    CustomLMDataset,
+    get_collate_fn,
+)
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
@@ -187,12 +193,11 @@ def preprocess_cezo_fl(
         )
     elif args.dataset in LM_TEMPLATE_MAP.keys():
         if args.dataset == LmTask.sst2.name:
-            dataset = load_dataset("glue", "sst2")
             max_length = 32
         else:
-            dataset = load_dataset("super_glue", "rte")
             max_length = 2048
 
+        dataset = load_dataset(LM_DATASET_MAP[args.dataset], args.dataset)
         raw_train_dataset = dataset["train"]
         raw_test_dataset = dataset["validation"]
 

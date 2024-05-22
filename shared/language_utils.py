@@ -55,7 +55,18 @@ class CustomLMDataset(torch.utils.data.DataLoader):
         return torch.tensor(input_ids, dtype=torch.long)
 
 
-class SST2Template:
+class ClassificationTemplate:
+    verbalizer = {0: "0", 1: "1"}
+
+    def get_verbalizer_id(self, tokenizer):
+        return {k: tokenizer.encode(v)[-1] for k, v in self.verbalizer.items()}
+
+    def verbalize(self, sample):
+        label = sample["label"]
+        return f"{self.verbalize_for_pred(sample)}{self.verbalizer[label]}"
+
+
+class SST2Template(ClassificationTemplate):
     verbalizer = {0: " bad", 1: " good"}
 
     def verbalize_for_pred(self, sample):
@@ -66,11 +77,8 @@ class SST2Template:
         label = sample["label"]
         return f"{self.verbalize_for_pred(sample)}{self.verbalizer[label]}"
 
-    def get_verbalizer_id(self, tokenizer):
-        return {k: tokenizer.encode(v)[-1] for k, v in self.verbalizer.items()}
 
-
-class RTETemplate:
+class RTETemplate(ClassificationTemplate):
     # From PromptSource 1
     verbalizer = {0: "Yes", 1: "No"}
 
@@ -79,20 +87,76 @@ class RTETemplate:
         hypothesis = sample["hypothesis"]
         return f'{premise}\nDoes this mean that "{hypothesis}" is true? Yes or No?\n'
 
-    def verbalize(self, sample):
-        label = sample["label"]
-        return f"{self.verbalize_for_pred(sample)}{self.verbalizer[label]}"
 
-    def get_verbalizer_id(self, tokenizer):
-        return {k: tokenizer.encode(v)[-1] for k, v in self.verbalizer.items()}
+class MultiRCTemplate(ClassificationTemplate):
+    # From PromptSource 1
+    verbalizer = {0: "No", 1: "Yes"}
+
+    def verbalize_for_pred(self, sample):
+        paragraph = sample["paragraph"]
+        question = sample["question"]
+        answer = sample["answer"]
+        return f'{paragraph}\nQuestion: {question}\nI found this answer "{answer}". Is that correct? Yes or No?\n'
+
+
+class CBTemplate(ClassificationTemplate):
+    # From PromptSource 1
+    verbalizer = {0: "Yes", 1: "No", 2: "Maybe"}
+
+    def verbalize_for_pred(self, sample):
+        premise = sample["premise"]
+        hypothesis = sample["hypothesis"]
+        return f'Suppose {premise} Can we infer that "{hypothesis}"? Yes, No, or Maybe?\n'
+
+
+class WICTemplate(ClassificationTemplate):
+    # From PromptSource 1
+    verbalizer = {0: "No", 1: "Yes"}
+
+    def verbalize_for_pred(self, sample):
+        sent1 = sample["sentence1"]
+        sent2 = sample["sentence2"]
+        word = sample["word"]
+        return f'Does the word "{word}" have the same meaning in these two sentences? Yes, No?\n{sent1}\n{sent2}\n'
+
+
+class WSCTemplate(ClassificationTemplate):
+    # From PromptSource 1
+    verbalizer = {0: "No", 1: "Yes"}
+
+    def verbalize_for_pred(self, sample):
+        text = sample["text"]
+        span1 = sample["span1_text"]
+        span2 = sample["span2_text"]
+        return f'{text}\nIn the previous sentence, does the pronoun "{span2.lower()}" refer to {span1}? Yes or No?\n'
 
 
 class LmTask(Enum):
     sst2 = "sst2"
     rte = "rte"
+    multirc = "multirc"
+    cb = "cb"
+    wic = "wic"
+    wsc = "wsc"
 
 
-LM_TEMPLATE_MAP = {LmTask.sst2.name: SST2Template, LmTask.rte.name: RTETemplate}
+LM_DATASET_MAP = {
+    LmTask.sst2.name: "glue",
+    LmTask.rte.name: "glue",
+    LmTask.multirc.name: "super_glue",
+    LmTask.cb.name: "super_glue",
+    LmTask.wic.name: "super_glue",
+    LmTask.wsc.name: "super_glue",
+}
+
+LM_TEMPLATE_MAP = {
+    LmTask.sst2.name: SST2Template,
+    LmTask.rte.name: RTETemplate,
+    LmTask.multirc.name: MultiRCTemplate,
+    LmTask.cb.name: CBTemplate,
+    LmTask.wic.name: WICTemplate,
+    LmTask.wsc.name: WSCTemplate,
+}
 
 
 @dataclass
