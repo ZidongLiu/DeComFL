@@ -211,4 +211,5 @@ node_modules
 /tensorboards/*
 /saved_sparsity/*
 /checkpoints/*
+/memory_snapshots/*
 excel_command.txt
