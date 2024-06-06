@@ -10,6 +10,7 @@ DEFAULTS = {
     "compressor": "quant",
     "num_pert": 1,
     "dataset": "mnist",
+    "model_dtype": "float32",
     "momentum": 0.9,
     "warmup_epochs": 5,
     "sparsity_file": None,
@@ -52,6 +53,7 @@ def get_params():
     parser.add_argument("--compressor", type=str, default=DEFAULTS["compressor"])
     parser.add_argument("--num-pert", type=int, default=DEFAULTS["num_pert"])
     parser.add_argument("--dataset", type=str, default=DEFAULTS["dataset"])
+    parser.add_argument("--model-dtype", type=str, default=DEFAULTS["model_dtype"])
     parser.add_argument("--momentum", type=float, default=DEFAULTS["momentum"])
     parser.add_argument("--warmup-epochs", type=int, default=DEFAULTS["warmup_epochs"])
 
@@ -145,6 +147,7 @@ class FakeArgs:
     compressor = "quant"
     num_pert = 1
     dataset = "mnist"
+    model_dtype = "float32"
     momentum = 0.9
     warmup_epochs = 5
     sparsity_file = None

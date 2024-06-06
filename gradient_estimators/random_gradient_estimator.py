@@ -19,6 +19,7 @@ class RandomGradientEstimator:
         grad_estimate_method: GradEstimateMethod = "central",
         normalize_perturbation: bool = False,
         device: str | None = None,
+        torch_dtype: torch.dtype = torch.float32,
         prune_mask_arr: torch.Tensor | None = None,
     ):
         self.model = model
@@ -38,6 +39,7 @@ class RandomGradientEstimator:
         }
 
         self.device = device
+        self.torch_dtype = torch_dtype
         self.prune_mask_arr = None
         if prune_mask_arr:
             self.set_prune_mask(prune_mask_arr)
@@ -56,7 +58,7 @@ class RandomGradientEstimator:
         self.prune_mask_arr = prune_mask_arr
 
     def generate_perturbation_norm(self) -> torch.Tensor:
-        p = torch.randn(self.total_dimensions, device=self.device)
+        p = torch.randn(self.total_dimensions, device=self.device, dtype=self.torch_dtype)
         if self.prune_mask_arr is not None:
             p.mul_(self.prune_mask_arr)
 
