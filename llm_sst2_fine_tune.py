@@ -8,7 +8,7 @@ from config import get_params, get_args_str
 from preprocess import preprocess_cezo_fl
 
 from cezo_fl.server import CeZO_Server
-from cezo_fl.client import Client
+from cezo_fl.client import ResetClient
 
 from shared.model_helpers import get_current_datetime_str
 from models.cnn_mnist import CNN_MNIST
