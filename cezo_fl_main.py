@@ -8,7 +8,7 @@ from config import get_params, get_args_str
 from preprocess import preprocess_cezo_fl
 
 from cezo_fl.server import CeZO_Server
-from cezo_fl.client import Client
+from cezo_fl.client import ResetClient
 
 from shared.model_helpers import get_current_datetime_str
 from models.cnn_mnist import CNN_MNIST
@@ -72,6 +72,8 @@ def prepare_settings_underseed(args, device):
         criterion = get_lm_loss("last_token", verbalizer_id_map)
         optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0, weight_decay=5e-4)
         accuracy_func = get_lm_loss("accuracy", verbalizer_id_map)
+    else:
+        raise Exception(f"Dataset {args.dataset} is not supported")
 
     if args.grad_estimate_method in ["rge-central", "rge-forward"]:
         method = args.grad_estimate_method[4:]
@@ -101,7 +103,7 @@ def setup_server_and_clients(args, device, train_loaders) -> CeZO_Server:
         ) = prepare_settings_underseed(args, device)
         client_model.to(device)
 
-        client = Client(
+        client = ResetClient(
             client_model,
             train_loaders[i],
             client_grad_estimator,

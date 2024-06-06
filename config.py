@@ -1,4 +1,5 @@
 import argparse
+from dataclasses import dataclass
 
 DEFAULTS = {
     "train_batch_size": 256,
@@ -132,3 +133,33 @@ def get_args_str(args):
         return base_str + "-" + advanced_str
 
     return base_str
+
+
+@dataclass
+class FakeArgs:
+    train_batch_size = 256
+    test_batch_size = 1000
+    lr = 1e-4
+    epoch = 500
+    mu = 1e-4
+    compressor = "quant"
+    num_pert = 1
+    dataset = "mnist"
+    momentum = 0.9
+    warmup_epochs = 5
+    sparsity_file = None
+    mask_shuffle_interval = 5
+    grad_estimate_method = "rge-central"
+    seed = 365
+    num_workers = 2
+    log_to_tensorboard = None
+    no_cuda = False
+    no_mps = False
+    checkpoint = None
+    create_many_checkpoint = True
+    checkpoint_update_plan = "every10"
+    iterations = 100
+    eval_iterations = 20
+    num_clients = 5
+    num_sample_clients = 3
+    local_update_steps = 1

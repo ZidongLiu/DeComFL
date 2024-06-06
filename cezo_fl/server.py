@@ -4,7 +4,7 @@ import torch
 from typing import Any, Iterable, Sequence
 from collections import deque
 
-from cezo_fl.shared import update_model_given_seed_and_grad
+from cezo_fl.shared import CriterionType, update_model_given_seed_and_grad
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 from dataclasses import dataclass
@@ -112,7 +112,7 @@ class CeZO_Server:
         self.client_last_updates = [0 for _ in range(len(self.clients))]
 
         self.server_model: torch.nn.Module | None = None
-        self.server_criterion: torch.nn.Module | None = None
+        self.server_criterion: CriterionType | None = None
         self.server_accuracy_func = None
         self.optim: torch.optim.Optimizer | None = None
         self.random_gradient_estimator: RGE | None = None
@@ -120,7 +120,7 @@ class CeZO_Server:
     def set_server_model_and_criterion(
         self,
         model: torch.nn.Module,
-        criterion: torch.nn.Module,
+        criterion: CriterionType,
         accuracy_func,
         optimizer: torch.optim.Optimizer,
         random_gradient_estimator: RGE,

@@ -1,14 +1,11 @@
 import torch
 from torch.nn import Parameter
-from typing import Iterator
-from enum import Enum
+from typing import Callable, Iterator, TypeAlias, Literal
 import transformers
 from shared.language_utils import LLMBatchInput
 
 
-class GradEstimateMethod(Enum):
-    forward = "forward"
-    central = "central"
+GradEstimateMethod: TypeAlias = Literal["forward", "central"]
 
 
 class RandomGradientEstimator:
@@ -19,7 +16,7 @@ class RandomGradientEstimator:
         parameters: Iterator[Parameter] | None = None,
         mu=1e-3,
         num_pert=1,
-        grad_estimate_method: GradEstimateMethod = GradEstimateMethod.central.value,
+        grad_estimate_method: GradEstimateMethod = "central",
         normalize_perturbation: bool = False,
         device: str | None = None,
         prune_mask_arr: torch.Tensor | None = None,
@@ -34,10 +31,10 @@ class RandomGradientEstimator:
         self.num_pert = num_pert
         self.normalize_perturbation = normalize_perturbation
 
-        self.grad_estimate_method = grad_estimate_method
-        self.method_func_dict = {
-            GradEstimateMethod.forward.value: self._forward_method,
-            GradEstimateMethod.central.value: self._central_method,
+        self.grad_estimate_method: GradEstimateMethod = grad_estimate_method
+        self.method_func_dict: dict[GradEstimateMethod, Callable] = {
+            "central": self._forward_method,
+            "forward": self._central_method,
         }
 
         self.device = device
@@ -68,11 +65,15 @@ class RandomGradientEstimator:
 
         return p
 
-    def perturb_model(self, perturb: torch.Tensor, *, alpha: float | int = 1) -> None:
+    def perturb_model(self, perturb: torch.Tensor | None = None, alpha: float | int = 1) -> None:
         start = 0
         for p in self.parameters_list:
-            _perturb = perturb[start : (start + p.numel())]
-            p.add_(_perturb.view(p.shape), alpha=alpha)
+            if perturb is not None:
+                _perturb = perturb[start : (start + p.numel())]
+                p.add_(_perturb.view(p.shape), alpha=alpha)
+            else:
+                if alpha != 1:
+                    p.mul_(alpha)
             start += p.numel()
 
     def put_grad(self, grad: torch.Tensor) -> None:
