@@ -1,8 +1,25 @@
 import torch
-from typing import Sequence
+from typing import Sequence, Callable, TypeAlias
 from gradient_estimators.random_gradient_estimator import (
     RandomGradientEstimator as RGE,
 )
+
+CriterionType: TypeAlias = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+
+
+def get_update_grad_for_1_seed(grad_estimator: RGE, perturb_grad_vector: torch.Tensor, seed: int):
+    torch.manual_seed(seed)
+    update_grad = 0
+    for local_update_grad in perturb_grad_vector:
+        perturb = grad_estimator.generate_perturbation_norm()
+        if isinstance(update_grad, int):
+            update_grad = perturb.mul_(local_update_grad)
+        else:
+            # TODO: fix type here
+            update_grad.add_(perturb, alpha=local_update_grad)
+
+    assert isinstance(update_grad, torch.Tensor)
+    return update_grad.div_(perturb_grad_vector.shape[0])
 
 
 def update_model_given_seed_and_grad(
@@ -15,11 +32,42 @@ def update_model_given_seed_and_grad(
     optimizer.zero_grad()
     for local_update_seed, local_update_grad_vector in zip(iteration_seeds, iteration_grad_scalar):
         # create gradient
-        torch.manual_seed(local_update_seed)
-        update_grad = 0
-        for local_update_grad in local_update_grad_vector:
-            perturb = grad_estimator.generate_perturbation_norm()
-            update_grad += perturb * local_update_grad
-        grad_estimator.put_grad(update_grad.div_(local_update_grad_vector.shape[0]))
+        update_grad = get_update_grad_for_1_seed(
+            grad_estimator, local_update_grad_vector, local_update_seed
+        )
+        grad_estimator.put_grad(update_grad)
         # update model
         optimizer.step()
+
+
+def revert_SGD_given_seed_and_grad(
+    optimizer: torch.optim.SGD,
+    grad_estimator: RGE,
+    iteration_seeds: Sequence[int],
+    iteration_grad_scalar: Sequence[torch.Tensor],  # this should be stored in each client
+) -> None:
+    """
+    This only works with SGD without momentum and without lr scheduling
+    """
+    try:
+        assert isinstance(optimizer, torch.optim.SGD) and optimizer.defaults["momentum"] == 0
+    except AssertionError:
+        raise Exception("Revert only supports SGD without momentum")
+
+    lr, weight_decay = optimizer.defaults["lr"], optimizer.defaults["weight_decay"]
+
+    n_update = len(iteration_seeds)
+    # reverse loop the seed and scalar
+    for i in reversed(range(n_update)):
+        local_update_seed, local_update_grad_vector = iteration_seeds[i], iteration_grad_scalar[i]
+        # create gradient
+        update_grad = get_update_grad_for_1_seed(
+            grad_estimator, local_update_grad_vector, local_update_seed
+        )
+
+        # update model
+        # 1. update using gradient
+        grad_estimator.perturb_model(update_grad, lr)
+        # 2. scale down with weight_decay
+        if weight_decay > 0:
+            grad_estimator.perturb_model(perturb=None, alpha=1 / (1 - lr * weight_decay))
