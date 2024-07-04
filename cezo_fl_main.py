@@ -5,7 +5,7 @@ from os import path
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from config import get_params, get_args_str
-from preprocess import preprocess_cezo_fl
+from preprocess import preprocess
 
 from cezo_fl.server import CeZO_Server
 from cezo_fl.client import ResetClient
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     if args.dataset == "shakespeare":
         args.num_clients = 139
     print(args)
-    device, train_loaders, test_loader = preprocess_cezo_fl(args)
+    device, train_loaders, test_loader = preprocess(args)
 
     server = setup_server_and_clients(args, device, train_loaders)
 

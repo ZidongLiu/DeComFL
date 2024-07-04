@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import json
 from config import get_params
-from preprocess import preprocess_cezo_fl
+from preprocess import preprocess
 from pruning.model_prune import zoo_grasp_prune
 from pruning.helpers import get_module_weight_sparsity
 
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # set num clients to 1 so that there's 1 train_loader
     args.num_clients = 1
-    device, train_loaders, test_loader = preprocess_cezo_fl(args)
+    device, train_loaders, test_loader = preprocess(args)
     train_loader = train_loaders[0]
 
     criterion = nn.CrossEntropyLoss()

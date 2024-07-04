@@ -51,7 +51,7 @@ def use_sparsity_dict(args, model_name: str) -> Union[dict[str, float], None]:
     return sparsity_data["sparsity_dict"]
 
 
-def preprocess_cezo_fl(
+def preprocess(
     args,
 ) -> tuple[str, list[torch.utils.data.DataLoader], torch.utils.data.DataLoader]:
     device, kwargs = use_device(args)

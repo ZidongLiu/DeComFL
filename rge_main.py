@@ -8,7 +8,7 @@ from shared.model_helpers import get_current_datetime_str
 from shared.metrics import Metric, accuracy
 from pruning.helpers import generate_random_mask_arr
 from config import get_params, get_args_str
-from preprocess import preprocess_cezo_fl, use_sparsity_dict
+from preprocess import preprocess, use_sparsity_dict
 from models.cnn_mnist import CNN_MNIST
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 from gradient_estimators.coordinate_gradient_estimator import (
@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
     # set num_clients = 1 to make sure there's 1 train_loader
     args.num_clients = 1
-    device, train_loaders, test_loader = preprocess_cezo_fl(args)
+    device, train_loaders, test_loader = preprocess(args)
     train_loader = train_loaders[0]
 
     model, criterion, optimizer, scheduler, grad_estimator = prepare_settings(args, device)

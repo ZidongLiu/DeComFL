@@ -5,7 +5,7 @@ from os import path
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from config import get_params, get_args_str
-from preprocess import preprocess_cezo_fl
+from preprocess import preprocess
 
 from cezo_fl.server import CeZO_Server
 from cezo_fl.client import ResetClient
@@ -35,7 +35,7 @@ args.num_clients = 1
 args.train_batch_size = 8
 args.test_batch_size = 10
 
-device, train_loaders, test_loader = preprocess_cezo_fl(args)
+device, train_loaders, test_loader = preprocess(args)
 
 
 def inf_loader(dl):
