@@ -8,7 +8,7 @@ from shared.model_helpers import get_current_datetime_str
 from shared.metrics import Metric, accuracy
 from pruning.helpers import generate_random_mask_arr
 from config import get_params, get_args_str
-from preprocess import preprocess, use_sparsity_dict
+from preprocess import preprocess_cezo_fl, use_sparsity_dict
 from models.cnn_mnist import CNN_MNIST
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 from gradient_estimators.coordinate_gradient_estimator import (
@@ -33,27 +33,19 @@ def prepare_settings(args, device):
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=5e-4, momentum=args.momentum
         )
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            optimizer, milestones=[200], gamma=0.1
-        )
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
     elif args.dataset == "fashion":
         model = CNN_FMNIST().to(device)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
         )
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            optimizer, milestones=[200], gamma=0.1
-        )
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
     elif args.dataset == "shakespeare":
         model = CharLSTM().to(device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4
-        )
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            optimizer, milestones=[200], gamma=0.1
-        )
+        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
 
     if args.grad_estimate_method in ["rge-central", "rge-forward"]:
         method = args.grad_estimate_method[4:]
@@ -73,15 +65,11 @@ def prepare_settings(args, device):
             device=device,
         )
     else:
-        raise Exception(
-            f"Grad estimate method {args.grad_estimate_method} not supported"
-        )
+        raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
     return model, criterion, optimizer, scheduler, grad_estimator
 
 
-def get_warmup_lr(
-    args, current_epoch: int, current_iter: int, iters_per_epoch: int
-) -> float:
+def get_warmup_lr(args, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
     return args.lr * current_iterations / overall_iterations
@@ -138,10 +126,12 @@ if __name__ == "__main__":
     args = get_params().parse_args()
     torch.manual_seed(args.seed)
 
-    device, train_loader, test_loader = preprocess(args)
-    model, criterion, optimizer, scheduler, grad_estimator = prepare_settings(
-        args, device
-    )
+    # set num_clients = 1 to make sure there's 1 train_loader
+    args.num_clients = 1
+    device, train_loaders, test_loader = preprocess_cezo_fl(args)
+    train_loader = train_loaders[1]
+
+    model, criterion, optimizer, scheduler, grad_estimator = prepare_settings(args, device)
 
     checkpoint = CheckPoint(args, model, optimizer, grad_estimator)
 

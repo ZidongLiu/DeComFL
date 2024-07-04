@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import json
 from config import get_params
-from preprocess import preprocess
+from preprocess import preprocess_cezo_fl
 from pruning.model_prune import zoo_grasp_prune
 from pruning.helpers import get_module_weight_sparsity
 
@@ -24,7 +24,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     torch.manual_seed(args.seed)
 
-    device, train_loader, test_loader = preprocess(args)
+    # set num clients to 1 so that there's 1 train_loader
+    args.num_clients = 1
+    device, train_loaders, test_loader = preprocess_cezo_fl(args)
+    train_loader = train_loaders[1]
+
     criterion = nn.CrossEntropyLoss()
 
     if args.dataset == "mnist":
