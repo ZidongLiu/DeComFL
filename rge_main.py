@@ -128,8 +128,9 @@ if __name__ == "__main__":
 
     # set num_clients = 1 to make sure there's 1 train_loader
     args.num_clients = 1
-    device, train_loaders, test_loader = preprocess(args)
+    device_map, train_loaders, test_loader = preprocess(args)
     train_loader = train_loaders[0]
+    device = device_map["server"]
 
     model, criterion, optimizer, scheduler, grad_estimator = prepare_settings(args, device)
 

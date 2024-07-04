@@ -11,25 +11,42 @@ from shared.language_utils import (
     CustomLMDataset,
     get_collate_fn,
 )
+from cezo_fl.fl_helpers import get_client_name
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
 
 def use_device(args):
+    num_clients = args.num_clients
+
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     use_mps = not args.no_mps and torch.backends.mps.is_available()
     if use_cuda:
-        print("----- Using cuda -----")
+        num_gpu = torch.cuda.device_count()
+        print(f"----- Using cuda count: {num_gpu} -----")
         # num_workers will make dataloader very slow especially when number clients is large
         # Do not shuffle shakespeare
-        kwargs = {"pin_memory": True, "shuffle": args.dataset != "shakespeare"} if use_cuda else {}
-        return torch.device("cuda"), kwargs
+        kwargs = {"pin_memory": True, "shuffle": args.dataset != "shakespeare"}
+
+        return {
+            "server": torch.device("cuda:0"),
+            **{
+                get_client_name(i): torch.device(f"cuda:{(i+1) % num_gpu}")
+                for i in range(num_clients)
+            },
+        }, kwargs
     elif use_mps:
         print("----- Using mps -----")
-        return torch.device("mps"), {}
+        return {
+            "server": torch.device("mps"),
+            **{get_client_name(i): torch.device("mps") for i in range(num_clients)},
+        }, {}
     else:
         print("----- Using cpu -----")
-        return torch.device("cpu"), {}
+        return {
+            "server": torch.device("cpu"),
+            **{get_client_name(i): torch.device("cpu") for i in range(num_clients)},
+        }, {}
 
 
 def use_sparsity_dict(args, model_name: str) -> Union[dict[str, float], None]:
@@ -53,8 +70,8 @@ def use_sparsity_dict(args, model_name: str) -> Union[dict[str, float], None]:
 
 def preprocess(
     args,
-) -> tuple[str, list[torch.utils.data.DataLoader], torch.utils.data.DataLoader]:
-    device, kwargs = use_device(args)
+) -> tuple[dict[str, torch.device], list[torch.utils.data.DataLoader], torch.utils.data.DataLoader]:
+    device_map, kwargs = use_device(args)
     if args.dataset == "mnist":
         transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
@@ -169,7 +186,7 @@ def preprocess(
                 splitted_train_sets[i], batch_size=args.train_batch_size, **kwargs
             )
         splitted_train_loaders.append(dataloader)
-    return device, splitted_train_loaders, test_loader
+    return device_map, splitted_train_loaders, test_loader
 
 
 class DatasetSplit(torch.utils.data.Dataset):

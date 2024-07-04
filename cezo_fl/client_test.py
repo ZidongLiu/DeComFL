@@ -15,7 +15,8 @@ def test_sync_client_reset():
 
     args.dataset = "mnist"
     args.num_clients = 1
-    device, train_loaders, _ = preprocess(args)
+    device_map, train_loaders, _ = preprocess(args)
+    device = device_map["server"]
 
     model = CNN_MNIST().to(device)
 

@@ -35,7 +35,8 @@ args.num_clients = 1
 args.train_batch_size = 8
 args.test_batch_size = 10
 
-device, train_loaders, test_loader = preprocess(args)
+device_map, train_loaders, test_loader = preprocess(args)
+device = device_map["server"]
 
 
 def inf_loader(dl):
