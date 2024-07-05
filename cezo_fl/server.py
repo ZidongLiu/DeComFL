@@ -16,6 +16,10 @@ class LocalUpdateResult:
     step_accuracy: float
     step_loss: float
 
+    def to(self, device: torch.device):
+        self.grad_tensors = [grad_tensor.to(device) for grad_tensor in self.grad_tensors]
+        return self
+
 
 class AbstractClient:
 
@@ -172,7 +176,7 @@ class CeZO_Server:
             # client will reset model to last pull states before update its model to match server
             client.pull_model(seeds_list, grad_list)
 
-            client_local_update_result = client.local_update(seeds=seeds)
+            client_local_update_result = client.local_update(seeds=seeds).to(self.device)
 
             step_train_loss.update(client_local_update_result.step_loss)
             step_train_accuracy.update(client_local_update_result.step_accuracy)
