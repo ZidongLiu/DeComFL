@@ -4,6 +4,7 @@ import torch
 from typing import Any, Iterable, Sequence
 from collections import deque
 
+from concurrent.futures import ThreadPoolExecutor
 from cezo_fl.shared import CriterionType, update_model_given_seed_and_grad
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
@@ -165,23 +166,29 @@ class CeZO_Server:
         local_grad_scalar_list: list[list[torch.Tensor]] = []  # Clients X Local_update
         step_train_loss = Metric("Step train loss")
         step_train_accuracy = Metric("Step train accuracy")
-        for index in sampled_client_index:
-            client = self.clients[index]
-            last_update_iter = self.client_last_updates[index]
-            # The seed and grad in last_update_iter is fetched as well
-            # Note at that iteration, we just reset the client model so that iteration
-            # information is needed as well.
-            seeds_list = self.seed_grad_records.fetch_seed_records(last_update_iter)
-            grad_list = self.seed_grad_records.fetch_grad_records(last_update_iter)
-            # client will reset model to last pull states before update its model to match server
-            client.pull_model(seeds_list, grad_list)
 
-            client_local_update_result = client.local_update(seeds=seeds).to(self.device)
+        def client_work(index):
+            with torch.no_grad():
+                client = self.clients[index]
+                last_update_iter = self.client_last_updates[index]
+                # The seed and grad in last_update_iter is fetched as well
+                # Note at that iteration, we just reset the client model so that iteration
+                # information is needed as well.
+                seeds_list = self.seed_grad_records.fetch_seed_records(last_update_iter)
+                grad_list = self.seed_grad_records.fetch_grad_records(last_update_iter)
+                # client will reset model to last pull state before update its model to match server
+                client.pull_model(seeds_list, grad_list)
 
+                client_local_update_result = client.local_update(seeds=seeds).to(self.device)
+            return client_local_update_result
+
+        with ThreadPoolExecutor() as executor:
+            client_result = executor.map(client_work, sampled_client_index)
+
+        for index, client_local_update_result in zip(sampled_client_index, client_result):
             step_train_loss.update(client_local_update_result.step_loss)
             step_train_accuracy.update(client_local_update_result.step_accuracy)
             local_grad_scalar_list.append(client_local_update_result.grad_tensors)
-
             self.client_last_updates[index] = iteration
 
         # Step 3: server-side aggregation
