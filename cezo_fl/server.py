@@ -131,6 +131,7 @@ def parallalizable_client_job(
         # step 3, client local update and get its result
         client_local_update_result = client.local_update(seeds=local_update_seeds)
 
+    # move result to server device and return
     return client_local_update_result.to(server_device)
 
 
