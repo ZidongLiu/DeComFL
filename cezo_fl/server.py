@@ -100,6 +100,40 @@ class SeedAndGradientRecords:
         ]
 
 
+def parallalizable_client_job(
+    client: AbstractClient,
+    pull_seeds_list: Sequence[Sequence[int]],
+    pull_grad_list: Sequence[Sequence[torch.Tensor]],
+    local_update_seeds: Sequence[int],
+    server_device: torch.device,
+) -> LocalUpdateResult:
+    """
+    Run client pull and local update in parallel.
+    This function is added to make better use of multi-gpu set up.
+    Each client can be deployed to a separate gpu. Thus we can run all clients in parallel.
+
+    Note:
+    This function also make sure the data passed to/from client are converted to correct device.
+    We should only do cross device operation here
+    """
+    # need no_grad because the outer-most no_grad context manager does not affect
+    # operation inside sub-thread
+    with torch.no_grad():
+        # step 1 map pull_grad_list data to client's device
+
+        transfered_grad_list = [
+            [tensor.to(client.device) for tensor in tensors] for tensors in pull_grad_list
+        ]
+
+        # step 2, client pull to update its model to latest
+        client.pull_model(pull_seeds_list, transfered_grad_list)
+
+        # step 3, client local update and get its result
+        client_local_update_result = client.local_update(seeds=local_update_seeds)
+
+    return client_local_update_result.to(server_device)
+
+
 # TODO Make sure all client model intialized with same weight.
 # TODO Support Gradient Pruning
 class CeZO_Server:
@@ -169,8 +203,9 @@ class CeZO_Server:
         step_train_loss = Metric("Step train loss")
         step_train_accuracy = Metric("Step train accuracy")
 
-        def client_work(index):
-            with torch.no_grad():
+        with ThreadPoolExecutor() as executor:
+            batch_input_list = []
+            for index in sampled_client_index:
                 client = self.clients[index]
                 last_update_iter = self.client_last_updates[index]
                 # The seed and grad in last_update_iter is fetched as well
@@ -178,14 +213,10 @@ class CeZO_Server:
                 # information is needed as well.
                 seeds_list = self.seed_grad_records.fetch_seed_records(last_update_iter)
                 grad_list = self.seed_grad_records.fetch_grad_records(last_update_iter)
-                # client will reset model to last pull state before update its model to match server
-                client.pull_model(seeds_list, grad_list)
+                batch_input_list.append((client, seeds_list, grad_list, seeds, self.device))
 
-                client_local_update_result = client.local_update(seeds=seeds).to(self.device)
-            return client_local_update_result
-
-        with ThreadPoolExecutor() as executor:
-            client_result = executor.map(client_work, sampled_client_index)
+            # thread pool mapping only acceptes 1 argument, thus we need to nest another layer
+            client_result = executor.map(lambda x: parallalizable_client_job(*x), batch_input_list)
 
         for index, client_local_update_result in zip(sampled_client_index, client_result):
             step_train_loss.update(client_local_update_result.step_loss)
