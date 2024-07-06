@@ -27,26 +27,22 @@ def use_device(args):
         # num_workers will make dataloader very slow especially when number clients is large
         # Do not shuffle shakespeare
         kwargs = {"pin_memory": True, "shuffle": args.dataset != "shakespeare"}
-
-        return {
-            "server": torch.device("cuda:0"),
-            **{
-                get_client_name(i): torch.device(f"cuda:{(i+1) % num_gpu}")
-                for i in range(num_clients)
-            },
-        }, kwargs
+        server_device = {"server": torch.device("cuda:0")}
+        client_devices = {
+            get_client_name(i): torch.device(f"cuda:{(i+1) % num_gpu}") for i in range(num_clients)
+        }
     elif use_mps:
         print("----- Using mps -----")
-        return {
-            "server": torch.device("mps"),
-            **{get_client_name(i): torch.device("mps") for i in range(num_clients)},
-        }, {}
+        kwargs = {}
+        server_device = {"server": torch.device("mps")}
+        client_devices = {get_client_name(i): torch.device("mps") for i in range(num_clients)}
     else:
         print("----- Using cpu -----")
-        return {
-            "server": torch.device("cpu"),
-            **{get_client_name(i): torch.device("cpu") for i in range(num_clients)},
-        }, {}
+        kwargs = {}
+        server_device = {"server": torch.device("cpu")}
+        client_devices = {get_client_name(i): torch.device("cpu") for i in range(num_clients)}
+
+    return server_device | client_devices, kwargs
 
 
 def use_sparsity_dict(args, model_name: str) -> Union[dict[str, float], None]:

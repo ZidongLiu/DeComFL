@@ -1,3 +1,4 @@
+from __future__ import annotations
 import abc
 import random
 import torch
@@ -13,11 +14,12 @@ from dataclasses import dataclass
 
 @dataclass
 class LocalUpdateResult:
-    grad_tensors: Sequence[torch.Tensor]
+    grad_tensors: list[torch.Tensor]
     step_accuracy: float
     step_loss: float
 
-    def to(self, device: torch.device):
+    # Must add __future__ import to be able to return, see https://stackoverflow.com/a/33533514
+    def to(self, device: torch.device) -> LocalUpdateResult:
         self.grad_tensors = [grad_tensor.to(device) for grad_tensor in self.grad_tensors]
         return self
 
