@@ -205,7 +205,7 @@ class CeZO_Server:
         step_train_accuracy = Metric("Step train accuracy")
 
         with ThreadPoolExecutor() as executor:
-            batch_input_list = []
+            futures: list[futures.Futures] = []
             for index in sampled_client_index:
                 client = self.clients[index]
                 last_update_iter = self.client_last_updates[index]
@@ -214,12 +214,16 @@ class CeZO_Server:
                 # information is needed as well.
                 seeds_list = self.seed_grad_records.fetch_seed_records(last_update_iter)
                 grad_list = self.seed_grad_records.fetch_grad_records(last_update_iter)
-                batch_input_list.append((client, seeds_list, grad_list, seeds, self.device))
 
-            # thread pool mapping only acceptes 1 argument, thus we need to nest another layer
-            client_result = executor.map(lambda x: parallalizable_client_job(*x), batch_input_list)
+                futures.append(
+                    executor.submit(
+                        parallalizable_client_job, client, seeds_list, grad_list, seeds, self.device
+                    )
+                )
 
-        for index, client_local_update_result in zip(sampled_client_index, client_result):
+            client_results = [f.result(timeout=1e4) for f in futures]
+
+        for index, client_local_update_result in zip(sampled_client_index, client_results):
             step_train_loss.update(client_local_update_result.step_loss)
             step_train_accuracy.update(client_local_update_result.step_accuracy)
             local_grad_scalar_list.append(client_local_update_result.grad_tensors)
