@@ -67,9 +67,9 @@ def prepare_settings_underseed(args, device):
         #     optimizer, milestones=[200], gamma=0.1
         # )
     elif args.dataset in LM_TEMPLATE_MAP.keys():
-        model_name = "facebook/opt-125m"
+        model_name = "facebook/opt-1.3b"
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(device)
-        model.model_name = "opt-125m"
+        model.model_name = "opt-1.3b"
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
         )

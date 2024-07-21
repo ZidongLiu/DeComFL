@@ -134,7 +134,7 @@ def preprocess(
         raw_train_dataset = dataset["train"]
         raw_test_dataset = dataset["validation"]
 
-        model_name = "facebook/opt-125m"
+        model_name = "facebook/opt-1.3b"
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
         )
