@@ -24,7 +24,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     torch.manual_seed(args.seed)
 
-    device, train_loader, test_loader = preprocess(args)
+    # set num clients to 1 so that there's 1 train_loader
+    args.num_clients = 1
+    device_map, train_loaders, test_loader = preprocess(args)
+    device = device_map["server"]
+    train_loader = train_loaders[0]
+
     criterion = nn.CrossEntropyLoss()
 
     if args.dataset == "mnist":

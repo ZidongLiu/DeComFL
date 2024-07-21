@@ -11,25 +11,38 @@ from shared.language_utils import (
     CustomLMDataset,
     get_collate_fn,
 )
+from cezo_fl.fl_helpers import get_client_name
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
 
 def use_device(args):
+    num_clients = args.num_clients
+
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     use_mps = not args.no_mps and torch.backends.mps.is_available()
     if use_cuda:
-        print("----- Using cuda -----")
+        num_gpu = torch.cuda.device_count()
+        print(f"----- Using cuda count: {num_gpu} -----")
         # num_workers will make dataloader very slow especially when number clients is large
         # Do not shuffle shakespeare
-        kwargs = {"pin_memory": True, "shuffle": args.dataset != "shakespeare"} if use_cuda else {}
-        return torch.device("cuda"), kwargs
+        kwargs = {"pin_memory": True, "shuffle": args.dataset != "shakespeare"}
+        server_device = {"server": torch.device("cuda:0")}
+        client_devices = {
+            get_client_name(i): torch.device(f"cuda:{(i+1) % num_gpu}") for i in range(num_clients)
+        }
     elif use_mps:
         print("----- Using mps -----")
-        return torch.device("mps"), {}
+        kwargs = {}
+        server_device = {"server": torch.device("mps")}
+        client_devices = {get_client_name(i): torch.device("mps") for i in range(num_clients)}
     else:
         print("----- Using cpu -----")
-        return torch.device("cpu"), {}
+        kwargs = {}
+        server_device = {"server": torch.device("cpu")}
+        client_devices = {get_client_name(i): torch.device("cpu") for i in range(num_clients)}
+
+    return server_device | client_devices, kwargs
 
 
 def use_sparsity_dict(args, model_name: str) -> Union[dict[str, float], None]:
@@ -51,90 +64,10 @@ def use_sparsity_dict(args, model_name: str) -> Union[dict[str, float], None]:
     return sparsity_data["sparsity_dict"]
 
 
-def preprocess(args) -> tuple[str, torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
-    if args.dataset == "mnist":
-        device, kwargs = use_device(args)
-        transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        )
-        train_dataset = torchvision.datasets.MNIST(
-            root="./data", train=True, download=True, transform=transform
-        )
-        train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=args.train_batch_size, **kwargs
-        )
-        test_dataset = torchvision.datasets.MNIST(
-            root="./data", train=False, download=True, transform=transform
-        )
-        test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=args.test_batch_size, **kwargs
-        )
-    elif args.dataset == "cifar10":
-        device, kwargs = use_device(args)
-        transform_train = transforms.Compose(
-            [
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-            ]
-        )
-        train_dataset = torchvision.datasets.CIFAR10(
-            root="./data", train=True, download=True, transform=transform_train
-        )
-        train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=args.train_batch_size, **kwargs
-        )
-        transform_test = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-            ]
-        )
-        test_dataset = torchvision.datasets.CIFAR10(
-            root="./data", train=False, download=True, transform=transform_test
-        )
-        test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=args.test_batch_size, **kwargs
-        )
-    elif args.dataset == "fashion":
-        device, kwargs = use_device(args)
-        transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
-        )
-        train_dataset = torchvision.datasets.FashionMNIST(
-            root="./data", train=True, download=True, transform=transform
-        )
-        train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=args.train_batch_size, **kwargs
-        )
-        test_dataset = torchvision.datasets.FashionMNIST(
-            root="./data", train=False, download=True, transform=transform
-        )
-        test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=args.test_batch_size, **kwargs
-        )
-    elif args.dataset == "shakespeare":
-        device, kwargs = use_device(args)
-        train_dataset = ShakeSpeare(train=True)
-        train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=args.train_batch_size, **kwargs
-        )
-        test_dataset = ShakeSpeare(train=False)
-        test_loader = torch.utils.data.DataLoader(
-            test_dataset,
-            batch_size=args.test_batch_size,
-            **kwargs,
-        )
-    else:
-        raise Exception(f"Dataset {args.dataset} is not supported")
-    return device, train_loader, test_loader
-
-
-def preprocess_cezo_fl(
+def preprocess(
     args,
-) -> tuple[str, list[torch.utils.data.DataLoader], torch.utils.data.DataLoader]:
-    device, kwargs = use_device(args)
+) -> tuple[dict[str, torch.device], list[torch.utils.data.DataLoader], torch.utils.data.DataLoader]:
+    device_map, kwargs = use_device(args)
     if args.dataset == "mnist":
         transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
@@ -249,7 +182,7 @@ def preprocess_cezo_fl(
                 splitted_train_sets[i], batch_size=args.train_batch_size, **kwargs
             )
         splitted_train_loaders.append(dataloader)
-    return device, splitted_train_loaders, test_loader
+    return device_map, splitted_train_loaders, test_loader
 
 
 class DatasetSplit(torch.utils.data.Dataset):

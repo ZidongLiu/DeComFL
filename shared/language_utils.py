@@ -1,4 +1,5 @@
 import torch
+from typing import Literal
 from enum import Enum
 from functools import partial
 from dataclasses import dataclass
@@ -186,13 +187,9 @@ def get_collate_fn(tokenizer, max_length):
     return collate_fn
 
 
-class LossType(Enum):
-    full_sentence = "full_sentence"
-    last_token = "last_token"
-    accuracy = "accuracy"
-
-
-def get_lm_loss(loss_type: LossType, verbalizer_id_map: dict[int, int]):
+def get_lm_loss(
+    loss_type: Literal["full_sentence", "last_token", "accuracy"], verbalizer_id_map: dict[int, int]
+):
     n_candidate = len(verbalizer_id_map)
     verbalizer_id_list = [verbalizer_id_map[i] for i in range(n_candidate)]
 

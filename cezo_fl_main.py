@@ -5,10 +5,11 @@ from os import path
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from config import get_params, get_args_str
-from preprocess import preprocess_cezo_fl
+from preprocess import preprocess
 
 from cezo_fl.server import CeZO_Server
-from cezo_fl.client import Client
+from cezo_fl.client import ResetClient
+from cezo_fl.fl_helpers import get_client_name
 
 from shared.model_helpers import get_current_datetime_str
 from models.cnn_mnist import CNN_MNIST
@@ -72,6 +73,8 @@ def prepare_settings_underseed(args, device):
         criterion = get_lm_loss("last_token", verbalizer_id_map)
         optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0, weight_decay=5e-4)
         accuracy_func = get_lm_loss("accuracy", verbalizer_id_map)
+    else:
+        raise Exception(f"Dataset {args.dataset} is not supported")
 
     if args.grad_estimate_method in ["rge-central", "rge-forward"]:
         method = args.grad_estimate_method[4:]
@@ -88,33 +91,38 @@ def prepare_settings_underseed(args, device):
     return model, criterion, optimizer, grad_estimator, accuracy_func
 
 
-def setup_server_and_clients(args, device, train_loaders) -> CeZO_Server:
+def setup_server_and_clients(
+    args, device_map: dict[str, torch.device], train_loaders
+) -> CeZO_Server:
     clients = []
 
     for i in range(args.num_clients):
+        client_name = get_client_name(i)
+        client_device = device_map[client_name]
         (
             client_model,
             client_criterion,
             client_optimizer,
             client_grad_estimator,
             client_accuracy_func,
-        ) = prepare_settings_underseed(args, device)
-        client_model.to(device)
+        ) = prepare_settings_underseed(args, client_device)
+        client_model.to(client_device)
 
-        client = Client(
+        client = ResetClient(
             client_model,
             train_loaders[i],
             client_grad_estimator,
             client_optimizer,
             client_criterion,
             client_accuracy_func,
-            device,
+            client_device,
         )
         clients.append(client)
 
+    server_device = device_map["server"]
     server = CeZO_Server(
         clients,
-        device,
+        server_device,
         num_sample_clients=args.num_sample_clients,
         local_update_steps=args.local_update_steps,
     )
@@ -126,8 +134,8 @@ def setup_server_and_clients(args, device, train_loaders) -> CeZO_Server:
         server_optimizer,
         server_grad_estimator,
         server_accuracy_func,
-    ) = prepare_settings_underseed(args, device)
-    server_model.to(device)
+    ) = prepare_settings_underseed(args, server_device)
+    server_model.to(server_device)
     server.set_server_model_and_criterion(
         server_model,
         server_criterion,
@@ -153,9 +161,9 @@ if __name__ == "__main__":
     if args.dataset == "shakespeare":
         args.num_clients = 139
     print(args)
-    device, train_loaders, test_loader = preprocess_cezo_fl(args)
+    device_map, train_loaders, test_loader = preprocess(args)
 
-    server = setup_server_and_clients(args, device, train_loaders)
+    server = setup_server_and_clients(args, device_map, train_loaders)
 
     args_str = get_args_str(args) + "-" + server.server_model.model_name
 
