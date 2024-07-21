@@ -2,7 +2,7 @@ import torch
 from cezo_fl.client import SyncClient
 from models.cnn_mnist import CNN_MNIST
 from config import FakeArgs
-from preprocess import preprocess_cezo_fl
+from preprocess import preprocess
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 from torch.optim import SGD
 from shared.metrics import accuracy
@@ -15,7 +15,8 @@ def test_sync_client_reset():
 
     args.dataset = "mnist"
     args.num_clients = 1
-    device, train_loaders, _ = preprocess_cezo_fl(args)
+    device_map, train_loaders, _ = preprocess(args)
+    device = device_map["server"]
 
     model = CNN_MNIST().to(device)
 
