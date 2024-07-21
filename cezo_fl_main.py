@@ -24,9 +24,14 @@ from gradient_estimators.random_gradient_estimator import RandomGradientEstimato
 
 
 def prepare_settings_underseed(args, device):
+    torch_dtype = {
+        "float32": torch.float32,
+        "float16": torch.float16,
+        "bfloat16": torch.bfloat16,
+    }[args.model_dtype]
     torch.manual_seed(args.seed)
     if args.dataset == "mnist":
-        model = CNN_MNIST().to(device)
+        model = CNN_MNIST().to(torch_dtype).to(device)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
@@ -34,7 +39,7 @@ def prepare_settings_underseed(args, device):
         accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     elif args.dataset == "cifar10":
-        model = LeNet().to(device)
+        model = LeNet().to(torch_dtype).to(device)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=5e-4, momentum=args.momentum
@@ -44,7 +49,7 @@ def prepare_settings_underseed(args, device):
         #     optimizer, milestones=[200], gamma=0.1
         # )
     elif args.dataset == "fashion":
-        model = CNN_FMNIST().to(device)
+        model = CNN_FMNIST().to(torch_dtype).to(device)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
@@ -54,7 +59,7 @@ def prepare_settings_underseed(args, device):
         #     optimizer, milestones=[200], gamma=0.1
         # )
     elif args.dataset == "shakespeare":
-        model = CharLSTM().to(device)
+        model = CharLSTM().to(torch_dtype).to(device)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
         accuracy_func = accuracy
@@ -63,7 +68,7 @@ def prepare_settings_underseed(args, device):
         # )
     elif args.dataset in LM_TEMPLATE_MAP.keys():
         model_name = "facebook/opt-125m"
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float32)
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(device)
         model.model_name = "opt-125m"
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
@@ -85,6 +90,7 @@ def prepare_settings_underseed(args, device):
             num_pert=args.num_pert,
             grad_estimate_method=method,
             device=device,
+            torch_dtype=torch_dtype,
         )
     else:
         raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
