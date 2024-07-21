@@ -10,7 +10,7 @@ DEFAULTS = {
     "compressor": "quant",
     "num_pert": 1,
     "dataset": "mnist",
-    "model_dtype": "float32",
+    "model_dtype": "float16",
     "momentum": 0.9,
     "warmup_epochs": 5,
     "sparsity_file": None,
