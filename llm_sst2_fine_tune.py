@@ -48,7 +48,7 @@ def inf_loader(dl):
 inf_test_loader = inf_loader(test_loader)
 
 
-# model_name = "facebook/opt-125m"
+# model_name = "facebook/opt-1.3b"
 # tokenizer = AutoTokenizer.from_pretrained(
 #     model_name, padding_side="left", truncate_side="left"
 # )

@@ -34,8 +34,8 @@ class RandomGradientEstimator:
 
         self.grad_estimate_method: GradEstimateMethod = grad_estimate_method
         self.method_func_dict: dict[GradEstimateMethod, Callable] = {
-            "central": self._forward_method,
-            "forward": self._central_method,
+            "central": self._central_method,
+            "forward": self._forward_method,
         }
 
         self.device = device
@@ -109,6 +109,8 @@ class RandomGradientEstimator:
             else:
                 grad.add_(pb_norm, alpha=dir_grad)
 
+            del pb_norm
+
         return grad.div_(self.num_pert), torch.tensor(dir_grads, device=self.device)
 
     def _central_method(self, batch_inputs, labels, criterion) -> tuple[torch.Tensor, torch.Tensor]:
@@ -129,6 +131,9 @@ class RandomGradientEstimator:
                 grad = pb_norm.mul_(dir_grad)
             else:
                 grad.add_(pb_norm, alpha=dir_grad)
+
+            del pb_norm
+
         return grad.div_(self.num_pert), torch.tensor(dir_grads, device=self.device)
 
 

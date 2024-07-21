@@ -18,6 +18,8 @@ def get_update_grad_for_1_seed(grad_estimator: RGE, perturb_grad_vector: torch.T
             # TODO: fix type here
             update_grad.add_(perturb, alpha=local_update_grad)
 
+        del perturb
+
     assert isinstance(update_grad, torch.Tensor)
     return update_grad.div_(perturb_grad_vector.shape[0])
 
