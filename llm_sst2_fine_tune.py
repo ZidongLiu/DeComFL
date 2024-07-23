@@ -15,7 +15,7 @@ from models.cnn_mnist import CNN_MNIST
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
 from models.lstm import CharLSTM
-from shared.language_utils import LM_TEMPLATE_MAP
+from shared.language_utils import LM_TEMPLATE_MAP, SUPPORTED_LLM
 
 from tqdm import tqdm
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
@@ -47,8 +47,8 @@ def inf_loader(dl):
 
 inf_test_loader = inf_loader(test_loader)
 
-
-# model_name = "facebook/opt-1.3b"
+# large_model = args.large_model
+# model_name = SUPPORTED_LLM[large_model]
 # tokenizer = AutoTokenizer.from_pretrained(
 #     model_name, padding_side="left", truncate_side="left"
 # )

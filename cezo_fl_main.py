@@ -16,7 +16,7 @@ from models.cnn_mnist import CNN_MNIST
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
 from models.lstm import CharLSTM
-from shared.language_utils import get_lm_loss, LM_TEMPLATE_MAP
+from shared.language_utils import get_lm_loss, LM_TEMPLATE_MAP, SUPPORTED_LLM
 from shared.metrics import accuracy
 
 from tqdm import tqdm
@@ -67,9 +67,10 @@ def prepare_settings_underseed(args, device):
         #     optimizer, milestones=[200], gamma=0.1
         # )
     elif args.dataset in LM_TEMPLATE_MAP.keys():
-        model_name = "facebook/opt-1.3b"
+        large_model = args.large_model
+        model_name = SUPPORTED_LLM[large_model]
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(device)
-        model.model_name = "opt-1.3b"
+        model.model_name = large_model
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
         )
@@ -191,15 +192,16 @@ if __name__ == "__main__":
             torch.cuda.empty_cache()
             t.set_postfix({"Loss": step_loss, "Accuracy": step_accuracy})
             t.update(1)
-            if ite == 500:
-                server.set_learning_rate(args.lr * 0.8)
-                server.set_perturbation(args.num_pert * 2)
-            elif ite == 1000:
-                server.set_learning_rate(args.lr * 0.5)
-                server.set_perturbation(args.num_pert * 4)
-            elif ite == 2000:
-                server.set_learning_rate(args.lr * 0.3)
-                server.set_perturbation(args.num_pert * 8)
+            if args.adjust_perturb:
+                if ite == 500:
+                    server.set_learning_rate(args.lr * 0.8)
+                    server.set_perturbation(args.num_pert * 2)
+                elif ite == 1000:
+                    server.set_learning_rate(args.lr * 0.5)
+                    server.set_perturbation(args.num_pert * 4)
+                elif ite == 2000:
+                    server.set_learning_rate(args.lr * 0.3)
+                    server.set_perturbation(args.num_pert * 8)
 
             if args.log_to_tensorboard:
                 writer.add_scalar("Loss/train", step_loss, ite)

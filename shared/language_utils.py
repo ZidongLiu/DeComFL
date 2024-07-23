@@ -38,6 +38,13 @@ def word_to_indices(word):
     return indices
 
 
+# LLM
+SUPPORTED_LLM = {
+    "opt-1.3b": "facebook/opt-1.3b",
+    "opt-125m": "facebook/opt-125m",
+}
+
+
 class CustomLMDataset(torch.utils.data.DataLoader):
     def __init__(self, texts, tokenizer, max_length):
         self.texts = texts

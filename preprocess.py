@@ -10,6 +10,7 @@ from shared.language_utils import (
     LmTask,
     CustomLMDataset,
     get_collate_fn,
+    SUPPORTED_LLM,
 )
 from cezo_fl.fl_helpers import get_client_name
 from datasets import load_dataset
@@ -134,7 +135,7 @@ def preprocess(
         raw_train_dataset = dataset["train"]
         raw_test_dataset = dataset["validation"]
 
-        model_name = "facebook/opt-1.3b"
+        model_name = SUPPORTED_LLM[args.large_model]
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
         )
