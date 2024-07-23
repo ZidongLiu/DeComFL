@@ -2,6 +2,8 @@ import argparse
 from dataclasses import dataclass
 
 DEFAULTS = {
+    # large model
+    "large_model": "opt-1.3b",
     "train_batch_size": 256,
     "test_batch_size": 1000,
     "lr": 1e-4,
@@ -13,6 +15,7 @@ DEFAULTS = {
     "model_dtype": "float16",
     "momentum": 0.9,
     "warmup_epochs": 5,
+    "adjust_perturb": False,
     "sparsity_file": None,
     "mask_shuffle_interval": 5,
     "grad_estimate_method": "rge-central",
@@ -37,6 +40,11 @@ DEFAULTS = {
 def get_params():
     parser = argparse.ArgumentParser(description="PyTorch training")
 
+    # large model parameters
+    parser.add_argument(
+        "--large-model", type=str, default=DEFAULTS["large_model"], choices=["opt-1.3b", "opt-125m"]
+    )
+
     # cezo-fl
     parser.add_argument("--iterations", type=int, default=DEFAULTS["iterations"])
     parser.add_argument("--eval-iterations", type=int, default=DEFAULTS["eval_iterations"])
@@ -56,6 +64,12 @@ def get_params():
     parser.add_argument("--model-dtype", type=str, default=DEFAULTS["model_dtype"])
     parser.add_argument("--momentum", type=float, default=DEFAULTS["momentum"])
     parser.add_argument("--warmup-epochs", type=int, default=DEFAULTS["warmup_epochs"])
+    parser.add_argument(
+        "--adjust-perturb",
+        action="store_true",
+        default=DEFAULTS["adjust_perturb"],
+        help="Adjust lr and perturb at 500/1000/2000 iteration",
+    )
 
     parser.add_argument("--sparsity-file", type=str, default=DEFAULTS["sparsity_file"])
     parser.add_argument(
