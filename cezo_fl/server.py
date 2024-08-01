@@ -259,10 +259,10 @@ class CeZO_Server:
         eval_accuracy = Metric("Eval accuracy")
         with torch.no_grad():
             for _, (batch_inputs, batch_labels) in enumerate(test_loader):
-                if self.device != torch.device("cpu"):
-                    batch_inputs, batch_labels = batch_inputs.to(self.device), batch_labels.to(
-                        self.device
-                    )
+                if self.device != torch.device("cpu") or self.random_gradient_estimator.torch_dtype != torch.float32:
+                    batch_inputs = batch_inputs.to(self.device, self.random_gradient_estimator.torch_dtype)
+                    ## NOTE: label does not convert to dtype
+                    batch_labels = batch_labels.to(self.device)
                 pred = self.random_gradient_estimator.model_forward(batch_inputs)
                 eval_loss.update(self.server_criterion(pred, batch_labels))
                 eval_accuracy.update(self.server_accuracy_func(pred, batch_labels))
