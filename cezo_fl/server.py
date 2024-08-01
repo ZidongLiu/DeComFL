@@ -260,7 +260,7 @@ class CeZO_Server:
         with torch.no_grad():
             for _, (batch_inputs, batch_labels) in enumerate(test_loader):
                 if self.device != torch.device("cpu") or self.random_gradient_estimator.torch_dtype != torch.float32:
-                    batch_inputs = batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
+                    batch_inputs = batch_inputs.to(self.device, self.random_gradient_estimator.torch_dtype)
                     ## NOTE: label does not convert to dtype
                     labels = labels.to(self.device)
                 pred = self.random_gradient_estimator.model_forward(batch_inputs)

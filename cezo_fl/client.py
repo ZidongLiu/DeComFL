@@ -66,7 +66,9 @@ class SyncClient(AbstractClient):
             batch_inputs, labels = next(self.data_iterator)
             if self.device != torch.device("cpu") or self.grad_estimator.torch_dtype != torch.float32:
                 batch_inputs= batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
+                ## NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
+
             # generate grads and update model's gradient
             torch.manual_seed(seed)
             seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion)
@@ -179,7 +181,9 @@ class ResetClient(AbstractClient):
             batch_inputs, labels = next(self.data_iterator)
             if self.device != torch.device("cpu") or self.grad_estimator.torch_dtype != torch.float32:
                 batch_inputs= batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
+                ## NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
+
             # generate grads and update model's gradient
             torch.manual_seed(seed)
             seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion)
