@@ -65,7 +65,8 @@ class SyncClient(AbstractClient):
             # NOTE:dataloader manage its own randomnes state thus not affected by seed
             batch_inputs, labels = next(self.data_iterator)
             if self.device != torch.device("cpu") or self.grad_estimator.torch_dtype != torch.float32:
-                batch_inputs, labels = batch_inputs.to(self.device, self.grad_estimator.torch_dtype), labels.to(self.device, self.grad_estimator.torch_dtype)
+                batch_inputs= batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
+                labels = labels.to(self.device)
             # generate grads and update model's gradient
             torch.manual_seed(seed)
             seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion)
@@ -177,7 +178,8 @@ class ResetClient(AbstractClient):
             # NOTE:dataloader manage its own randomnes state thus not affected by seed
             batch_inputs, labels = next(self.data_iterator)
             if self.device != torch.device("cpu") or self.grad_estimator.torch_dtype != torch.float32:
-                batch_inputs, labels = batch_inputs.to(self.device, self.grad_estimator.torch_dtype), labels.to(self.device, self.grad_estimator.torch_dtype)
+                batch_inputs= batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
+                labels = labels.to(self.device)
             # generate grads and update model's gradient
             torch.manual_seed(seed)
             seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion)
