@@ -173,8 +173,8 @@ class LLMBatchInput:
     attention_mask: torch.Tensor
 
     def to(self, device=None, dtype=None):
-        self.input_ids = self.input_ids.to(device=device, dtype=dtype)
-        self.attention_mask = self.attention_mask.to(device=device, dtype=dtype)
+        self.input_ids = self.input_ids.to(device=device)
+        self.attention_mask = self.attention_mask.to(device=device)
         return self
 
 
