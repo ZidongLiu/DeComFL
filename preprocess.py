@@ -13,6 +13,7 @@ from shared.language_utils import (
     SUPPORTED_LLM,
 )
 from cezo_fl.fl_helpers import get_client_name
+from shared.data_split import non_iid_split
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
@@ -166,6 +167,17 @@ def preprocess(
         splitted_train_sets = [
             DatasetSplit(train_dataset, dict_users[client_idx]) for client_idx in range(num_clients)
         ]
+    elif args.dataset in LM_TEMPLATE_MAP.keys():
+        if args.iid:
+            generator = torch.Generator().manual_seed(args.seed)
+            splitted_train_sets = torch.utils.data.random_split(
+                train_dataset,
+                get_random_split_chunk_length(len(train_dataset), num_clients),
+                generator=generator,
+            )
+        else:
+            labels = list(map(lambda x: x['label'], raw_train_dataset))
+            splitted_train_sets = non_iid_split(train_dataset, labels, num_clients, args.seed)
     else:
         generator = torch.Generator().manual_seed(args.seed)
         splitted_train_sets = torch.utils.data.random_split(
