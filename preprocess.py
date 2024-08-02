@@ -34,11 +34,15 @@ def use_device(args):
         }
     elif use_mps:
         print("----- Using mps -----")
+        print("----- Forcing model_dtype = float32 -----")
+        args.model_dtype = "float32"
         kwargs = {}
         server_device = {"server": torch.device("mps")}
         client_devices = {get_client_name(i): torch.device("mps") for i in range(num_clients)}
     else:
         print("----- Using cpu -----")
+        print("----- Forcing model_dtype = float32 -----")
+        args.model_dtype = "float32"
         kwargs = {}
         server_device = {"server": torch.device("cpu")}
         client_devices = {get_client_name(i): torch.device("cpu") for i in range(num_clients)}
