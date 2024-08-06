@@ -34,6 +34,7 @@ DEFAULTS = {
     "num_sample_clients": 3,
     "local_update_steps": 1,
     "iid": True,
+    "dirichlet_alpha": 1,
 }
 
 
@@ -59,7 +60,7 @@ def get_params():
         default=DEFAULTS["iid"],
         help="Clients will not have iid data",
     )
-
+    parser.add_argument("--dirichlet-alpha", type=float, default=DEFAULTS["dirichlet_alpha"])
     # rge_main
     parser.add_argument("--train-batch-size", type=int, default=DEFAULTS["train_batch_size"])
     parser.add_argument("--test-batch-size", type=int, default=DEFAULTS["test_batch_size"])
