@@ -177,7 +177,7 @@ def preprocess(
             )
         else:
             labels = list(map(lambda x: x['label'], raw_train_dataset))
-            splitted_train_sets = dirichlet_split(train_dataset, labels, num_clients, args.seed, args.dirichlet_alpha)
+            splitted_train_sets = dirichlet_split(train_dataset, labels, num_clients, args.dirichlet_alpha, args.seed)
     else:
         generator = torch.Generator().manual_seed(args.seed)
         splitted_train_sets = torch.utils.data.random_split(
