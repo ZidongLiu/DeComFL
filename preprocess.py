@@ -13,6 +13,7 @@ from shared.language_utils import (
     SUPPORTED_LLM,
 )
 from cezo_fl.fl_helpers import get_client_name
+from shared.data_split import dirichlet_split
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
@@ -34,11 +35,15 @@ def use_device(args):
         }
     elif use_mps:
         print("----- Using mps -----")
+        print("----- Forcing model_dtype = float32 -----")
+        args.model_dtype = "float32"
         kwargs = {}
         server_device = {"server": torch.device("mps")}
         client_devices = {get_client_name(i): torch.device("mps") for i in range(num_clients)}
     else:
         print("----- Using cpu -----")
+        print("----- Forcing model_dtype = float32 -----")
+        args.model_dtype = "float32"
         kwargs = {}
         server_device = {"server": torch.device("cpu")}
         client_devices = {get_client_name(i): torch.device("cpu") for i in range(num_clients)}
@@ -162,6 +167,17 @@ def preprocess(
         splitted_train_sets = [
             DatasetSplit(train_dataset, dict_users[client_idx]) for client_idx in range(num_clients)
         ]
+    elif args.dataset in LM_TEMPLATE_MAP.keys():
+        if args.iid:
+            generator = torch.Generator().manual_seed(args.seed)
+            splitted_train_sets = torch.utils.data.random_split(
+                train_dataset,
+                get_random_split_chunk_length(len(train_dataset), num_clients),
+                generator=generator,
+            )
+        else:
+            labels = list(map(lambda x: x['label'], raw_train_dataset))
+            splitted_train_sets = dirichlet_split(train_dataset, labels, num_clients, args.dirichlet_alpha, args.seed)
     else:
         generator = torch.Generator().manual_seed(args.seed)
         splitted_train_sets = torch.utils.data.random_split(
