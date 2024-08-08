@@ -86,6 +86,19 @@ class SST2Template(ClassificationTemplate):
         return f"{self.verbalize_for_pred(sample)}{self.verbalizer[label]}"
 
 
+class BoolQTemplate(ClassificationTemplate):
+    verbalizer = {0: "No", 1: "Yes"}
+
+    def verbalize_for_pred(self, sample):
+        passage = sample["passage"]
+        question = sample["question"]
+        return f"{passage}\nQuestion: {question}\nIs that correct? Yes or No?\n"
+
+    def verbalize(self, sample):
+        label = sample["label"]
+        return f"{self.verbalize_for_pred(sample)}{self.verbalizer[label]}"
+
+
 class RTETemplate(ClassificationTemplate):
     # From PromptSource 1
     verbalizer = {0: "Yes", 1: "No"}
@@ -146,15 +159,17 @@ class LmTask(Enum):
     cb = "cb"
     wic = "wic"
     wsc = "wsc"
+    boolq = "boolq"
 
 
 LM_DATASET_MAP = {
     LmTask.sst2.name: "glue",
-    LmTask.rte.name: "glue",
+    LmTask.rte.name: "super_glue",
     LmTask.multirc.name: "super_glue",
     LmTask.cb.name: "super_glue",
     LmTask.wic.name: "super_glue",
     LmTask.wsc.name: "super_glue",
+    LmTask.boolq.name: "super_glue",
 }
 
 LM_TEMPLATE_MAP = {
@@ -164,6 +179,7 @@ LM_TEMPLATE_MAP = {
     LmTask.cb.name: CBTemplate,
     LmTask.wic.name: WICTemplate,
     LmTask.wsc.name: WSCTemplate,
+    LmTask.boolq.name: BoolQTemplate,
 }
 
 
