@@ -4,12 +4,15 @@ import random
 import torch
 from typing import Any, Iterable, Sequence
 from collections import deque
-
+from config import get_params
 from concurrent.futures import ThreadPoolExecutor
 from cezo_fl.shared import CriterionType, update_model_given_seed_and_grad
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 from dataclasses import dataclass
+from cezo_fl.aggregation import mean, median, trim, krum
+
+args = get_params().parse_args()
 
 
 @dataclass
@@ -230,17 +233,16 @@ class CeZO_Server:
             self.client_last_updates[index] = iteration
 
         # Step 3: server-side aggregation
-        avg_grad_scalar: list[torch.Tensor] = []
-        # method 1: using average
-        # for each_client_update in zip(*local_grad_scalar_list):
-        #     avg_grad_scalar.append(sum(each_client_update).div_(self.num_sample_clients))
-        # method 2: using median
-        for each_client_update in zip(*local_grad_scalar_list):
-            each_client_tensor = torch.stack(each_client_update)
-            median = torch.median(each_client_tensor, dim=0).values
-            avg_grad_scalar.append(median)
+        if args.aggregation == "mean":
+            grad_scalar = mean(args.num_sample_clients, local_grad_scalar_list)
+        elif args.aggregation == "median":
+            grad_scalar = median(local_grad_scalar_list)
+        elif args.aggregation == "trim":
+            grad_scalar = trim(args.num_sample_clients, local_grad_scalar_list)
+        elif args.aggregation == "krum":
+            grad_scalar = krum()
 
-        self.seed_grad_records.add_records(seeds=seeds, grad=avg_grad_scalar)
+        self.seed_grad_records.add_records(seeds=seeds, grad=grad_scalar)
 
         # Optional: optimize the memory. Remove is exclusive, i.e., the min last updates
         # information is still kept.
@@ -252,7 +254,7 @@ class CeZO_Server:
                 self.optim,
                 self.random_gradient_estimator,
                 seeds,
-                avg_grad_scalar,
+                grad_scalar,
             )
 
         return step_train_loss.avg, step_train_accuracy.avg
