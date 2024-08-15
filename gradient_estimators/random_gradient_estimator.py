@@ -1,7 +1,8 @@
 import torch
 from torch.nn import Parameter
 from typing import Callable, Iterator, TypeAlias, Literal
-import transformers
+from transformers.models.opt.modeling_opt import OPTForCausalLM
+from peft import PeftModel
 from shared.language_utils import LLMBatchInput
 
 
@@ -12,7 +13,7 @@ class RandomGradientEstimator:
 
     def __init__(
         self,
-        model: torch.nn.Module | transformers.models.opt.modeling_opt.OPTForCausalLM,
+        model: torch.nn.Module | OPTForCausalLM | PeftModel,
         parameters: Iterator[Parameter] | None = None,
         mu=1e-3,
         num_pert=1,
@@ -24,9 +25,14 @@ class RandomGradientEstimator:
     ):
         self.model = model
         if parameters is None:
-            parameters = model.parameters()
+            self.parameters = model.parameters()
+        else:
+            self.parameters = parameters
+
+        # parameter_list will be reused as reference later
         self.parameters_list: list[Parameter] = list(parameters)
         self.total_dimensions = sum([p.numel() for p in self.parameters_list])
+        print(f"trainable model size: {self.total_dimensions}")
 
         self.mu = mu
         self.num_pert = num_pert
@@ -45,7 +51,7 @@ class RandomGradientEstimator:
             self.set_prune_mask(prune_mask_arr)
 
     def model_forward(self, batch_inputs: torch.Tensor | LLMBatchInput):
-        if isinstance(self.model, transformers.models.opt.modeling_opt.OPTForCausalLM):
+        if isinstance(self.model, (OPTForCausalLM, PeftModel)):
             return self.model(
                 input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask
             )

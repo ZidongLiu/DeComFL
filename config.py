@@ -4,6 +4,10 @@ from dataclasses import dataclass
 DEFAULTS = {
     # large model
     "large_model": "opt-1.3b",
+    "lora": False,
+    "lora_r": 8,
+    "lora_alpha": 16,
+    #
     "train_batch_size": 256,
     "test_batch_size": 1000,
     "lr": 1e-4,
@@ -46,6 +50,9 @@ def get_params():
     parser.add_argument(
         "--large-model", type=str, default=DEFAULTS["large_model"], choices=["opt-1.3b", "opt-125m"]
     )
+    parser.add_argument("--lora", action="store_true", default=DEFAULTS["lora"])
+    parser.add_argument("--lora-r", type=int, default=DEFAULTS["lora_r"])
+    parser.add_argument("--lora-alpha", type=int, default=DEFAULTS["lora_alpha"])
 
     # cezo-fl
     parser.add_argument("--iterations", type=int, default=DEFAULTS["iterations"])
@@ -56,7 +63,7 @@ def get_params():
     parser.add_argument(
         "--no-iid",
         action="store_false",
-        dest='iid',
+        dest="iid",
         default=DEFAULTS["iid"],
         help="Clients will not have iid data",
     )
