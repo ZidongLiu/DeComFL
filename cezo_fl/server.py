@@ -10,7 +10,8 @@ from cezo_fl.shared import CriterionType, update_model_given_seed_and_grad
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 from dataclasses import dataclass
-from cezo_fl.aggregation import mean, median, trim, krum
+from byzantine.aggregation import mean, median, trim, krum
+from byzantine.attack import no_byz, gaussian_attack, sign_attack, trim_attack, krum_attack
 
 args = get_params().parse_args()
 
@@ -232,7 +233,19 @@ class CeZO_Server:
             local_grad_scalar_list.append(client_local_update_result.grad_tensors)
             self.client_last_updates[index] = iteration
 
-        # Step 3: server-side aggregation
+        # Step 3: byzantine attack
+        if args.byz_type == "no_byz":
+            local_grad_scalar_list = no_byz(local_grad_scalar_list)
+        elif args.byz_type == "gaussian":
+            local_grad_scalar_list = gaussian_attack(local_grad_scalar_list, args.num_byz)
+        elif args.byz_type == "sign":
+            local_grad_scalar_list = sign_attack(local_grad_scalar_list, args.num_byz)
+        elif args.byz_type == "trim":
+            local_grad_scalar_list = trim_attack(local_grad_scalar_list, args.num_byz)
+        elif args.byz_type == "krum":
+            local_grad_scalar_list = krum_attack(local_grad_scalar_list, args.num_byz)
+
+        # Step 4: server-side aggregation
         if args.aggregation == "mean":
             grad_scalar = mean(args.num_sample_clients, local_grad_scalar_list)
         elif args.aggregation == "median":
@@ -240,7 +253,7 @@ class CeZO_Server:
         elif args.aggregation == "trim":
             grad_scalar = trim(args.num_sample_clients, local_grad_scalar_list)
         elif args.aggregation == "krum":
-            grad_scalar = krum()
+            grad_scalar = krum(local_grad_scalar_list)
 
         self.seed_grad_records.add_records(seeds=seeds, grad=grad_scalar)
 
