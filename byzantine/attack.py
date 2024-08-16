@@ -3,12 +3,12 @@ import random
 
 
 # not use Byzantine attack
-def no_byz(v):
+def no_byz(v: list[list[torch.Tensor]]) -> list[list[torch.Tensor]]:
     return v
 
 
 # replace the original gradient scalars by generated Gaussian noises
-def gaussian_attack(v, num_attack):
+def gaussian_attack(v: list[list[torch.Tensor]], num_attack: int) -> list[list[torch.Tensor]]:
     if num_attack == 0:
         return v
     else:
@@ -20,7 +20,7 @@ def gaussian_attack(v, num_attack):
 
 
 # the original gradient scalars <- the original gradient scalars * -1
-def sign_attack(v, num_attack):
+def sign_attack(v: list[list[torch.Tensor]], num_attack: int) -> list[list[torch.Tensor]]:
     if num_attack == 0:
         return v
     else:
@@ -31,7 +31,7 @@ def sign_attack(v, num_attack):
     return v
 
 
-def trim_attack(v, num_attack):
+def trim_attack(v: list[list[torch.Tensor]], num_attack: int) -> list[list[torch.Tensor]]:
     # if num_attack == 0:
     #     return v
     # else:
@@ -51,7 +51,7 @@ def trim_attack(v, num_attack):
     return v
 
 
-def krum_attack(v, f):
+def krum_attack(v: list[list[torch.Tensor]], f: int) -> list[list[torch.Tensor]]:
     # if f == 0:
     #     return v
     # else:

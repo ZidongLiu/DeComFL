@@ -24,6 +24,7 @@ def median(local_grad_scalar_list: list[list[torch.Tensor]]) -> list[torch.Tenso
 def trim(
     num_sample_clients: int, local_grad_scalar_list: list[list[torch.Tensor]], f=1
 ) -> list[torch.Tensor]:
+    assert 0 < 2 * f < len(local_grad_scalar_list)
     grad_scalar: list[torch.Tensor] = []
     for each_local_step_update in zip(*local_grad_scalar_list):
         each_client_tensor = torch.stack(each_local_step_update)
