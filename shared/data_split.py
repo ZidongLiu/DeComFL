@@ -18,8 +18,8 @@ def get_dirichlet_split_indexes(
         num_split: Number of the split.
         alpha: A float number to indicate how non-iid the split it is. When alpha -> infinite, the
             returned index is more homogeneous. When alpha -> 0, the returned index is more hetero.
-        balance_approach: If true, make sure all the clients has the same number of data. But it
-            may fail if too heterogeneous distribution is required.
+        balance_approach: If true, make sure all the clients has the same number of data. It will
+            move the samples in the ranks having more randomly to the ranks having less.
 
     Returns:
         A list containing `num_split` sub-list.
@@ -56,13 +56,17 @@ def get_dirichlet_split_indexes(
     if balance_approach:
         expected_length = len(labels) // num_split
         diff_per_rank = [len(v) - expected_length for v in split_label_idx]
-        extra_labels = []
-        for rank in np.argsort(diff_per_rank)[::-1]:  # from the client has most extra labels
+        extra_labels = []  # A temp buffer to store the extra labels moving between ranks.
+        shuffle_extra_labels_once = True
+        for rank in np.argsort(diff_per_rank)[::-1]:  # start from the client having most labels
             if diff_per_rank[rank] > 0:
                 np.random.shuffle(split_label_idx[rank])
                 extra_labels.extend(split_label_idx[rank][-diff_per_rank[rank] :])
                 split_label_idx[rank] = split_label_idx[rank][: -diff_per_rank[rank]]
             elif diff_per_rank[rank] < 0:
+                if shuffle_extra_labels_once:
+                    np.random.shuffle(extra_labels)
+                    shuffle_extra_labels_once = False
                 split_label_idx[rank].extend(extra_labels[: abs(diff_per_rank[rank])])
                 extra_labels = extra_labels[abs(diff_per_rank[rank]) :]
 
