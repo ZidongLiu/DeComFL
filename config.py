@@ -27,7 +27,7 @@ DEFAULTS = {
     "checkpoint": None,
     "create_many_checkpoint": True,
     "checkpoint_update_plan": "every10",
-    # Cezo_fl
+    # FedDisco
     "iterations": 100,
     "eval_iterations": 20,
     "num_clients": 5,
@@ -35,6 +35,11 @@ DEFAULTS = {
     "local_update_steps": 1,
     "iid": True,
     "dirichlet_alpha": 1,
+    # Byzantine
+    "no_byz": "y",
+    "aggregation": "mean",
+    "byz_type": "none",
+    "num_byz": 1,
 }
 
 
@@ -56,7 +61,7 @@ def get_params():
     parser.add_argument(
         "--no-iid",
         action="store_false",
-        dest='iid',
+        dest="iid",
         default=DEFAULTS["iid"],
         help="Clients will not have iid data",
     )
@@ -87,6 +92,15 @@ def get_params():
         type=int,
         default=DEFAULTS["mask_shuffle_interval"],
     )
+    # Byzantine
+    parser.add_argument(
+        "--aggregation", type=str, default=DEFAULTS["aggregation"], help="mean, median, trim, krum"
+    )
+    parser.add_argument("--byz-type", type=str, default=DEFAULTS["byz_type"])
+    parser.add_argument(
+        "--num-byz", type=int, default=DEFAULTS["num_byz"], help="the number of byzantine attackers"
+    )
+    parser.add_argument("--no-byz", type=str, default=DEFAULTS["no_byz"], help="use byz or not")
 
     # Rarely change
     parser.add_argument(
@@ -97,11 +111,7 @@ def get_params():
     )
     parser.add_argument("--seed", type=int, default=DEFAULTS["seed"], help="random seed")
     parser.add_argument("--num-workers", type=int, default=DEFAULTS["num_workers"])
-    parser.add_argument(
-        "--log-to-tensorboard",
-        type=str,
-        default=DEFAULTS["log_to_tensorboard"],
-    )
+    parser.add_argument("--log-to-tensorboard", type=str, default=DEFAULTS["log_to_tensorboard"])
 
     # checkpoints
     parser.add_argument("--checkpoint", type=str, default=DEFAULTS["checkpoint"])
@@ -119,10 +129,7 @@ def get_params():
 
     # No need to change
     parser.add_argument(
-        "--no-cuda",
-        action="store_true",
-        default=DEFAULTS["no_cuda"],
-        help="disables CUDA training",
+        "--no-cuda", action="store_true", default=DEFAULTS["no_cuda"], help="disables CUDA training"
     )
     parser.add_argument(
         "--no-mps",
