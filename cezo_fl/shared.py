@@ -8,10 +8,11 @@ CriterionType: TypeAlias = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
 def get_update_grad_for_1_seed(grad_estimator: RGE, perturb_grad_vector: torch.Tensor, seed: int):
-    torch.manual_seed(seed)
+    # 1 seed is in charge all perturbs
+    rng = torch.Generator(device=grad_estimator.device).manual_seed(seed)
     update_grad = None
     for local_update_grad in perturb_grad_vector:
-        perturb = grad_estimator.generate_perturbation_norm()
+        perturb = grad_estimator.generate_perturbation_norm(rng)
         if update_grad is None:
             update_grad = perturb.mul_(local_update_grad)
         else:

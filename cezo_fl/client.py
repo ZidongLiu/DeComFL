@@ -64,14 +64,17 @@ class SyncClient(AbstractClient):
             self.optimizer.zero_grad()
             # NOTE:dataloader manage its own randomnes state thus not affected by seed
             batch_inputs, labels = next(self.data_iterator)
-            if self.device != torch.device("cpu") or self.grad_estimator.torch_dtype != torch.float32:
-                batch_inputs= batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
-                ## NOTE: label does not convert to dtype
+            if (
+                self.device != torch.device("cpu")
+                or self.grad_estimator.torch_dtype != torch.float32
+            ):
+                batch_inputs = batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
+                # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
+            rng = torch.Generator(device=self.device).manual_seed(seed)
             # generate grads and update model's gradient
-            torch.manual_seed(seed)
-            seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion)
+            seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion, rng)
             iteration_local_update_grad_vectors.append(seed_grads)
 
             # update model
@@ -179,14 +182,17 @@ class ResetClient(AbstractClient):
             self.optimizer.zero_grad()
             # NOTE:dataloader manage its own randomnes state thus not affected by seed
             batch_inputs, labels = next(self.data_iterator)
-            if self.device != torch.device("cpu") or self.grad_estimator.torch_dtype != torch.float32:
+            if (
+                self.device != torch.device("cpu")
+                or self.grad_estimator.torch_dtype != torch.float32
+            ):
                 batch_inputs = batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
-                ## NOTE: label does not convert to dtype
+                # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
+            rng = torch.Generator(device=self.device).manual_seed(seed)
             # generate grads and update model's gradient
-            torch.manual_seed(seed)
-            seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion)
+            seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion, rng)
             iteration_local_update_grad_vectors.append(seed_grads)
 
             # update model
