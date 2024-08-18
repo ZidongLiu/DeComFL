@@ -100,6 +100,7 @@ class SeedAndGradientRecords:
         ]
 
 
+# TODO fix the multithreading issue (see https://github.com/ZidongLiu/FedDisco/issues/30)
 def parallalizable_client_job(
     client: AbstractClient,
     pull_seeds_list: Sequence[Sequence[int]],
@@ -204,24 +205,19 @@ class CeZO_Server:
         step_train_loss = Metric("Step train loss")
         step_train_accuracy = Metric("Step train accuracy")
 
-        with ThreadPoolExecutor() as executor:
-            futures: list[futures.Futures] = []
-            for index in sampled_client_index:
-                client = self.clients[index]
-                last_update_iter = self.client_last_updates[index]
-                # The seed and grad in last_update_iter is fetched as well
-                # Note at that iteration, we just reset the client model so that iteration
-                # information is needed as well.
-                seeds_list = self.seed_grad_records.fetch_seed_records(last_update_iter)
-                grad_list = self.seed_grad_records.fetch_grad_records(last_update_iter)
+        client_results = []
+        for index in sampled_client_index:
+            client = self.clients[index]
+            last_update_iter = self.client_last_updates[index]
+            # The seed and grad in last_update_iter is fetched as well
+            # Note at that iteration, we just reset the client model so that iteration
+            # information is needed as well.
+            seeds_list = self.seed_grad_records.fetch_seed_records(last_update_iter)
+            grad_list = self.seed_grad_records.fetch_grad_records(last_update_iter)
 
-                futures.append(
-                    executor.submit(
-                        parallalizable_client_job, client, seeds_list, grad_list, seeds, self.device
-                    )
-                )
-
-            client_results = [f.result(timeout=1e4) for f in futures]
+            client_results.append(
+                parallalizable_client_job(client, seeds_list, grad_list, seeds, self.device)
+            )
 
         for index, client_local_update_result in zip(sampled_client_index, client_results):
             step_train_loss.update(client_local_update_result.step_loss)
@@ -259,8 +255,13 @@ class CeZO_Server:
         eval_accuracy = Metric("Eval accuracy")
         with torch.no_grad():
             for _, (batch_inputs, batch_labels) in enumerate(test_loader):
-                if self.device != torch.device("cpu") or self.random_gradient_estimator.torch_dtype != torch.float32:
-                    batch_inputs = batch_inputs.to(self.device, self.random_gradient_estimator.torch_dtype)
+                if (
+                    self.device != torch.device("cpu")
+                    or self.random_gradient_estimator.torch_dtype != torch.float32
+                ):
+                    batch_inputs = batch_inputs.to(
+                        self.device, self.random_gradient_estimator.torch_dtype
+                    )
                     ## NOTE: label does not convert to dtype
                     batch_labels = batch_labels.to(self.device)
                 pred = self.random_gradient_estimator.model_forward(batch_inputs)
