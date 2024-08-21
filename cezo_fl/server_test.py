@@ -1,10 +1,6 @@
-from cezo_fl.server import (
-    AbstractClient,
-    LocalUpdateResult,
-    CeZO_Server,
-    SeedAndGradientRecords,
-    update_model_given_seed_and_grad,
-)
+from cezo_fl.server import CeZO_Server, SeedAndGradientRecords, update_model_given_seed_and_grad
+from cezo_fl.client import AbstractClient, LocalUpdateResult
+
 from typing import Sequence
 from unittest.mock import MagicMock, patch
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE

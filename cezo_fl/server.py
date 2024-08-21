@@ -1,57 +1,13 @@
-from __future__ import annotations
-import abc
 import random
 import torch
 from typing import Any, Iterable, Sequence
 from collections import deque
 
-from concurrent.futures import ThreadPoolExecutor
 from cezo_fl.shared import CriterionType, update_model_given_seed_and_grad
+from cezo_fl.client import ResetClient, SyncClient
+from cezo_fl.run_client_jobs import execute_sampled_clients
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from dataclasses import dataclass
-
-
-@dataclass
-class LocalUpdateResult:
-    grad_tensors: list[torch.Tensor]
-    step_accuracy: float
-    step_loss: float
-
-    # Must add __future__ import to be able to return, see https://stackoverflow.com/a/33533514
-    def to(self, device: torch.device) -> LocalUpdateResult:
-        self.grad_tensors = [grad_tensor.to(device) for grad_tensor in self.grad_tensors]
-        return self
-
-
-class AbstractClient:
-
-    @abc.abstractmethod
-    def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
-        """Returns a sequence of gradient scalar tensors for each local update.
-
-        The length of the returned sequence should be the same as the length of seeds.
-        The inner tensor can be a scalar or a vector. The length of vector is the number
-        of perturbations.
-        """
-        return NotImplemented
-
-    @abc.abstractmethod
-    def reset_model(self) -> None:
-        """Reset the mode to the state before the local_update."""
-        return NotImplemented
-
-    @abc.abstractmethod
-    def pull_model(
-        self,
-        seeds_list: Sequence[Sequence[int]],
-        gradient_scalar: Sequence[Sequence[torch.Tensor]],
-    ) -> None:
-        return NotImplemented
-
-    @abc.abstractmethod
-    def random_gradient_estimator(self) -> RGE:
-        return NotImplemented
 
 
 class SeedAndGradientRecords:
@@ -100,47 +56,12 @@ class SeedAndGradientRecords:
         ]
 
 
-def parallalizable_client_job(
-    client: AbstractClient,
-    pull_seeds_list: Sequence[Sequence[int]],
-    pull_grad_list: Sequence[Sequence[torch.Tensor]],
-    local_update_seeds: Sequence[int],
-    server_device: torch.device,
-) -> LocalUpdateResult:
-    """
-    Run client pull and local update in parallel.
-    This function is added to make better use of multi-gpu set up.
-    Each client can be deployed to a separate gpu. Thus we can run all clients in parallel.
-
-    Note:
-    This function also make sure the data passed to/from client are converted to correct device.
-    We should only do cross device operation here
-    """
-    # need no_grad because the outer-most no_grad context manager does not affect
-    # operation inside sub-thread
-    with torch.no_grad():
-        # step 1 map pull_grad_list data to client's device
-
-        transfered_grad_list = [
-            [tensor.to(client.device) for tensor in tensors] for tensors in pull_grad_list
-        ]
-
-        # step 2, client pull to update its model to latest
-        client.pull_model(pull_seeds_list, transfered_grad_list)
-
-        # step 3, client local update and get its result
-        client_local_update_result = client.local_update(seeds=local_update_seeds)
-
-    # move result to server device and return
-    return client_local_update_result.to(server_device)
-
-
 # TODO Make sure all client model intialized with same weight.
 # TODO Support Gradient Pruning
 class CeZO_Server:
     def __init__(
         self,
-        clients: Sequence[AbstractClient],
+        clients: Sequence[ResetClient | SyncClient],
         device: torch.device,
         num_sample_clients: int = 10,
         local_update_steps: int = 10,
@@ -200,37 +121,15 @@ class CeZO_Server:
         seeds = [random.randint(0, 1000000) for _ in range(self.local_update_steps)]
 
         # Step 1 & 2: pull model and local update
-        local_grad_scalar_list: list[list[torch.Tensor]] = []  # Clients X Local_update
-        step_train_loss = Metric("Step train loss")
-        step_train_accuracy = Metric("Step train accuracy")
-
-        with ThreadPoolExecutor() as executor:
-            futures: list[futures.Futures] = []
-            for index in sampled_client_index:
-                client = self.clients[index]
-                last_update_iter = self.client_last_updates[index]
-                # The seed and grad in last_update_iter is fetched as well
-                # Note at that iteration, we just reset the client model so that iteration
-                # information is needed as well.
-                seeds_list = self.seed_grad_records.fetch_seed_records(last_update_iter)
-                grad_list = self.seed_grad_records.fetch_grad_records(last_update_iter)
-
-                futures.append(
-                    executor.submit(
-                        parallalizable_client_job, client, seeds_list, grad_list, seeds, self.device
-                    )
-                )
-
-            client_results = [f.result(timeout=1e4) for f in futures]
-
-        for index, client_local_update_result in zip(sampled_client_index, client_results):
-            step_train_loss.update(client_local_update_result.step_loss)
-            step_train_accuracy.update(client_local_update_result.step_accuracy)
-            local_grad_scalar_list.append(client_local_update_result.grad_tensors)
-            self.client_last_updates[index] = iteration
+        step_train_loss, step_train_accuracy, local_grad_scalar_list = execute_sampled_clients(
+            self, sampled_client_index, seeds, parallel=True
+        )
 
         # Step 3: server-side aggregation
         avg_grad_scalar: list[torch.Tensor] = []
+        for index in sampled_client_index:
+            self.client_last_updates[index] = iteration
+
         for each_client_update in zip(*local_grad_scalar_list):
             avg_grad_scalar.append(sum(each_client_update).div_(self.num_sample_clients))
 
@@ -242,6 +141,8 @@ class CeZO_Server:
 
         if self.server_model:
             self.train()
+            assert self.optim
+            assert self.random_gradient_estimator
             update_model_given_seed_and_grad(
                 self.optim,
                 self.random_gradient_estimator,
@@ -254,6 +155,10 @@ class CeZO_Server:
     def eval_model(self, test_loader: Iterable[Any]) -> tuple[float, float]:
         if self.server_model is None:
             raise RuntimeError("set_server_model_and_criterion for server first.")
+        assert self.random_gradient_estimator
+        assert self.server_criterion
+        assert self.server_accuracy_func
+
         self.server_model.eval()
         eval_loss = Metric("Eval loss")
         eval_accuracy = Metric("Eval accuracy")
