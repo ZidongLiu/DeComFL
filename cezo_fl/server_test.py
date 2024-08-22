@@ -51,6 +51,9 @@ def test_update_model_given_seed_and_grad():
 
 
 class FakeClient(AbstractClient):
+    def __init__(self):
+        self._device = torch.device("cpu")
+
     def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
         return LocalUpdateResult(
             grad_tensors=[torch.tensor([0.1, 0.2, 0.3]) for _ in range(len(seeds))],

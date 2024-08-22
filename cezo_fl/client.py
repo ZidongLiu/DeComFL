@@ -72,7 +72,7 @@ class SyncClient(AbstractClient):
         optimizer: torch.optim.Optimizer,
         criterion: CriterionType,
         accuracy_func,
-        device: str | None = None,
+        device: torch.device | None = None,
     ):
         self.model = model
         self.dataloader = dataloader
@@ -192,7 +192,7 @@ class ResetClient(AbstractClient):
         optimizer: torch.optim.Optimizer,
         criterion: CriterionType,
         accuracy_func,
-        device: str | None = None,
+        device: torch.device | None = None,
     ):
         self.model = model
         self.dataloader = dataloader
