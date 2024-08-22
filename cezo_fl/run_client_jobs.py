@@ -4,11 +4,11 @@ from concurrent.futures import ThreadPoolExecutor
 from asyncio.futures import Future
 
 from shared.metrics import Metric
-from cezo_fl.client import SyncClient, ResetClient, LocalUpdateResult
+from cezo_fl.client import AbstractClient, LocalUpdateResult
 
 
 def parallalizable_client_job(
-    client: SyncClient | ResetClient,
+    client: AbstractClient,
     pull_seeds_list: Sequence[Sequence[int]],
     pull_grad_list: Sequence[Sequence[torch.Tensor]],
     local_update_seeds: Sequence[int],
@@ -27,7 +27,6 @@ def parallalizable_client_job(
     # operation inside sub-thread
     with torch.no_grad():
         # step 1 map pull_grad_list data to client's device
-
         transfered_grad_list = [
             [tensor.to(client.device) for tensor in tensors] for tensors in pull_grad_list
         ]
@@ -42,11 +41,16 @@ def parallalizable_client_job(
     return client_local_update_result.to(server_device)
 
 
+# Outer list is for clients and inner list for local update date
 LOCAL_GRAD_SCALAR_LIST: TypeAlias = list[list[torch.Tensor]]
 
 
 def execute_sampled_clients(
-    server, sampled_client_index, seeds, *, parallel: bool = False
+    server: "CeZO_Server",
+    sampled_client_index: Sequence[int],
+    seeds: Sequence[int],
+    *,
+    parallel: bool = False
 ) -> tuple[Metric, Metric, LOCAL_GRAD_SCALAR_LIST]:
     local_grad_scalar_list: LOCAL_GRAD_SCALAR_LIST = []  # Clients X Local_update
     step_train_loss = Metric("Step train loss")

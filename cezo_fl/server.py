@@ -4,7 +4,7 @@ from typing import Any, Iterable, Sequence
 from collections import deque
 
 from cezo_fl.shared import CriterionType, update_model_given_seed_and_grad
-from cezo_fl.client import ResetClient, SyncClient
+from cezo_fl.client import AbstractClient
 from cezo_fl.run_client_jobs import execute_sampled_clients
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
@@ -61,7 +61,7 @@ class SeedAndGradientRecords:
 class CeZO_Server:
     def __init__(
         self,
-        clients: Sequence[ResetClient | SyncClient],
+        clients: Sequence[AbstractClient],
         device: torch.device,
         num_sample_clients: int = 10,
         local_update_steps: int = 10,

@@ -30,6 +30,10 @@ class LocalUpdateResult:
 
 class AbstractClient:
 
+    @abc.abstractproperty
+    def device(self) -> torch.device:
+        return torch.device(self._device)
+
     @abc.abstractmethod
     def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
         """Returns a sequence of gradient scalar tensors for each local update.
@@ -73,7 +77,7 @@ class SyncClient(AbstractClient):
         self.model = model
         self.dataloader = dataloader
 
-        self.device = device
+        self._device = device
 
         self.grad_estimator = grad_estimator
         self.optimizer = optimizer
@@ -193,7 +197,7 @@ class ResetClient(AbstractClient):
         self.model = model
         self.dataloader = dataloader
 
-        self.device = device
+        self._device = device
 
         self.grad_estimator = grad_estimator
         self.optimizer = optimizer
