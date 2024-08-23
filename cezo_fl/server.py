@@ -15,48 +15,6 @@ from byzantine import attack as byz_attack
 args = get_params().parse_args()
 
 
-@dataclass
-class LocalUpdateResult:
-    grad_tensors: list[torch.Tensor]
-    step_accuracy: float
-    step_loss: float
-
-    # Must add __future__ import to be able to return, see https://stackoverflow.com/a/33533514
-    def to(self, device: torch.device) -> LocalUpdateResult:
-        self.grad_tensors = [grad_tensor.to(device) for grad_tensor in self.grad_tensors]
-        return self
-
-
-class AbstractClient:
-
-    @abc.abstractmethod
-    def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
-        """Returns a sequence of gradient scalar tensors for each local update.
-
-        The length of the returned sequence should be the same as the length of seeds.
-        The inner tensor can be a scalar or a vector. The length of vector is the number
-        of perturbations.
-        """
-        return NotImplemented
-
-    @abc.abstractmethod
-    def reset_model(self) -> None:
-        """Reset the mode to the state before the local_update."""
-        return NotImplemented
-
-    @abc.abstractmethod
-    def pull_model(
-        self,
-        seeds_list: Sequence[Sequence[int]],
-        gradient_scalar: Sequence[Sequence[torch.Tensor]],
-    ) -> None:
-        return NotImplemented
-
-    @abc.abstractmethod
-    def random_gradient_estimator(self) -> RGE:
-        return NotImplemented
-
-
 class SeedAndGradientRecords:
     def __init__(self):
         # For seed_records/grad_records, each entry stores info related to 1 iteration
