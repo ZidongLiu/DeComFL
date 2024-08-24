@@ -8,7 +8,6 @@ from cezo_fl.client import AbstractClient
 from cezo_fl.run_client_jobs import execute_sampled_clients
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from dataclasses import dataclass
 from byzantine import aggregation as byz_agg
 from byzantine import attack as byz_attack
 
@@ -120,6 +119,12 @@ class CeZO_Server:
             for p in self.optim.param_groups:
                 p["lr"] = lr
 
+    def _update_sampled_client_server_info(
+        self, sampled_client_index: list[int], iteration: int
+    ) -> None:
+        for index in sampled_client_index:
+            self.client_last_updates[index] = iteration
+
     def train_one_step(self, iteration: int) -> tuple[float, float]:
         # Step 0: initiate something
         sampled_client_index = self.get_sampled_client_index()
@@ -129,6 +134,8 @@ class CeZO_Server:
         step_train_loss, step_train_accuracy, local_grad_scalar_list = execute_sampled_clients(
             self, sampled_client_index, seeds, parallel=True
         )
+        # update last update step for sampled clients
+        self._update_sampled_client_server_info(sampled_client_index, iteration)
 
         # Step 3: byzantine attack
         if args.byz_type == "no_byz":
