@@ -1,16 +1,65 @@
+from __future__ import annotations
+
 import torch
 from torch.utils.data import DataLoader
-from typing import Sequence
+from typing import Sequence, Iterator
 from copy import deepcopy
+import abc
+from dataclasses import dataclass
 
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from cezo_fl.server import AbstractClient, LocalUpdateResult
 from cezo_fl.shared import (
     CriterionType,
     update_model_given_seed_and_grad,
     revert_SGD_given_seed_and_grad,
 )
+
+
+@dataclass
+class LocalUpdateResult:
+    grad_tensors: list[torch.Tensor]
+    step_accuracy: float
+    step_loss: float
+
+    # Must add __future__ import to be able to return, see https://stackoverflow.com/a/33533514
+    def to(self, device: torch.device) -> LocalUpdateResult:
+        self.grad_tensors = [grad_tensor.to(device) for grad_tensor in self.grad_tensors]
+        return self
+
+
+class AbstractClient:
+
+    @abc.abstractproperty
+    def device(self) -> torch.device:
+        return torch.device(self._device)
+
+    @abc.abstractmethod
+    def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
+        """Returns a sequence of gradient scalar tensors for each local update.
+
+        The length of the returned sequence should be the same as the length of seeds.
+        The inner tensor can be a scalar or a vector. The length of vector is the number
+        of perturbations.
+        """
+        return NotImplemented
+
+    @abc.abstractmethod
+    def reset_model(self) -> None:
+        """Reset the mode to the state before the local_update."""
+        return NotImplemented
+
+    @abc.abstractmethod
+    def pull_model(
+        self,
+        seeds_list: Sequence[Sequence[int]],
+        gradient_scalar: Sequence[Sequence[torch.Tensor]],
+    ) -> None:
+        return NotImplemented
+
+    @abc.abstractmethod
+    def random_gradient_estimator(self) -> RGE:
+        return NotImplemented
 
 
 class SyncClient(AbstractClient):
@@ -23,12 +72,12 @@ class SyncClient(AbstractClient):
         optimizer: torch.optim.Optimizer,
         criterion: CriterionType,
         accuracy_func,
-        device: str | None = None,
+        device: torch.device | None = None,
     ):
         self.model = model
         self.dataloader = dataloader
 
-        self.device = device
+        self._device = device
 
         self.grad_estimator = grad_estimator
         self.optimizer = optimizer
@@ -40,14 +89,14 @@ class SyncClient(AbstractClient):
         self.local_update_seeds: list[int] = []
         self.local_update_dir_grads: list[torch.Tensor] = []
 
-    def random_gradient_estimator(self):
-        return self.grad_estimator
-
-    def _get_train_batch_iterator(self):
+    def _get_train_batch_iterator(self) -> Iterator:
         # NOTE: used only in init, will generate an infinite iterator from dataloader
         while True:
             for v in self.dataloader:
                 yield v
+
+    def random_gradient_estimator(self) -> RGE:
+        return self.grad_estimator
 
     def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
         """Returns a sequence of gradient scalar tensors for each local update.
@@ -64,14 +113,17 @@ class SyncClient(AbstractClient):
             self.optimizer.zero_grad()
             # NOTE:dataloader manage its own randomnes state thus not affected by seed
             batch_inputs, labels = next(self.data_iterator)
-            if self.device != torch.device("cpu") or self.grad_estimator.torch_dtype != torch.float32:
-                batch_inputs= batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
-                ## NOTE: label does not convert to dtype
+            if (
+                self.device != torch.device("cpu")
+                or self.grad_estimator.torch_dtype != torch.float32
+            ):
+                batch_inputs = batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
+                # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
+            rng = torch.Generator(device=self.device).manual_seed(seed)
             # generate grads and update model's gradient
-            torch.manual_seed(seed)
-            seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion)
+            seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion, rng)
             iteration_local_update_grad_vectors.append(seed_grads)
 
             # update model
@@ -140,12 +192,12 @@ class ResetClient(AbstractClient):
         optimizer: torch.optim.Optimizer,
         criterion: CriterionType,
         accuracy_func,
-        device: str | None = None,
+        device: torch.device | None = None,
     ):
         self.model = model
         self.dataloader = dataloader
 
-        self.device = device
+        self._device = device
 
         self.grad_estimator = grad_estimator
         self.optimizer = optimizer
@@ -155,10 +207,10 @@ class ResetClient(AbstractClient):
         self.data_iterator = self._get_train_batch_iterator()
         self.last_pull_state_dict = self.screenshot()
 
-    def random_gradient_estimator(self):
+    def random_gradient_estimator(self) -> RGE:
         return self.grad_estimator
 
-    def _get_train_batch_iterator(self):
+    def _get_train_batch_iterator(self) -> Iterator:
         # NOTE: used only in init, will generate an infinite iterator from dataloader
         while True:
             for v in self.dataloader:
@@ -179,14 +231,17 @@ class ResetClient(AbstractClient):
             self.optimizer.zero_grad()
             # NOTE:dataloader manage its own randomnes state thus not affected by seed
             batch_inputs, labels = next(self.data_iterator)
-            if self.device != torch.device("cpu") or self.grad_estimator.torch_dtype != torch.float32:
+            if (
+                self.device != torch.device("cpu")
+                or self.grad_estimator.torch_dtype != torch.float32
+            ):
                 batch_inputs = batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
-                ## NOTE: label does not convert to dtype
+                # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
+            rng = torch.Generator(device=self.device).manual_seed(seed)
             # generate grads and update model's gradient
-            torch.manual_seed(seed)
-            seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion)
+            seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion, rng)
             iteration_local_update_grad_vectors.append(seed_grads)
 
             # update model
