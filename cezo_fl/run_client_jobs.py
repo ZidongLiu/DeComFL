@@ -41,7 +41,7 @@ def parallalizable_client_job(
     return client_local_update_result.to(server_device)
 
 
-# Outer list is for clients and inner list for local update date
+# Outer list is for clients and inner list for local update data
 LOCAL_GRAD_SCALAR_LIST: TypeAlias = list[list[torch.Tensor]]
 
 

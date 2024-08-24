@@ -122,7 +122,7 @@ class CeZO_Server:
 
         # Step 1 & 2: pull model and local update
         step_train_loss, step_train_accuracy, local_grad_scalar_list = execute_sampled_clients(
-            self, sampled_client_index, seeds, parallel=True
+            self, sampled_client_index, seeds, parallel=False
         )
 
         # Step 3: server-side aggregation
