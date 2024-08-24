@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 from torch.utils.data import DataLoader
-from typing import Sequence
+from typing import Sequence, Iterator
 from copy import deepcopy
 import abc
 from dataclasses import dataclass
@@ -89,13 +89,13 @@ class SyncClient(AbstractClient):
         self.local_update_seeds: list[int] = []
         self.local_update_dir_grads: list[torch.Tensor] = []
 
-    def _get_train_batch_iterator(self):
+    def _get_train_batch_iterator(self) -> Iterator:
         # NOTE: used only in init, will generate an infinite iterator from dataloader
         while True:
             for v in self.dataloader:
                 yield v
 
-    def random_gradient_estimator(self):
+    def random_gradient_estimator(self) -> RGE:
         return self.grad_estimator
 
     def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
@@ -207,10 +207,10 @@ class ResetClient(AbstractClient):
         self.data_iterator = self._get_train_batch_iterator()
         self.last_pull_state_dict = self.screenshot()
 
-    def random_gradient_estimator(self):
+    def random_gradient_estimator(self) -> RGE:
         return self.grad_estimator
 
-    def _get_train_batch_iterator(self):
+    def _get_train_batch_iterator(self) -> Iterator:
         # NOTE: used only in init, will generate an infinite iterator from dataloader
         while True:
             for v in self.dataloader:
