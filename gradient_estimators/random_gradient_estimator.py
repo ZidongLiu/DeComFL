@@ -57,8 +57,10 @@ class RandomGradientEstimator:
     def set_prune_mask(self, prune_mask_arr) -> None:
         self.prune_mask_arr = prune_mask_arr
 
-    def generate_perturbation_norm(self) -> torch.Tensor:
-        p = torch.randn(self.total_dimensions, device=self.device, dtype=self.torch_dtype)
+    def generate_perturbation_norm(self, rng: torch.Generator | None = None) -> torch.Tensor:
+        p = torch.randn(
+            self.total_dimensions, device=self.device, dtype=self.torch_dtype, generator=rng
+        )
         if self.prune_mask_arr is not None:
             p.mul_(self.prune_mask_arr)
 
@@ -84,19 +86,23 @@ class RandomGradientEstimator:
             p.grad = grad[start : (start + p.numel())].view(p.shape)
             start += p.numel()
 
-    def compute_grad(self, batch_inputs, labels, criterion) -> torch.Tensor:
+    def compute_grad(
+        self, batch_inputs, labels, criterion, rng: torch.Generator | None = None
+    ) -> torch.Tensor:
         estimation_method = self.method_func_dict[self.grad_estimate_method]
-        grad, perturbation_dir_grads = estimation_method(batch_inputs, labels, criterion)
+        grad, perturbation_dir_grads = estimation_method(batch_inputs, labels, criterion, rng)
 
         self.put_grad(grad)
         return perturbation_dir_grads
 
-    def _forward_method(self, batch_inputs, labels, criterion) -> tuple[torch.Tensor, torch.Tensor]:
+    def _forward_method(
+        self, batch_inputs, labels, criterion, rng: torch.Generator | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         grad = 0
         dir_grads = []
         initial_loss = criterion(self.model_forward(batch_inputs), labels)
         for _ in range(self.num_pert):
-            pb_norm = self.generate_perturbation_norm()  # TODO add random seed
+            pb_norm = self.generate_perturbation_norm(rng)
 
             self.perturb_model(pb_norm, alpha=self.mu)
             pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)
@@ -113,11 +119,13 @@ class RandomGradientEstimator:
 
         return grad.div_(self.num_pert), torch.tensor(dir_grads, device=self.device)
 
-    def _central_method(self, batch_inputs, labels, criterion) -> tuple[torch.Tensor, torch.Tensor]:
+    def _central_method(
+        self, batch_inputs, labels, criterion, rng: torch.Generator | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         grad = 0
         dir_grads = []
         for _ in range(self.num_pert):
-            pb_norm = self.generate_perturbation_norm()  # TODO add random seed
+            pb_norm = self.generate_perturbation_norm(rng)
 
             self.perturb_model(pb_norm, alpha=self.mu)
             pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)
