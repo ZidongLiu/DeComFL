@@ -40,17 +40,14 @@ def score(grad, v, f=1):
     distances = torch.sum((v - grad) ** 2, dim=0)
     sorted_distance, _ = torch.sort(distances)
     num_neighbours = v.shape[1] - 2 - f
-    print(torch.sum(sorted_distance[1 : (1 + num_neighbours)]).item())
     return torch.sum(sorted_distance[1 : (1 + num_neighbours)]).item()
 
 
 def krum(local_grad_scalar_list: list[list[torch.Tensor]], f=1) -> list[torch.Tensor]:
     grad_scalar: list[torch.Tensor] = []
     for each_local_step_update in zip(*local_grad_scalar_list):
-        print(f"each: {each_local_step_update}")
         v = torch.stack(each_local_step_update, dim=1)
         scores = torch.tensor([score(grad, v, f) for grad in v.t()])
         min_idx = torch.argmin(scores).item()
         grad_scalar.append(v[:, min_idx])
-        print(f"min: {v[:, min_idx]}")
     return grad_scalar
