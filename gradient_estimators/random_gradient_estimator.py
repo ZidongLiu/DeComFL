@@ -118,6 +118,7 @@ class RandomGradientEstimator:
         """
         grad: torch.Tensor | None = None
         dir_grads = []
+        denominator_factor = 2 if self.grad_estimate_method == "central" else 1
         if self.grad_estimate_method == "forward":
             pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
 
@@ -133,7 +134,7 @@ class RandomGradientEstimator:
             elif self.grad_estimate_method == "forward":
                 self.perturb_model(pb_norm, alpha=-self.mu)  # Restore model
 
-            dir_grad = (pert_plus_loss - pert_minus_loss) / self.mu
+            dir_grad = (pert_plus_loss - pert_minus_loss) / (self.mu * denominator_factor)
             dir_grads += [dir_grad]
             if grad is None:
                 grad = pb_norm.mul_(dir_grad)
