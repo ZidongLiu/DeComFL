@@ -106,7 +106,7 @@ class RandomGradientEstimator:
         criterion: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         rng: torch.Generator | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Calculate the zeroth-order gradient estimate via the forward method.
+        """Calculate the zeroth-order gradient estimate.
 
         Return a tuple, the first element is full grad and the second is the gradient scalar.
 
