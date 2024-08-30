@@ -87,7 +87,7 @@ class RandomGradientEstimator:
     def compute_grad(
         self, batch_inputs, labels, criterion, rng: torch.Generator | None = None
     ) -> torch.Tensor:
-        if not layerwise_perturb:
+        if not self.layerwise_perturb:
             # We generate the perturbation vector all together. It should be faster but consume
             # more memory
             grad, perturbation_dir_grads = self._zo_grad_estimate(
