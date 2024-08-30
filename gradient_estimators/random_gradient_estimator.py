@@ -96,9 +96,21 @@ class RandomGradientEstimator:
         return perturbation_dir_grads
 
     def _forward_method(
-        self, batch_inputs, labels, criterion, rng: torch.Generator | None = None
+        self,
+        batch_inputs: torch.Tensor,
+        labels: torch.Tensor,
+        criterion: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        rng: torch.Generator | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        grad = 0
+        """Calculate the zeroth-order gradient estimate via the forward method.
+
+        Return a tuple, the first element is full grad and the second is the gradient scalar.
+
+           g_full = avg_{p} (g_p*z_p),  g_p = [loss(x+mu*z_p) - loss(x)] / mu
+
+        i.e., returning (g_full, [g_1, g_2, ..., g_p]).
+        """
+        grad: torch.Tensor | None = None
         dir_grads = []
         initial_loss = criterion(self.model_forward(batch_inputs), labels)
         for _ in range(self.num_pert):
@@ -110,7 +122,7 @@ class RandomGradientEstimator:
 
             dir_grad = (pert_plus_loss - initial_loss) / self.mu
             dir_grads += [dir_grad]
-            if isinstance(grad, int):
+            if grad is None:
                 grad = pb_norm.mul_(dir_grad)
             else:
                 grad.add_(pb_norm, alpha=dir_grad)
@@ -120,9 +132,21 @@ class RandomGradientEstimator:
         return grad.div_(self.num_pert), torch.tensor(dir_grads, device=self.device)
 
     def _central_method(
-        self, batch_inputs, labels, criterion, rng: torch.Generator | None = None
+        self,
+        batch_inputs: torch.Tensor,
+        labels: torch.Tensor,
+        criterion: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        rng: torch.Generator | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        grad = 0
+        """Calculate the zeroth-order gradient estimate via the central method.
+
+        Return a tuple, the first element is full grad and the second is the list of gradient scalar
+
+           g_full = avg_{p} (g_p*z_p),  g_p = [loss(x+mu*z_p) - loss(x-mu*z_p)] / (2*mu)
+
+        i.e., returning (g_full, [g_1, g_2, ..., g_p]).
+        """
+        grad: torch.Tensor | None = None
         dir_grads = []
         for _ in range(self.num_pert):
             pb_norm = self.generate_perturbation_norm(rng)
@@ -135,7 +159,7 @@ class RandomGradientEstimator:
 
             dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)
             dir_grads += [dir_grad]
-            if isinstance(grad, int):
+            if grad is None:
                 grad = pb_norm.mul_(dir_grad)
             else:
                 grad.add_(pb_norm, alpha=dir_grad)

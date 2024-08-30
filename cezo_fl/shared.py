@@ -16,9 +16,8 @@ def get_update_grad_for_1_seed(grad_estimator: RGE, perturb_grad_vector: torch.T
         if update_grad is None:
             update_grad = perturb.mul_(local_update_grad)
         else:
-            # TODO: fix type here
+            # TODO: fix type here -- need to assert local_update_grad is a floating number.
             update_grad.add_(perturb, alpha=local_update_grad)
-
         del perturb
 
     assert isinstance(update_grad, torch.Tensor)
