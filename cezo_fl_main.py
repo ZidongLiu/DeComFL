@@ -82,7 +82,7 @@ def prepare_settings_underseed(args, device):
             lora_config = LoraConfig(
                 r=args.lora_r, lora_alpha=args.lora_alpha, target_modules=["q_proj", "v_proj"]
             )
-            model = get_peft_model(model, lora_config)
+            model = get_peft_model(model, lora_config).to(torch_dtype)
 
         trainable_parameters = get_trainable_model_parameters(model)
 
