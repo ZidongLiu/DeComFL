@@ -94,10 +94,6 @@ class CeZO_Server:
         self.optim = optimizer
         self.random_gradient_estimator = random_gradient_estimator
 
-    def train(self) -> None:
-        if self.server_model:
-            self.server_model.train()
-
     def get_sampled_client_index(self) -> list[int]:
         return random.sample(range(len(self.clients)), self.num_sample_clients)
 
@@ -125,11 +121,11 @@ class CeZO_Server:
             self, sampled_client_index, seeds, parallel=False
         )
 
-        # Step 3: server-side aggregation
-        avg_grad_scalar: list[torch.Tensor] = []
+        # Step 3: server-side aggregation and update the records
         for index in sampled_client_index:
             self.client_last_updates[index] = iteration
 
+        avg_grad_scalar: list[torch.Tensor] = []
         for each_client_update in zip(*local_grad_scalar_list):
             avg_grad_scalar.append(sum(each_client_update).div_(self.num_sample_clients))
 
@@ -140,9 +136,9 @@ class CeZO_Server:
         self.seed_grad_records.remove_too_old(earliest_record_needs=min(self.client_last_updates))
 
         if self.server_model:
-            self.train()
             assert self.optim
             assert self.random_gradient_estimator
+            self.server_model.train()
             update_model_given_seed_and_grad(
                 self.optim,
                 self.random_gradient_estimator,

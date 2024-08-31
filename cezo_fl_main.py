@@ -171,12 +171,15 @@ def setup_server_and_clients(
     return server
 
 
-# def get_warmup_lr(
-#     args, current_epoch: int, current_iter: int, iters_per_epoch: int
-# ) -> float:
-#     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
-#     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
-#     return args.lr * current_iterations / overall_iterations
+# get_warmup_lr is not used for now.
+def get_warmup_lr(args, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
+    overall_iterations = args.warmup_epochs * iters_per_epoch + 1
+    current_iterations = current_epoch * iters_per_epoch + current_iter + 1
+    return args.lr * current_iterations / overall_iterations
+
+
+def get_size_of_model(model):
+    return sum(p.numel() * p.element_size() for p in model.parameters())
 
 
 if __name__ == "__main__":
@@ -188,10 +191,10 @@ if __name__ == "__main__":
 
     server = setup_server_and_clients(args, device_map, train_loaders)
 
-    args_str = get_args_str(args) + "-" + server.server_model.model_name
-
     if args.log_to_tensorboard:
-        tensorboard_sub_folder = args_str + "-" + get_current_datetime_str()
+        tensorboard_sub_folder = "-".join(
+            [get_args_str(args), server.server_model.model_name, get_current_datetime_str()]
+        )
         writer = SummaryWriter(
             path.join(
                 "tensorboards",
@@ -205,7 +208,6 @@ if __name__ == "__main__":
     with tqdm(total=args.iterations, desc="Training:") as t, torch.no_grad():
         for ite in range(args.iterations):
             step_loss, step_accuracy = server.train_one_step(ite)
-            torch.cuda.empty_cache()
             t.set_postfix({"Loss": step_loss, "Accuracy": step_accuracy})
             t.update(1)
             if args.adjust_perturb:
