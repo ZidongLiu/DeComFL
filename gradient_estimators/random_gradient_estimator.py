@@ -74,6 +74,7 @@ class RandomGradientEstimator:
 
         return p
 
+    # TODO(zidong) this function should not have perturb=None usage.
     def perturb_model(self, perturb: torch.Tensor | None = None, alpha: float | int = 1) -> None:
         start = 0
         for p in self.parameters_list:
@@ -92,7 +93,7 @@ class RandomGradientEstimator:
             start += p.numel()
 
     def generate_then_put_grad(self, seed: int, dir_grads: torch.Tensor) -> None:
-        update_grad = torch.tensor(0)
+        update_grad = 0
         num_pert = len(dir_grads)
         for i, dir_grad in enumerate(dir_grads):
             rng = self.get_rng(seed, i)
@@ -228,6 +229,31 @@ class RandomGradientEstimator:
                 self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
             # update model
             optimizer.step()
+
+    def revert_model_given_seed_and_grad(
+        self,
+        optimizer: torch.optim.Optimizer,
+        iteration_seeds: Sequence[int],
+        iteration_grad_scalar: Sequence[torch.Tensor],
+    ) -> None:
+        assert len(iteration_seeds) == len(iteration_grad_scalar)
+        try:
+            assert isinstance(optimizer, torch.optim.SGD) and optimizer.defaults["momentum"] == 0
+        except AssertionError:
+            raise Exception("Revert only supports SGD without momentum")
+
+        lr, weight_decay = optimizer.defaults["lr"], optimizer.defaults["weight_decay"]
+        optimizer.zero_grad()
+        for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
+            if self.paramwise_perturb:
+                self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
+            else:
+                self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
+
+            for param in self.parameters_list:
+                param.add_(param.grad, alpha=lr)  # gradient ascent instead of descent.
+                if weight_decay > 0:
+                    param.mul_(1 / (1 - lr * weight_decay))
 
 
 # Copied from DeepZero and slightly modified

@@ -151,9 +151,8 @@ class SyncClient(AbstractClient):
     def reset_model(self) -> None:
         """Reset the mode to the state before the local_update."""
         assert isinstance(self.optimizer, torch.optim.SGD)
-        revert_SGD_given_seed_and_grad(
+        self.grad_estimator.revert_model_given_seed_and_grad(
             self.optimizer,
-            self.grad_estimator,
             self.local_update_seeds,
             self.local_update_dir_grads,
         )
