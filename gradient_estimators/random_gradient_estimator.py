@@ -21,6 +21,7 @@ class RandomGradientEstimator:
         device: str | None = None,
         torch_dtype: torch.dtype = torch.float32,
         prune_mask_arr: torch.Tensor | None = None,
+        layerwise_perturb: bool = False,
     ):
         self.model = model
         if parameters is None:
@@ -33,11 +34,8 @@ class RandomGradientEstimator:
         self.normalize_perturbation = normalize_perturbation
 
         self.grad_estimate_method: GradEstimateMethod = grad_estimate_method
-        self.method_func_dict: dict[GradEstimateMethod, Callable] = {
-            "central": self._central_method,
-            "forward": self._forward_method,
-        }
 
+        self.layerwise_perturb = layerwise_perturb
         self.device = device
         self.torch_dtype = torch_dtype
         self.prune_mask_arr = None
@@ -89,75 +87,54 @@ class RandomGradientEstimator:
     def compute_grad(
         self, batch_inputs, labels, criterion, rng: torch.Generator | None = None
     ) -> torch.Tensor:
-        estimation_method = self.method_func_dict[self.grad_estimate_method]
-        grad, perturbation_dir_grads = estimation_method(batch_inputs, labels, criterion, rng)
+        if not self.layerwise_perturb:
+            # We generate the perturbation vector all together. It should be faster but consume
+            # more memory
+            grad, perturbation_dir_grads = self._zo_grad_estimate(
+                batch_inputs, labels, criterion, rng
+            )
+            self.put_grad(grad)
+        else:
+            raise NotImplementedError
 
-        self.put_grad(grad)
         return perturbation_dir_grads
 
-    def _forward_method(
+    def _zo_grad_estimate(
         self,
         batch_inputs: torch.Tensor,
         labels: torch.Tensor,
         criterion: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         rng: torch.Generator | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Calculate the zeroth-order gradient estimate via the forward method.
+        """Calculate the zeroth-order gradient estimate.
 
         Return a tuple, the first element is full grad and the second is the gradient scalar.
 
-           g_full = avg_{p} (g_p*z_p),  g_p = [loss(x+mu*z_p) - loss(x)] / mu
+           g_full = avg_{p} (g_p*z_p),
+           where  g_p = [loss(x+mu*z_p) - loss(x)] / mu ------------------- forward approach
+                  g_p = [loss(x+mu*z_p) - loss(x-mu*z_p)] / (2*mu) -------- central approach
 
         i.e., returning (g_full, [g_1, g_2, ..., g_p]).
         """
         grad: torch.Tensor | None = None
         dir_grads = []
-        initial_loss = criterion(self.model_forward(batch_inputs), labels)
-        for _ in range(self.num_pert):
-            pb_norm = self.generate_perturbation_norm(rng)
-
-            self.perturb_model(pb_norm, alpha=self.mu)
-            pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)
-            self.perturb_model(pb_norm, alpha=-self.mu)  # Restore model
-
-            dir_grad = (pert_plus_loss - initial_loss) / self.mu
-            dir_grads += [dir_grad]
-            if grad is None:
-                grad = pb_norm.mul_(dir_grad)
-            else:
-                grad.add_(pb_norm, alpha=dir_grad)
-
-            del pb_norm
-
-        return grad.div_(self.num_pert), torch.tensor(dir_grads, device=self.device)
-
-    def _central_method(
-        self,
-        batch_inputs: torch.Tensor,
-        labels: torch.Tensor,
-        criterion: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
-        rng: torch.Generator | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Calculate the zeroth-order gradient estimate via the central method.
-
-        Return a tuple, the first element is full grad and the second is the list of gradient scalar
-
-           g_full = avg_{p} (g_p*z_p),  g_p = [loss(x+mu*z_p) - loss(x-mu*z_p)] / (2*mu)
-
-        i.e., returning (g_full, [g_1, g_2, ..., g_p]).
-        """
-        grad: torch.Tensor | None = None
-        dir_grads = []
-        for _ in range(self.num_pert):
-            pb_norm = self.generate_perturbation_norm(rng)
-
-            self.perturb_model(pb_norm, alpha=self.mu)
-            pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)
-            self.perturb_model(pb_norm, alpha=-2 * self.mu)
+        denominator_factor = 2 if self.grad_estimate_method == "central" else 1
+        if self.grad_estimate_method == "forward":
             pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
-            self.perturb_model(pb_norm, alpha=self.mu)  # Restore model
 
-            dir_grad = (pert_plus_loss - pert_minus_loss) / (2 * self.mu)
+        for _ in range(self.num_pert):
+            pb_norm = self.generate_perturbation_norm(rng)
+
+            self.perturb_model(pb_norm, alpha=self.mu)
+            pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)
+            if self.grad_estimate_method == "central":
+                self.perturb_model(pb_norm, alpha=-2 * self.mu)
+                pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
+                self.perturb_model(pb_norm, alpha=self.mu)  # Restore model
+            elif self.grad_estimate_method == "forward":
+                self.perturb_model(pb_norm, alpha=-self.mu)  # Restore model
+
+            dir_grad = (pert_plus_loss - pert_minus_loss) / (self.mu * denominator_factor)
             dir_grads += [dir_grad]
             if grad is None:
                 grad = pb_norm.mul_(dir_grad)
