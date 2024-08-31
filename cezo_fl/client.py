@@ -172,9 +172,8 @@ class SyncClient(AbstractClient):
         self.reset_model()
         # update model to latest version
         for iteration_seeds, iteration_grad_sclar in zip(seeds_list, gradient_scalar):
-            update_model_given_seed_and_grad(
+            self.grad_estimator.update_model_given_seed_and_grad(
                 self.optimizer,
-                self.grad_estimator,
                 iteration_seeds,
                 iteration_grad_sclar,
             )
@@ -282,9 +281,8 @@ class ResetClient(AbstractClient):
         self.reset_model()
         # update model to latest version
         for iteration_seeds, iteration_grad_sclar in zip(seeds_list, gradient_scalar):
-            update_model_given_seed_and_grad(
+            self.grad_estimator.update_model_given_seed_and_grad(
                 self.optimizer,
-                self.grad_estimator,
                 iteration_seeds,
                 iteration_grad_sclar,
             )
