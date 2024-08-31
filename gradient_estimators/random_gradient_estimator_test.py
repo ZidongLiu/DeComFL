@@ -17,28 +17,35 @@ class LinearModel(nn.Module):
         return self.linear2(x)
 
 
-def test_parameter_wise_equivalent_all_togther():
-    torch.random.manual_seed(123)  # Make sure all models are generated as the same.
-    model = LinearModel()
+@pytest.mark.parametrize("rge_method", ["forward", "central"])
+@pytest.mark.parametrize("num_pert", [2, 4, 5])
+def test_parameter_wise_equivalent_all_togther(rge_method: str, num_pert: int) -> None:
     fake_input = torch.randn(5, 3)
     fake_label = torch.randn(5, 1)
     criterion = nn.MSELoss()
+
+    torch.random.manual_seed(123)  # Make sure all models are generated as the same.
+    model1 = LinearModel()
     rge1 = RGE.RandomGradientEstimator(
-        model,
-        num_pert=2,
-        grad_estimate_method="forward",
+        model1,
+        num_pert=num_pert,
+        grad_estimate_method=rge_method,
         paramwise_perturb=False,
     )
     with torch.no_grad():
-        dir_grads = rge1.compute_grad(fake_input, fake_label, criterion, seed=54321)
+        dir_grads1 = rge1.compute_grad(fake_input, fake_label, criterion, seed=54321)
 
     torch.random.manual_seed(123)  # Make sure all models are generated as the same.
-    model = LinearModel()
+    model2 = LinearModel()
     rge2 = RGE.RandomGradientEstimator(
-        model,
-        num_pert=2,
-        grad_estimate_method="forward",
+        model2,
+        num_pert=num_pert,
+        grad_estimate_method=rge_method,
         paramwise_perturb=True,
     )
     with torch.no_grad():
-        dir_grads = rge2.compute_grad(fake_input, fake_label, criterion, seed=54321)
+        dir_grads2 = rge2.compute_grad(fake_input, fake_label, criterion, seed=54321)
+
+    torch.testing.assert_close(dir_grads1, dir_grads2)
+    for p1, p2 in zip(model1.parameters(), model2.parameters()):
+        torch.testing.assert_close(p1.grad, p2.grad)
