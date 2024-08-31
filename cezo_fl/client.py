@@ -121,11 +121,10 @@ class SyncClient(AbstractClient):
                 # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
-            rng = torch.Generator(device=self.device).manual_seed(seed)
             # generate grads and update model's gradient
             # The length of grad_scalars is number of perturbations
             grad_scalars: torch.Tensor = self.grad_estimator.compute_grad(
-                batch_inputs, labels, self.criterion, rng
+                batch_inputs, labels, self.criterion, seed
             )
             iteration_local_update_grad_vectors.append(grad_scalars)
 
@@ -242,11 +241,10 @@ class ResetClient(AbstractClient):
                 # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
-            rng = torch.Generator(device=self.device).manual_seed(seed)
             # generate grads and update model's gradient
             # The length of grad_scalars is number of perturbations
             grad_scalars: torch.Tensor = self.grad_estimator.compute_grad(
-                batch_inputs, labels, self.criterion, rng
+                batch_inputs, labels, self.criterion, seed
             )
             iteration_local_update_grad_vectors.append(grad_scalars)
 

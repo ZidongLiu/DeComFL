@@ -17,7 +17,7 @@ class LinearModel(nn.Module):
         return self.linear2(x)
 
 
-def test_model():
+def test_parameter_wise_equivalent_all_togther():
     torch.random.manual_seed(123)  # Make sure all models are generated as the same.
     model = LinearModel()
     fake_input = torch.randn(5, 3)
@@ -31,7 +31,6 @@ def test_model():
     )
     with torch.no_grad():
         dir_grads = rge1.compute_grad(fake_input, fake_label, criterion, seed=54321)
-        print(f"{dir_grads=}")
 
     torch.random.manual_seed(123)  # Make sure all models are generated as the same.
     model = LinearModel()
@@ -43,4 +42,3 @@ def test_model():
     )
     with torch.no_grad():
         dir_grads = rge2.compute_grad(fake_input, fake_label, criterion, seed=54321)
-        print(f"{dir_grads=}")
