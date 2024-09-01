@@ -28,7 +28,7 @@ jobs:
       - name: Switch to new env
         run: |
           conda init
-          source ~/.bashrc
+          source /home/runner/.bashrc
           conda activate decomFL
       - name: Test with pytest
         run: pytest
