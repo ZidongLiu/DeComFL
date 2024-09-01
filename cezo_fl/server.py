@@ -3,7 +3,7 @@ import torch
 from typing import Any, Iterable, Sequence
 from collections import deque
 
-from cezo_fl.shared import CriterionType, update_model_given_seed_and_grad
+from cezo_fl.shared import CriterionType
 from cezo_fl.client import AbstractClient
 from cezo_fl.run_client_jobs import execute_sampled_clients
 from shared.metrics import Metric
@@ -139,9 +139,8 @@ class CeZO_Server:
             assert self.optim
             assert self.random_gradient_estimator
             self.server_model.train()
-            update_model_given_seed_and_grad(
+            self.random_gradient_estimator.update_model_given_seed_and_grad(
                 self.optim,
-                self.random_gradient_estimator,
                 seeds,
                 avg_grad_scalar,
             )

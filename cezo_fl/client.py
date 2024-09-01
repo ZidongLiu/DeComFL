@@ -9,11 +9,7 @@ from dataclasses import dataclass
 
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from cezo_fl.shared import (
-    CriterionType,
-    update_model_given_seed_and_grad,
-    revert_SGD_given_seed_and_grad,
-)
+from cezo_fl.shared import CriterionType
 
 
 @dataclass
