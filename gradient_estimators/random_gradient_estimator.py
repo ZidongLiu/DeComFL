@@ -221,6 +221,8 @@ class RandomGradientEstimator:
         iteration_grad_scalar: Sequence[torch.Tensor],
     ) -> None:
         assert len(iteration_seeds) == len(iteration_grad_scalar)
+        # NOTE: this zero_grad operation is critical since it sets the parameter.grad to None
+        # which is checked in self.generate_then_put_grad_paramwise
         optimizer.zero_grad()
         for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
             if self.paramwise_perturb:
