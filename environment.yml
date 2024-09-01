@@ -5,6 +5,7 @@ channels:
   - defaults
 dependencies:
   - python=3.10.14
+  - pytest=8.3
   - conda-forge::pyright=1.1.378
   - conda-forge::ruff=0.6
 
