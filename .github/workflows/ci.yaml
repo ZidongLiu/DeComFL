@@ -1,4 +1,4 @@
-name: Python Package using Conda
+name:
 
 on:
   push:
@@ -28,6 +28,7 @@ jobs:
       - name: Switch to new env
         run: |
           conda init
+          source ~/.bashrc
           conda activate decomFL
       - name: Test with pytest
         run: pytest
