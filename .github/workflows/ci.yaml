@@ -27,6 +27,7 @@ jobs:
           conda env create -f environment.yml -y
       - name: Switch to new env
         run: |
+          conda init
           conda activate decomFL
       - name: Test with pytest
         run: pytest
