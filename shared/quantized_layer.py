@@ -13,3 +13,10 @@ class QuantizedLinearLayer(torch.nn.Module):
         x = self.original_layer(x)
         x = self.dequantized_layer(x)
         return x
+
+
+# Quantize the full connection layers
+def replace_layer(model):
+    penultimate_layer = model.model.decoder.layers[-2]
+    penultimate_layer.fc1 = QuantizedLinearLayer(penultimate_layer.fc1)
+    penultimate_layer.fc2 = QuantizedLinearLayer(penultimate_layer.fc2)

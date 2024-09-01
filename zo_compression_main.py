@@ -3,20 +3,25 @@ import torch
 from tensorboardX import SummaryWriter
 from os import path
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
 from config import get_params, get_args_str
 from preprocess import preprocess
+
 from cezo_fl.server import CeZO_Server
 from cezo_fl.client import ResetClient
 from cezo_fl.fl_helpers import get_client_name
+
 from shared.model_helpers import get_current_datetime_str
-from shared.language_utils import get_lm_loss, LM_TEMPLATE_MAP, SUPPORTED_LLM
-from shared.metrics import accuracy
 from models.cnn_mnist import CNN_MNIST
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
 from models.lstm import CharLSTM
+from shared.language_utils import get_lm_loss, LM_TEMPLATE_MAP, SUPPORTED_LLM
+from shared.metrics import accuracy
+
 from tqdm import tqdm
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
+from shared.quantized_layer import replace_layer
 
 
 def prepare_settings_underseed(args, device):
@@ -66,6 +71,8 @@ def prepare_settings_underseed(args, device):
         large_model = args.large_model
         model_name = SUPPORTED_LLM[large_model]
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(device)
+        # Quantize the LLM
+        replace_layer(model)
         model.model_name = large_model
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
