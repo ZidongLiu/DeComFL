@@ -29,7 +29,6 @@ class LocalUpdateResult:
 
 
 class AbstractClient:
-
     @abc.abstractproperty
     def device(self) -> torch.device:
         return torch.device(self._device)
@@ -63,7 +62,6 @@ class AbstractClient:
 
 
 class SyncClient(AbstractClient):
-
     def __init__(
         self,
         model: torch.nn.Module,
@@ -186,7 +184,6 @@ class SyncClient(AbstractClient):
 
 
 class ResetClient(AbstractClient):
-
     def __init__(
         self,
         model: torch.nn.Module,

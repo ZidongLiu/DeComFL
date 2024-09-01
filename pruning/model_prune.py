@@ -25,15 +25,15 @@ def _fetch_data(dataloader, num_classes, samples_per_class):
             labels[category].append(y)
         if len(mark) == num_classes:
             break
-    X, y = torch.cat([torch.cat(_, 0) for _ in datas]), torch.cat(
-        [torch.cat(_) for _ in labels]
-    ).view(-1)
+    X, y = (
+        torch.cat([torch.cat(_, 0) for _ in datas]),
+        torch.cat([torch.cat(_) for _ in labels]).view(-1),
+    )
     del dataloader_iter
     return X, y
 
 
 def _extract_conv2d_and_linear_weights(model):
-
     if prune.is_pruned(model):
         return {
             f"{name}.weight_orig": m.weight_orig
@@ -57,7 +57,6 @@ def _zoo_grasp_importance_score(
     mu,
     loss_func=torch.nn.CrossEntropyLoss(),
 ):
-
     score_dict = {}
     device = next(model.parameters()).device
     x, y = _fetch_data(dataloader, class_num, samples_per_class)
@@ -66,9 +65,7 @@ def _zoo_grasp_importance_score(
     # only prune weight from conv2d and linear layer
     prune_params = _extract_conv2d_and_linear_weights(model)
 
-    f_theta = partial(
-        eval_network_and_get_loss, network=model, x=x, y=y, loss_func=loss_func
-    )
+    f_theta = partial(eval_network_and_get_loss, network=model, x=x, y=y, loss_func=loss_func)
 
     g0 = functional_forward_rge(f_theta, prune_params, num_pert, mu)
     modified_params = {}
@@ -89,9 +86,7 @@ def _zoo_grasp_importance_score(
                     -m.weight_orig.clone().detach() * Hg[f"{name}.weight_orig"]
                 )
             else:
-                score_dict[(m, "weight")] = (
-                    -m.weight.clone().detach() * Hg[f"{name}.weight"]
-                )
+                score_dict[(m, "weight")] = -m.weight.clone().detach() * Hg[f"{name}.weight"]
 
     return score_dict
 
@@ -105,7 +100,6 @@ def zoo_grasp_prune(
     num_pert: int = 1,
     mu: float = 1e-4,
 ):
-
     # NOTE: prune globally using score
     # the layer-wise pruning ratio will be used for layer-wise random pruning
     score_dict = _zoo_grasp_importance_score(

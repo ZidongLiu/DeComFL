@@ -56,7 +56,7 @@ def get_params():
     parser.add_argument(
         "--no-iid",
         action="store_false",
-        dest='iid',
+        dest="iid",
         default=DEFAULTS["iid"],
         help="Clients will not have iid data",
     )

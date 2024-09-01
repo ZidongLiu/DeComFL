@@ -17,7 +17,6 @@ def get_parameter_indices_for_ith_elem(i, cumsum_dimension):
 
 
 class CoordinateGradientEstimator:
-
     def __init__(
         self,
         model,

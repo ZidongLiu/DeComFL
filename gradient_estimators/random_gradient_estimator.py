@@ -9,7 +9,6 @@ GradEstimateMethod: TypeAlias = Literal["forward", "central"]
 
 
 class RandomGradientEstimator:
-
     def __init__(
         self,
         model: torch.nn.Module | transformers.models.opt.modeling_opt.OPTForCausalLM,

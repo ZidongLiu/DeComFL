@@ -46,11 +46,11 @@ LOCAL_GRAD_SCALAR_LIST: TypeAlias = list[list[torch.Tensor]]
 
 
 def execute_sampled_clients(
-    server: "CeZO_Server",
+    server,  # TODO: add good typehint here
     sampled_client_index: Sequence[int],
     seeds: Sequence[int],
     *,
-    parallel: bool = False
+    parallel: bool = False,
 ) -> tuple[Metric, Metric, LOCAL_GRAD_SCALAR_LIST]:
     local_grad_scalar_list: LOCAL_GRAD_SCALAR_LIST = []  # Clients X Local_update
     step_train_loss = Metric("Step train loss")
