@@ -21,6 +21,7 @@ from shared.metrics import accuracy
 
 from tqdm import tqdm
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
+from shared.quantized_layer import QuantizedLinearLayer
 
 
 def prepare_settings_underseed(args, device):
@@ -70,6 +71,7 @@ def prepare_settings_underseed(args, device):
         large_model = args.large_model
         model_name = SUPPORTED_LLM[large_model]
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(device)
+        replace_penultimate_layer(model)
         model.model_name = large_model
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
@@ -96,6 +98,12 @@ def prepare_settings_underseed(args, device):
     else:
         raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
     return model, criterion, optimizer, grad_estimator, accuracy_func
+
+
+def replace_penultimate_layer(model):
+    penultimate_layer = model.model.decoder.layers[-2]
+    penultimate_layer.fc1 = QuantizedLinearLayer(penultimate_layer.fc1)
+    penultimate_layer.fc2 = QuantizedLinearLayer(penultimate_layer.fc2)
 
 
 def setup_server_and_clients(
