@@ -21,4 +21,3 @@ dependencies:
   - numpy=1.23
   - tensorboardx=2.6
   - tqdm=4.66
-prefix: ./envs

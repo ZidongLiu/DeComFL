@@ -1,0 +1,1 @@
+conda create -n decomFL python=3.10.14 conda-forge::ruff=0.6 conda-forge::pyright=1.1.378 numpy=1.23 tqdm=4.66 tensorboardx=2.6 conda-forge::transformers=4.41 conda-forge::accelerate=0.33 conda-forge::datasets=2.19 conda-forge::peft=0.12 pytorch::pytorch=2.3 pytorch::torchvision=0.18 pytorch::pytorch-cuda=12.1 -c pytorch -c nvidia -c conda-forge
