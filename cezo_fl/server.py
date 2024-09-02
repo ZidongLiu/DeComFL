@@ -240,6 +240,11 @@ class CeZO_Server:
             local_grad_scalar_list = trim_attack(local_grad_scalar_list, args.num_byz)
         elif args.byz_type == "krum":
             local_grad_scalar_list = krum_attack(local_grad_scalar_list, args.num_byz, args.lr)
+        else:
+            raise Exception(
+                "byz_type should be one of no_byz, gaussian, sign, trim, krum."
+                + f"But get {args.byz_type}"
+            )
 
         # Step 4: server-side aggregation
         if args.aggregation == "mean":
@@ -250,6 +255,11 @@ class CeZO_Server:
             grad_scalar = trim(args.num_sample_clients, local_grad_scalar_list)
         elif args.aggregation == "krum":
             grad_scalar = krum(local_grad_scalar_list)
+        else:
+            raise Exception(
+                "aggregation type should be one of mean, median, trim, krum. "
+                + f"But get {args.aggregation}"
+            )
 
         self.seed_grad_records.add_records(seeds=seeds, grad=grad_scalar)
 
@@ -283,7 +293,7 @@ class CeZO_Server:
                     batch_inputs = batch_inputs.to(
                         self.device, self.random_gradient_estimator.torch_dtype
                     )
-                    ## NOTE: label does not convert to dtype
+                    # NOTE: label does not convert to dtype
                     batch_labels = batch_labels.to(self.device)
                 pred = self.random_gradient_estimator.model_forward(batch_inputs)
                 eval_loss.update(self.server_criterion(pred, batch_labels))
