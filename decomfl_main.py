@@ -1,5 +1,7 @@
-import torch.nn as nn
+import functools
+
 import torch
+import torch.nn as nn
 from tensorboardX import SummaryWriter
 from os import path
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -7,6 +9,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from config import get_params, get_args_str
 from preprocess import preprocess
 
+from byzantine import aggregation as byz_agg
+from byzantine import attack as byz_attack
 from cezo_fl.server import CeZO_Server
 from cezo_fl.client import ResetClient
 from cezo_fl.fl_helpers import get_client_name
@@ -18,7 +22,6 @@ from models.cnn_fashion import CNN_FMNIST
 from models.lstm import CharLSTM
 from shared.language_utils import get_lm_loss, LM_TEMPLATE_MAP, SUPPORTED_LLM
 from shared.metrics import accuracy
-
 from tqdm import tqdm
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 
@@ -61,7 +64,9 @@ def prepare_settings_underseed(args, device):
     elif args.dataset == "shakespeare":
         model = CharLSTM().to(torch_dtype).to(device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4
+        )
         accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
         #     optimizer, milestones=[200], gamma=0.1
@@ -69,7 +74,9 @@ def prepare_settings_underseed(args, device):
     elif args.dataset in LM_TEMPLATE_MAP.keys():
         large_model = args.large_model
         model_name = SUPPORTED_LLM[large_model]
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(device)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name, torch_dtype=torch_dtype
+        ).to(device)
         model.model_name = large_model
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
@@ -77,7 +84,9 @@ def prepare_settings_underseed(args, device):
         template = LM_TEMPLATE_MAP[args.dataset]()
         verbalizer_id_map = template.get_verbalizer_id(tokenizer)
         criterion = get_lm_loss("last_token", verbalizer_id_map)
-        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0, weight_decay=5e-4)
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=args.lr, momentum=0, weight_decay=5e-4
+        )
         accuracy_func = get_lm_loss("accuracy", verbalizer_id_map)
     else:
         raise Exception(f"Dataset {args.dataset} is not supported")
@@ -94,7 +103,9 @@ def prepare_settings_underseed(args, device):
             torch_dtype=torch_dtype,
         )
     else:
-        raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
+        raise Exception(
+            f"Grad estimate method {args.grad_estimate_method} not supported"
+        )
     return model, criterion, optimizer, grad_estimator, accuracy_func
 
 
@@ -151,11 +162,58 @@ def setup_server_and_clients(
         server_optimizer,
         server_grad_estimator,
     )
+
+    # TODO(lizhe) move this into a seperate main file.
+    # Prepare the Byzantine attack
+    if args.byz_type == "no_byz":
+        server.register_attack_func(byz_attack.no_byz)
+    elif args.byz_type == "gaussian":
+        server.register_attack_func(
+            functools.partial(byz_attack.gaussian_attack, num_attack=args.num_byz)
+        )
+    elif args.byz_type == "sign":
+        server.register_attack_func(
+            functools.partial(byz_attack.sign_attack, num_attack=args.num_byz)
+        )
+        local_grad_scalar_list = sign_attack(local_grad_scalar_list, self.args.num_byz)
+    elif args.byz_type == "trim":
+        server.register_attack_func(
+            functools.partial(byz_attack.trim_attack, num_attack=args.num_byz)
+        )
+        local_grad_scalar_list = trim_attack(local_grad_scalar_list, self.args.num_byz)
+    elif args.byz_type == "krum":
+        server.register_attack_func(
+            functools.partial(
+                byz_attack.krum_attack, num_attack=args.num_byz, lr=args.lr
+            )
+        )
+    else:
+        raise Exception(
+            "byz_type should be one of no_byz, gaussian, sign, trim, krum."
+            + f"But get {args.byz_type}"
+        )
+
+    if args.aggregation == "mean":
+        server.register_aggregation_func(byz_agg.mean)
+    elif args.aggregation == "median":
+        server.register_aggregation_func(byz_agg.median)
+    elif args.aggregation == "trim":
+        server.register_aggregation_func(byz_agg.trim)
+    elif args.aggregation == "krum":
+        server.register_aggregation_func(byz_agg.krum)
+    else:
+        raise Exception(
+            "aggregation type should be one of mean, median, trim, krum. "
+            + f"But get {args.aggregation}"
+        )
+
     return server
 
 
 # get_warmup_lr is not used for now.
-def get_warmup_lr(args, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
+def get_warmup_lr(
+    args, current_epoch: int, current_iter: int, iters_per_epoch: int
+) -> float:
     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
     return args.lr * current_iterations / overall_iterations
@@ -176,7 +234,11 @@ if __name__ == "__main__":
 
     if args.log_to_tensorboard:
         tensorboard_sub_folder = "-".join(
-            [get_args_str(args), server.server_model.model_name, get_current_datetime_str()]
+            [
+                get_args_str(args),
+                server.server_model.model_name,
+                get_current_datetime_str(),
+            ]
         )
         writer = SummaryWriter(
             path.join(
