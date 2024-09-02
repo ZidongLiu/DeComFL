@@ -178,10 +178,6 @@ class CeZO_Server:
         self.optim = optimizer
         self.random_gradient_estimator = random_gradient_estimator
 
-    def train(self) -> None:
-        if self.server_model:
-            self.server_model.train()
-
     def get_sampled_client_index(self) -> list[int]:
         return random.sample(range(len(self.clients)), self.num_sample_clients)
 
@@ -268,7 +264,9 @@ class CeZO_Server:
         self.seed_grad_records.remove_too_old(earliest_record_needs=min(self.client_last_updates))
 
         if self.server_model:
-            self.train()
+            assert self.optim
+            assert self.random_gradient_estimator
+            self.server_model.train()
             update_model_given_seed_and_grad(
                 self.optim,
                 self.random_gradient_estimator,
