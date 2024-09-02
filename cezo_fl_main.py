@@ -170,6 +170,8 @@ if __name__ == "__main__":
     if args.dataset == "shakespeare":
         args.num_clients = 139
     print(args)
+    MAX_NUM_OF_MEM_EVENTS_PER_SNAPSHOT = 100_000
+    torch.cuda.memory._record_memory_history(max_entries=MAX_NUM_OF_MEM_EVENTS_PER_SNAPSHOT)
     device_map, train_loaders, test_loader = preprocess(args)
 
     server = setup_server_and_clients(args, device_map, train_loaders)
@@ -213,3 +215,10 @@ if __name__ == "__main__":
                 if args.log_to_tensorboard:
                     writer.add_scalar("Loss/test", eval_loss, ite)
                     writer.add_scalar("Accuracy/test", eval_accuracy, ite)
+
+    file_prefix = f"{args.model_dtype}"
+    snapshot_name = f"improvement_2_del_pb_norm_in_rge.pickle"
+    torch.cuda.memory._dump_snapshot(snapshot_name)
+
+    # Stop recording memory snapshot history.
+    torch.cuda.memory._record_memory_history(enabled=None)
