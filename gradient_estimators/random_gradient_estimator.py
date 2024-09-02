@@ -9,7 +9,6 @@ GradEstimateMethod: TypeAlias = Literal["forward", "central"]
 
 
 class RandomGradientEstimator:
-
     def __init__(
         self,
         model: torch.nn.Module | transformers.models.opt.modeling_opt.OPTForCausalLM,
@@ -38,7 +37,7 @@ class RandomGradientEstimator:
         self.paramwise_perturb = paramwise_perturb
         if paramwise_perturb:
             assert prune_mask_arr is None
-            assert normalize_perturbation == False
+            assert normalize_perturbation is False
 
         self.normalize_perturbation = normalize_perturbation
         self.prune_mask_arr = None

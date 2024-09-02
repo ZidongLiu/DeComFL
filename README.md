@@ -4,11 +4,10 @@
 
 DeComFL is a library designed for training/fine-tuning deep learning models in the federated learning scenario. Its unique feature is the utilization of zeroth-order optimization, enabling communication between clients to be limited to just a few scalars, irrespective of the original model's size. This dimension-free communication is the inspiration behind the library's name.
 
-
 ## Performance
 
-Table 1: Test accuracy comparsion of First-order SGD, MeZO and DeComFL on OPT-125m model. 
-|Dataset\Algo.| FO-SGD | MeZO | DeComFL (P=5) | DeComFL (P=10) | 
+Table 1: Test accuracy comparsion of First-order SGD, MeZO and DeComFL on OPT-125m model.
+|Dataset\Algo.| FO-SGD | MeZO | DeComFL (P=5) | DeComFL (P=10) |
 |-|-|-|-|-|
 |SST-2|87.48%|83.99%|84.02%|85.08%|
 |CB|73.21%|72.49%|74.28%|75.00%|
@@ -18,19 +17,35 @@ Table 1: Test accuracy comparsion of First-order SGD, MeZO and DeComFL on OPT-12
 |RTE|57.69%|52.91%|54.33%|57.05%|
 |BoolQ|62.34%|61.46%|61.36%|61.60%|
 
-From the Table 1, we observe the effectiveness of DeComFL. We evaluate its performance with five and ten perturbations. Its performance outperforms MeZO in almost all datasets, and it can match the performance of FO-SGD and even excel that sometimes (i.e., on CB and WSC datasets). 
+From the Table 1, we observe the effectiveness of DeComFL. We evaluate its performance with five and ten perturbations. Its performance outperforms MeZO in almost all datasets, and it can match the performance of FO-SGD and even excel that sometimes (i.e., on CB and WSC datasets).
 
+## Environment Setup
+
+We use [conda](https://docs.conda.io/projects/conda/en/stable/) as our cross platform environment management tool. However due to macOS' lacking support for cuda, we have to make 2 different environment set up files:
+
+- Use `environment.yml` on macOS or if you do not have cuda at hand.
+- Use `environment_cuda.yml` otherwise.
+
+For READMD.md, we will use `environment.yml` whenever a environment file is needed.
+
+### Set Up Steps
+
+1. Make sure `conda` is available, see https://conda.io/projects/conda/en/latest/user-guide/install/index.html for more detail.
+2. At the root of this repo, run `conda env create -f environment.yml -y`.
+3. Once installation is finished, run `conda activate decomfl` to use the created virtual env.
+4. (Optional) If you see something like `conda init before activate`. Run `conda init`, then restart your terminal/powershell. Then repeat step 3.
+5. Run any command provided in [Run Experiments](#run-experiments) section. If code works, then congratulations, you have successfully set up the environment for this repo!
 
 ## Run Experiments
 
-- **Run zeroth-order random gradient estimate + SGD training**. Train model using ZOO RGE. 
-Usage example: `python zo_rge_main.py --dataset=cifar10 --num-pert=10 --lr=1e-6 --mu=1e-3`
+- **Run zeroth-order random gradient estimate + SGD training**. Train model using ZOO RGE.
+  Usage example: `python zo_rge_main.py --dataset=cifar10 --num-pert=10 --lr=1e-6 --mu=1e-3`
 
-- **Run DeComFL:** Follow FL routine, split data into chunks and train on different clients. 
-Usage example: `python decomfl_main.py --dataset=sst2 --iterations=10000 --train-batch-size=8 --test-batch-size=200 --eval-iterations=50 --num-clients=3 --num-sample-clients=2 --local-update-steps=1 --num-pert=10 --lr=1e-6 --mu=1e-3 --grad-estimate-method=rge-forward`
-
+- **Run DeComFL:** Follow FL routine, split data into chunks and train on different clients.
+  Usage example: `python decomfl_main.py --dataset=sst2 --iterations=10000 --train-batch-size=8 --test-batch-size=200 --eval-iterations=50 --num-clients=3 --num-sample-clients=2 --local-update-steps=1 --num-pert=10 --lr=1e-6 --mu=1e-3 --grad-estimate-method=rge-forward`
 
 ## Citation
+
 ```
 @article{li2024achieving,
   title={Achieving Dimension-Free Communication in Federated Learning via Zeroth-Order Optimization},

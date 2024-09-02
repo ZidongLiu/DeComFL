@@ -34,8 +34,7 @@ def sign_attack(v: list[list[torch.Tensor]], num_attack: int) -> list[list[torch
 def trim_attack(v: list[list[torch.Tensor]], num_attack: int) -> list[list[torch.Tensor]]:
     num_pert = int(v[0][0].shape[0])
     vi_shape = num_pert * len(v[0])
-    l = [torch.cat(one_client_data, dim=0) for one_client_data in v]
-    v_tran = torch.stack(l)
+    v_tran = torch.stack([torch.cat(one_client_data, dim=0) for one_client_data in v])
     max_values, _ = torch.max(v_tran, dim=0)
     min_values, _ = torch.min(v_tran, dim=0)
     direction = torch.sign(torch.sum(v_tran, axis=0))
@@ -56,8 +55,7 @@ def score(gradient: torch.Tensor, v: torch.Tensor, f: int = 1) -> float:
 
 
 def krum(v: list[list[torch.Tensor]], f: int = 1):
-    l = [torch.cat(one_client_data, dim=0) for one_client_data in v]
-    v_tran = torch.stack(l)
+    v_tran = torch.stack([torch.cat(one_client_data, dim=0) for one_client_data in v])
     scores = torch.tensor([score(gradient, v_tran, f) for gradient in v_tran])
     min_idx = int(torch.argmin(scores, dim=0).item())
     krum_nd = v[min_idx]
