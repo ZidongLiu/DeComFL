@@ -1,4 +1,4 @@
-name: Lint Format Unit Test
+name: Linting, Formating and Unit test
 
 on:
   push:
