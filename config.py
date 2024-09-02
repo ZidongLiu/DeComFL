@@ -36,9 +36,8 @@ DEFAULTS = {
     "iid": True,
     "dirichlet_alpha": 1,
     # Byzantine
-    "no_byz": "y",
     "aggregation": "mean",
-    "byz_type": "none",
+    "byz_type": "no_byz",
     "num_byz": 1,
 }
 
@@ -100,7 +99,6 @@ def get_params():
     parser.add_argument(
         "--num-byz", type=int, default=DEFAULTS["num_byz"], help="the number of byzantine attackers"
     )
-    parser.add_argument("--no-byz", type=str, default=DEFAULTS["no_byz"], help="use byz or not")
 
     # Rarely change
     parser.add_argument(
@@ -170,6 +168,7 @@ def get_args_str(args):
 
 @dataclass
 class FakeArgs:
+    large_model = "opt-1.3b"
     train_batch_size = 256
     test_batch_size = 1000
     lr = 1e-4
@@ -181,6 +180,7 @@ class FakeArgs:
     model_dtype = "float32"
     momentum = 0.9
     warmup_epochs = 5
+    adjust_perturb = False
     sparsity_file = None
     mask_shuffle_interval = 5
     grad_estimate_method = "rge-central"
@@ -192,8 +192,15 @@ class FakeArgs:
     checkpoint = None
     create_many_checkpoint = True
     checkpoint_update_plan = "every10"
+    # FedDisco
     iterations = 100
     eval_iterations = 20
     num_clients = 5
     num_sample_clients = 3
     local_update_steps = 1
+    iid = True
+    dirichlet_alpha = 1
+    # Byzantine
+    aggregation = "mean"
+    byz_type = "no_byz"
+    num_byz = 1

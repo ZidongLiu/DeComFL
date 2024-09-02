@@ -1,61 +1,14 @@
 from __future__ import annotations
-import abc
 import random
 import torch
 from typing import Any, Iterable, Sequence
 from collections import deque
-from config import get_params
-from concurrent.futures import ThreadPoolExecutor
 from cezo_fl.shared import CriterionType, update_model_given_seed_and_grad
+from cezo_fl.client import LocalUpdateResult, AbstractClient
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from dataclasses import dataclass
 from byzantine.aggregation import mean, median, trim, krum
 from byzantine.attack import no_byz, gaussian_attack, sign_attack, trim_attack, krum_attack
-
-args = get_params().parse_args()
-
-
-@dataclass
-class LocalUpdateResult:
-    grad_tensors: list[torch.Tensor]
-    step_accuracy: float
-    step_loss: float
-
-    # Must add __future__ import to be able to return, see https://stackoverflow.com/a/33533514
-    def to(self, device: torch.device) -> LocalUpdateResult:
-        self.grad_tensors = [grad_tensor.to(device) for grad_tensor in self.grad_tensors]
-        return self
-
-
-class AbstractClient:
-
-    @abc.abstractmethod
-    def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
-        """Returns a sequence of gradient scalar tensors for each local update.
-
-        The length of the returned sequence should be the same as the length of seeds.
-        The inner tensor can be a scalar or a vector. The length of vector is the number
-        of perturbations.
-        """
-        return NotImplemented
-
-    @abc.abstractmethod
-    def reset_model(self) -> None:
-        """Reset the mode to the state before the local_update."""
-        return NotImplemented
-
-    @abc.abstractmethod
-    def pull_model(
-        self,
-        seeds_list: Sequence[Sequence[int]],
-        gradient_scalar: Sequence[Sequence[torch.Tensor]],
-    ) -> None:
-        return NotImplemented
-
-    @abc.abstractmethod
-    def random_gradient_estimator(self) -> RGE:
-        return NotImplemented
 
 
 class SeedAndGradientRecords:
@@ -147,6 +100,7 @@ class CeZO_Server:
         self,
         clients: Sequence[AbstractClient],
         device: torch.device,
+        args,
         num_sample_clients: int = 10,
         local_update_steps: int = 10,
     ) -> None:
@@ -154,6 +108,7 @@ class CeZO_Server:
         self.device = device
         self.num_sample_clients = num_sample_clients
         self.local_update_steps = local_update_steps
+        self.args = args
 
         self.seed_grad_records = SeedAndGradientRecords()
         self.client_last_updates = [0 for _ in range(len(self.clients))]
@@ -226,35 +181,37 @@ class CeZO_Server:
             self.client_last_updates[index] = iteration
 
         # Step 3: byzantine attack
-        if args.byz_type == "no_byz":
+        if self.args.byz_type == "no_byz":
             local_grad_scalar_list = no_byz(local_grad_scalar_list)
-        elif args.byz_type == "gaussian":
-            local_grad_scalar_list = gaussian_attack(local_grad_scalar_list, args.num_byz)
-        elif args.byz_type == "sign":
-            local_grad_scalar_list = sign_attack(local_grad_scalar_list, args.num_byz)
-        elif args.byz_type == "trim":
-            local_grad_scalar_list = trim_attack(local_grad_scalar_list, args.num_byz)
-        elif args.byz_type == "krum":
-            local_grad_scalar_list = krum_attack(local_grad_scalar_list, args.num_byz, args.lr)
+        elif self.args.byz_type == "gaussian":
+            local_grad_scalar_list = gaussian_attack(local_grad_scalar_list, self.args.num_byz)
+        elif self.args.byz_type == "sign":
+            local_grad_scalar_list = sign_attack(local_grad_scalar_list, self.args.num_byz)
+        elif self.args.byz_type == "trim":
+            local_grad_scalar_list = trim_attack(local_grad_scalar_list, self.args.num_byz)
+        elif self.args.byz_type == "krum":
+            local_grad_scalar_list = krum_attack(
+                local_grad_scalar_list, self.args.num_byz, self.args.lr
+            )
         else:
             raise Exception(
                 "byz_type should be one of no_byz, gaussian, sign, trim, krum."
-                + f"But get {args.byz_type}"
+                + f"But get {self.args.byz_type}"
             )
 
         # Step 4: server-side aggregation
-        if args.aggregation == "mean":
-            grad_scalar = mean(args.num_sample_clients, local_grad_scalar_list)
-        elif args.aggregation == "median":
+        if self.args.aggregation == "mean":
+            grad_scalar = mean(self.args.num_sample_clients, local_grad_scalar_list)
+        elif self.args.aggregation == "median":
             grad_scalar = median(local_grad_scalar_list)
-        elif args.aggregation == "trim":
-            grad_scalar = trim(args.num_sample_clients, local_grad_scalar_list)
-        elif args.aggregation == "krum":
+        elif self.args.aggregation == "trim":
+            grad_scalar = trim(self.args.num_sample_clients, local_grad_scalar_list)
+        elif self.args.aggregation == "krum":
             grad_scalar = krum(local_grad_scalar_list)
         else:
             raise Exception(
                 "aggregation type should be one of mean, median, trim, krum. "
-                + f"But get {args.aggregation}"
+                + f"But get {self.args.aggregation}"
             )
 
         self.seed_grad_records.add_records(seeds=seeds, grad=grad_scalar)
