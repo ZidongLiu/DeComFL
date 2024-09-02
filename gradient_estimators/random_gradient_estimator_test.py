@@ -1,7 +1,6 @@
 import pytest
 import torch
 from torch import nn
-from torch.optim import SGD
 
 import gradient_estimators.random_gradient_estimator as RGE
 
@@ -20,10 +19,10 @@ class LinearModel(nn.Module):
 @pytest.mark.parametrize("rge_method", ["forward", "central"])
 @pytest.mark.parametrize("num_pert", [2, 4, 5])
 def test_parameter_wise_equivalent_all_togther(rge_method: str, num_pert: int) -> None:
-    '''
+    """
     NOTE: Do not extend this test for large model. This test only works when model is small.
     To be specific, works number of parameters <= 10.
-    '''
+    """
     fake_input = torch.randn(5, 3)
     fake_label = torch.randn(5, 1)
     criterion = nn.MSELoss()

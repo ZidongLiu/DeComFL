@@ -20,6 +20,7 @@ from models.lstm import CharLSTM
 
 from typing import Any
 
+
 def prepare_settings(args, device):
     if args.dataset == "mnist":
         model = CNN_MNIST().to(device)
@@ -68,6 +69,7 @@ def prepare_settings(args, device):
     else:
         raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
     return model, criterion, optimizer, scheduler, grad_estimator
+
 
 def get_warmup_lr(args: Any, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
