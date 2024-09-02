@@ -91,7 +91,7 @@ def train_model(epoch: int) -> tuple[float, float]:
                 images, labels = images.to(device), labels.to(device)
             # update models
             optimizer.zero_grad()
-            grad_estimator.compute_grad(images, labels, criterion)
+            grad_estimator.compute_grad(images, labels, criterion, seed=iteration**2 + iteration)
             optimizer.step()
 
             pred = model(images)
