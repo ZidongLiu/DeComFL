@@ -44,6 +44,7 @@ def score(grad: torch.Tensor, v: torch.Tensor, f: int = 1) -> float:
 
 
 def krum(local_grad_scalar_list: list[list[torch.Tensor]], f: int = 1) -> list[torch.Tensor]:
+    assert 0 < 2 * f < len(local_grad_scalar_list)
     grad_scalar: list[torch.Tensor] = []
     for each_local_step_update in zip(*local_grad_scalar_list):
         v = torch.stack(each_local_step_update, dim=1)
