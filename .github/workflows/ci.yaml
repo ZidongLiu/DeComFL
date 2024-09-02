@@ -1,4 +1,4 @@
-name:
+name: Lint Format Unit Test
 
 on:
   push:
