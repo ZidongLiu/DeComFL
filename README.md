@@ -26,14 +26,14 @@ We use [conda](https://docs.conda.io/projects/conda/en/stable/) as our cross pla
 - Use `environment.yml` on macOS or if you do not have cuda at hand.
 - Use `environment_cuda.yml` otherwise.
 
-For readme, we will use `environment.yml` whenever a environment file is needed.
+For READMD.md, we will use `environment.yml` whenever a environment file is needed.
 
 ### Set Up Steps
 
 1. Make sure `conda` is available, see https://conda.io/projects/conda/en/latest/user-guide/install/index.html for more detail.
 2. At the root of this repo, run `conda env create -f environment.yml -y`.
 3. Once installation is finished, run `conda activate decomfl` to use the created virtual env.
-4. (Optional) If you see something like `conda init before activate`. Run `conda init`, then restart your terminal/powershell.
+4. (Optional) If you see something like `conda init before activate`. Run `conda init`, then restart your terminal/powershell. Then repeat step 3.
 5. Run any command provided in [Run Experiments](#run-experiments) section. If code works, then congratulations, you have successfully set up the environment for this repo!
 
 ## Run Experiments
