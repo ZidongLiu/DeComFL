@@ -1,3 +1,4 @@
+from config import FakeArgs
 from cezo_fl.server import CeZO_Server, SeedAndGradientRecords, update_model_given_seed_and_grad
 from cezo_fl.client import AbstractClient, LocalUpdateResult
 
@@ -81,6 +82,7 @@ def test_server_train_one_step(mocke_get_sampled_client_index):
     server = CeZO_Server(
         clients=clients,
         device=torch.device("cpu"),
+        args=FakeArgs(),
         num_sample_clients=2,
         local_update_steps=3,
     )
