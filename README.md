@@ -44,6 +44,7 @@ For READMD.md, we will use `environment.yml` whenever a environment file is need
 - **Run DeComFL:** Follow FL routine, split data into chunks and train on different clients.
   Usage example: `python decomfl_main.py --dataset=sst2 --iterations=10000 --train-batch-size=8 --test-batch-size=200 --eval-iterations=50 --num-clients=3 --num-sample-clients=2 --local-update-steps=1 --num-pert=10 --lr=1e-6 --mu=1e-3 --grad-estimate-method=rge-forward`
 
+
 ## Citation
 
 ```
@@ -54,3 +55,14 @@ For READMD.md, we will use `environment.yml` whenever a environment file is need
   year={2024}
 }
 ```
+
+## Our Team
+DeComFL is currently contributed and maintained by **Zidong Liu** (ComboCurve), **Bicheng Ying** (Google) and **Zhe Li** (RIT), and advised by Prof. **Haibo Yang** (RIT). 
+
+<div style="display: flex; justify-content: space-between;">
+    <img src="https://github.com/user-attachments/assets/b3982917-e302-42c3-b396-e33bb9f52c90" alt="Image 1" style="width: 80%;" />
+    <div style="display: flex; justify-content: center;">
+      <img src="https://github.com/user-attachments/assets/c0dfb199-0a51-4b17-b9ba-9fe09d2c4f7a" alt="Image 2" style="width: 51%;" /> &nbsp;&nbsp;&nbsp;&nbsp;
+      <img src="https://github.com/user-attachments/assets/23ba00dc-fc62-4ab3-9c70-0326aa20b786" alt="Image 3" style="width: 25%;" />
+    </div>
+</div>
