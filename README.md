@@ -47,9 +47,9 @@ For READMD.md, we will use `environment.yml` whenever a environment file is need
 ## Our Team
 DeComFL is currently contributed and maintained by **Zidong Liu** (ComboCurve), **Bicheng Ying** (Google) and **Zhe Li** (RIT), and advised by Prof. **Haibo Yang** (RIT). 
 
-<img src="https://github.com/user-attachments/assets/9e1062cf-7fd6-41ce-89f4-d23727cc9d45" alt="rit" width="550" style="float:left; padding-right:30px" />
+<img src="https://github.com/user-attachments/assets/b3982917-e302-42c3-b396-e33bb9f52c90" alt="rit" width="500" style="padding-right:30px" />
 
-<img src="https://github.com/user-attachments/assets/c0dfb199-0a51-4b17-b9ba-9fe09d2c4f7a" alt="combocurve" width="360" style="float:left; padding-right:30px" /><img src="https://github.com/user-attachments/assets/23ba00dc-fc62-4ab3-9c70-0326aa20b786" alt="google" width="150"/>
+<img src="https://github.com/user-attachments/assets/c0dfb199-0a51-4b17-b9ba-9fe09d2c4f7a" alt="combocurve" width="320" style="padding-right:30px" /><img src="https://github.com/user-attachments/assets/23ba00dc-fc62-4ab3-9c70-0326aa20b786" alt="google" style="padding-top:10px" width="150"/>
 
 
 ## Citation
