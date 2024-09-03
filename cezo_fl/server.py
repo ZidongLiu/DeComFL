@@ -136,11 +136,15 @@ class CeZO_Server:
             for p in self.optim.param_groups:
                 p["lr"] = lr
 
-    def aggregation_func(self) -> AggregationFunc:
-        return self._aggregation_func
+    def aggregation_func(
+        self, local_grad_scalar_list: MultiClientOneRoundGradScalars
+    ) -> OneRoundGradScalars:
+        return self._aggregation_func(local_grad_scalar_list)
 
-    def attack_func(self) -> AttackFunc:
-        return self._attack_func
+    def attack_func(
+        self, local_grad_scalar_list: MultiClientOneRoundGradScalars
+    ) -> MultiClientOneRoundGradScalars:
+        return self._attack_func(local_grad_scalar_list)
 
     def register_aggregation_func(self, aggregation_func: AggregationFunc) -> None:
         # TODO add function signature check
