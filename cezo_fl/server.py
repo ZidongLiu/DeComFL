@@ -70,9 +70,7 @@ class SeedAndGradientRecords:
             for i in range(earliest_record_needs, self.current_iteration + 1)
         ]
 
-    def fetch_grad_records(
-        self, earliest_record_needs: int
-    ) -> list[list[torch.Tensor]]:
+    def fetch_grad_records(self, earliest_record_needs: int) -> list[list[torch.Tensor]]:
         assert earliest_record_needs >= self.earliest_records
         return [
             self.grad_records[i - self.earliest_records]
@@ -158,25 +156,23 @@ class CeZO_Server:
         seeds = [random.randint(0, 1000000) for _ in range(self.local_update_steps)]
 
         # Step 1 & 2: pull model and local update
-        step_train_loss, step_train_accuracy, local_grad_scalar_list = (
-            execute_sampled_clients(self, sampled_client_index, seeds, parallel=False)
+        step_train_loss, step_train_accuracy, local_grad_scalar_list = execute_sampled_clients(
+            self, sampled_client_index, seeds, parallel=False
         )
 
         for index in sampled_client_index:
             self.client_last_updates[index] = iteration
 
-        # Step 3 & 4: possible attack (alter values) of local grad scalar and aggregation.
+        # Step 3 aggregation of local grad scalar with (possible attack).
         local_grad_scalar_list = self.attack_func(local_grad_scalar_list)
         global_grad_scalar = self.aggregation_func(local_grad_scalar_list)
 
         # Step 4: update the last update records
-        self.seed_grad_records.add_records(seeds=seeds, grad=grad_scalar)
+        self.seed_grad_records.add_records(seeds=seeds, grad=global_grad_scalar)
 
         # Optional: optimize the memory. Remove is exclusive, i.e., the min last updates
         # information is still kept.
-        self.seed_grad_records.remove_too_old(
-            earliest_record_needs=min(self.client_last_updates)
-        )
+        self.seed_grad_records.remove_too_old(earliest_record_needs=min(self.client_last_updates))
 
         if self.server_model:
             assert self.optim
@@ -185,7 +181,7 @@ class CeZO_Server:
             self.random_gradient_estimator.update_model_given_seed_and_grad(
                 self.optim,
                 seeds,
-                grad_scalar,
+                global_grad_scalar,
             )
 
         return step_train_loss.avg, step_train_accuracy.avg
@@ -212,7 +208,6 @@ class CeZO_Server:
                 eval_accuracy.update(self.server_accuracy_func(pred, batch_labels))
         print(
             f"\nEvaluation(Iteration {self.seed_grad_records.current_iteration}): ",
-            f"Eval Loss:{eval_loss.avg:.4f}, "
-            f"Accuracy:{eval_accuracy.avg * 100:.2f}%",
+            f"Eval Loss:{eval_loss.avg:.4f}, " f"Accuracy:{eval_accuracy.avg * 100:.2f}%",
         )
         return eval_loss.avg, eval_accuracy.avg

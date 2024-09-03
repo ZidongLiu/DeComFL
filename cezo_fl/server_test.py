@@ -1,4 +1,3 @@
-from config import FakeArgs
 from cezo_fl.server import CeZO_Server, SeedAndGradientRecords
 from cezo_fl.client import AbstractClient, LocalUpdateResult
 from cezo_fl.shared import update_model_given_seed_and_grad

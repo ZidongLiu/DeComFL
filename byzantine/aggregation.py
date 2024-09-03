@@ -41,9 +41,7 @@ def score(grad: torch.Tensor, v: torch.Tensor, f: int = 1) -> float:
     return torch.sum(sorted_distance[1 : (1 + num_neighbours)]).item()
 
 
-def krum(
-    local_grad_scalar_list: list[list[torch.Tensor]], f: int = 1
-) -> list[torch.Tensor]:
+def krum(local_grad_scalar_list: list[list[torch.Tensor]], f: int = 1) -> list[torch.Tensor]:
     assert 0 < 2 * f < len(local_grad_scalar_list)
     grad_scalar: list[torch.Tensor] = []
     for each_local_step_update in zip(*local_grad_scalar_list):

@@ -64,9 +64,7 @@ def prepare_settings_underseed(args, device):
     elif args.dataset == "shakespeare":
         model = CharLSTM().to(torch_dtype).to(device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4
-        )
+        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
         accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
         #     optimizer, milestones=[200], gamma=0.1
@@ -74,9 +72,7 @@ def prepare_settings_underseed(args, device):
     elif args.dataset in LM_TEMPLATE_MAP.keys():
         large_model = args.large_model
         model_name = SUPPORTED_LLM[large_model]
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name, torch_dtype=torch_dtype
-        ).to(device)
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(device)
         model.model_name = large_model
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
@@ -84,9 +80,7 @@ def prepare_settings_underseed(args, device):
         template = LM_TEMPLATE_MAP[args.dataset]()
         verbalizer_id_map = template.get_verbalizer_id(tokenizer)
         criterion = get_lm_loss("last_token", verbalizer_id_map)
-        optimizer = torch.optim.SGD(
-            model.parameters(), lr=args.lr, momentum=0, weight_decay=5e-4
-        )
+        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0, weight_decay=5e-4)
         accuracy_func = get_lm_loss("accuracy", verbalizer_id_map)
     else:
         raise Exception(f"Dataset {args.dataset} is not supported")
@@ -103,9 +97,7 @@ def prepare_settings_underseed(args, device):
             torch_dtype=torch_dtype,
         )
     else:
-        raise Exception(
-            f"Grad estimate method {args.grad_estimate_method} not supported"
-        )
+        raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
     return model, criterion, optimizer, grad_estimator, accuracy_func
 
 
@@ -175,17 +167,13 @@ def setup_server_and_clients(
         server.register_attack_func(
             functools.partial(byz_attack.sign_attack, num_attack=args.num_byz)
         )
-        local_grad_scalar_list = sign_attack(local_grad_scalar_list, self.args.num_byz)
     elif args.byz_type == "trim":
         server.register_attack_func(
             functools.partial(byz_attack.trim_attack, num_attack=args.num_byz)
         )
-        local_grad_scalar_list = trim_attack(local_grad_scalar_list, self.args.num_byz)
     elif args.byz_type == "krum":
         server.register_attack_func(
-            functools.partial(
-                byz_attack.krum_attack, num_attack=args.num_byz, lr=args.lr
-            )
+            functools.partial(byz_attack.krum_attack, num_attack=args.num_byz, lr=args.lr)
         )
     else:
         raise Exception(
@@ -211,9 +199,7 @@ def setup_server_and_clients(
 
 
 # get_warmup_lr is not used for now.
-def get_warmup_lr(
-    args, current_epoch: int, current_iter: int, iters_per_epoch: int
-) -> float:
+def get_warmup_lr(args, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
     return args.lr * current_iterations / overall_iterations
