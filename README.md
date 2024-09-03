@@ -59,8 +59,10 @@ For READMD.md, we will use `environment.yml` whenever a environment file is need
 ## Our Team
 DeComFL is currently contributed and maintained by **Zidong Liu** (ComboCurve), **Bicheng Ying** (Google) and **Zhe Li** (RIT), and advised by Prof. **Haibo Yang** (RIT). 
 
-<img src="https://github.com/user-attachments/assets/b3982917-e302-42c3-b396-e33bb9f52c90" alt="rit" width="500" style="padding-right:30px" />
-
-<img src="https://github.com/user-attachments/assets/c0dfb199-0a51-4b17-b9ba-9fe09d2c4f7a" alt="combocurve" width="320" style="padding-right:30px" />
-
-<img src="https://github.com/user-attachments/assets/23ba00dc-fc62-4ab3-9c70-0326aa20b786" alt="google" style="padding-top:10px" width="140"/>
+<div style="display: flex; justify-content: space-between;">
+    <img src="https://github.com/user-attachments/assets/b3982917-e302-42c3-b396-e33bb9f52c90" alt="Image 1" style="width: 80%;" />
+    <div style="display: flex; justify-content: center;">
+      <img src="https://github.com/user-attachments/assets/c0dfb199-0a51-4b17-b9ba-9fe09d2c4f7a" alt="Image 2" style="width: 51%;" /> &nbsp;&nbsp;&nbsp;&nbsp;
+      <img src="https://github.com/user-attachments/assets/23ba00dc-fc62-4ab3-9c70-0326aa20b786" alt="Image 3" style="width: 25%;" />
+    </div>
+</div>
