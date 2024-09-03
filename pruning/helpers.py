@@ -9,7 +9,6 @@ def get_module_weight_sparsity(model):
     module_weight_sparsity = {}
 
     for name, m in model.named_modules():
-
         if prune.is_pruned(m) and hasattr(m, "weight"):
             sum_list_all = sum_list_all + float(m.weight.nelement())
             zero_sum_all = zero_sum_all + float(torch.sum(m.weight == 0))

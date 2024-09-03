@@ -45,7 +45,7 @@ class CheckPoint:
         if checkpoint_file_path is not None:
             try:
                 checkpoint_data = torch.load(checkpoint_file_path)
-            except:
+            except FileNotFoundError:
                 raise Exception("Fail to load checkpoint")
         else:
             checkpoint_data = None

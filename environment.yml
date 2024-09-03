@@ -1,0 +1,22 @@
+name: decomfl
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pytest=8.3
+  - conda-forge::pyright=1.1.378
+  - conda-forge::ruff=0.6
+
+  - conda-forge::accelerate=0.33
+  - conda-forge::datasets=2.19
+  - conda-forge::peft=0.12
+  - conda-forge::transformers=4.41
+
+  - pytorch::pytorch=2.3
+  - pytorch::torchvision=0.18
+
+  - numpy=1.23
+  - tensorboardx=2.6
+  - tqdm=4.66

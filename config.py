@@ -31,7 +31,7 @@ DEFAULTS = {
     "checkpoint": None,
     "create_many_checkpoint": True,
     "checkpoint_update_plan": "every10",
-    # Cezo_fl
+    # FedDisco
     "iterations": 100,
     "eval_iterations": 20,
     "num_clients": 5,
@@ -39,6 +39,10 @@ DEFAULTS = {
     "local_update_steps": 1,
     "iid": True,
     "dirichlet_alpha": 1,
+    # Byzantine
+    "aggregation": "mean",
+    "byz_type": "no_byz",
+    "num_byz": 1,
 }
 
 
@@ -94,6 +98,14 @@ def get_params():
         type=int,
         default=DEFAULTS["mask_shuffle_interval"],
     )
+    # Byzantine
+    parser.add_argument(
+        "--aggregation", type=str, default=DEFAULTS["aggregation"], help="mean, median, trim, krum"
+    )
+    parser.add_argument("--byz-type", type=str, default=DEFAULTS["byz_type"])
+    parser.add_argument(
+        "--num-byz", type=int, default=DEFAULTS["num_byz"], help="the number of byzantine attackers"
+    )
 
     # Rarely change
     parser.add_argument(
@@ -104,11 +116,7 @@ def get_params():
     )
     parser.add_argument("--seed", type=int, default=DEFAULTS["seed"], help="random seed")
     parser.add_argument("--num-workers", type=int, default=DEFAULTS["num_workers"])
-    parser.add_argument(
-        "--log-to-tensorboard",
-        type=str,
-        default=DEFAULTS["log_to_tensorboard"],
-    )
+    parser.add_argument("--log-to-tensorboard", type=str, default=DEFAULTS["log_to_tensorboard"])
 
     # checkpoints
     parser.add_argument("--checkpoint", type=str, default=DEFAULTS["checkpoint"])
@@ -126,10 +134,7 @@ def get_params():
 
     # No need to change
     parser.add_argument(
-        "--no-cuda",
-        action="store_true",
-        default=DEFAULTS["no_cuda"],
-        help="disables CUDA training",
+        "--no-cuda", action="store_true", default=DEFAULTS["no_cuda"], help="disables CUDA training"
     )
     parser.add_argument(
         "--no-mps",
@@ -170,6 +175,7 @@ def get_args_str(args):
 
 @dataclass
 class FakeArgs:
+    large_model = "opt-1.3b"
     train_batch_size = 256
     test_batch_size = 1000
     lr = 1e-4
@@ -181,6 +187,7 @@ class FakeArgs:
     model_dtype = "float32"
     momentum = 0.9
     warmup_epochs = 5
+    adjust_perturb = False
     sparsity_file = None
     mask_shuffle_interval = 5
     grad_estimate_method = "rge-central"
@@ -192,8 +199,15 @@ class FakeArgs:
     checkpoint = None
     create_many_checkpoint = True
     checkpoint_update_plan = "every10"
+    # FedDisco
     iterations = 100
     eval_iterations = 20
     num_clients = 5
     num_sample_clients = 3
     local_update_steps = 1
+    iid = True
+    dirichlet_alpha = 1
+    # Byzantine
+    aggregation = "mean"
+    byz_type = "no_byz"
+    num_byz = 1

@@ -148,6 +148,7 @@ def setup_server_and_clients(
     server = CeZO_Server(
         clients,
         server_device,
+        args=args,
         num_sample_clients=args.num_sample_clients,
         local_update_steps=args.local_update_steps,
     )

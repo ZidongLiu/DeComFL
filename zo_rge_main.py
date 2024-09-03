@@ -18,6 +18,8 @@ from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
 from models.lstm import CharLSTM
 
+from typing import Any
+
 
 def prepare_settings(args, device):
     if args.dataset == "mnist":
@@ -76,7 +78,7 @@ def prepare_settings(args, device):
     return model, criterion, optimizer, scheduler, grad_estimator
 
 
-def get_warmup_lr(args, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
+def get_warmup_lr(args: Any, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
     return args.lr * current_iterations / overall_iterations
@@ -98,7 +100,7 @@ def train_model(epoch: int) -> tuple[float, float]:
                 images, labels = images.to(device), labels.to(device)
             # update models
             optimizer.zero_grad()
-            grad_estimator.compute_grad(images, labels, criterion)
+            grad_estimator.compute_grad(images, labels, criterion, seed=iteration**2 + iteration)
             optimizer.step()
 
             pred = model(images)
