@@ -45,7 +45,7 @@ which ruff   # For windows try: where ruff
 ```settings.json
 {
 	"editor.rulers": [100],
-	"editor.detectIndentation": false,
+	"editor.detectIndentation": true,
 	"[python]": {
 		"editor.formatOnPaste": false,
 		"editor.formatOnType": false,
