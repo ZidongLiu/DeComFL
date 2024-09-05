@@ -102,8 +102,8 @@ class RandomGradientEstimator:
         num_pert = len(dir_grads)
         for i, dir_grad in enumerate(dir_grads):
             rng = self.get_rng(seed, i)
-            update_grad += self.generate_perturbation_norm(rng).mul_(dir_grad)
-        self.put_grad(update_grad.div_(num_pert))
+            update_grad += self.generate_perturbation_norm(rng).mul_(dir_grad / num_pert)
+        self.put_grad(update_grad)
 
     def compute_grad(self, batch_inputs, labels, criterion, seed: int) -> torch.Tensor:
         if not self.paramwise_perturb:
@@ -250,12 +250,14 @@ class RandomGradientEstimator:
 
         # NOTE: this zero_grad operation is critical since it sets the parameter.grad to None
         # which is checked in self.generate_then_put_grad_paramwise
-        optimizer.zero_grad()
         for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
+            optimizer.zero_grad()
             if self.paramwise_perturb:
                 self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
             else:
-                self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
+                # generate_then_put_grad is WRONG!!!!!!!!!!!!!!! But I have no idea
+                self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
+                # self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
             # update model
             optimizer.step()
 
@@ -274,8 +276,8 @@ class RandomGradientEstimator:
             raise Exception("Revert only supports SGD without momentum")
 
         lr, weight_decay = optimizer.defaults["lr"], optimizer.defaults["weight_decay"]
-        optimizer.zero_grad()
         for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
+            optimizer.zero_grad()
             if self.paramwise_perturb:
                 self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
             else:
