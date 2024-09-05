@@ -115,7 +115,7 @@ class SyncClient(AbstractClient):
                 # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
-            if self.grad_estimator.sgd_no_optim_update_model:
+            if self.grad_estimator.sgd_only_no_optim:
                 grad_scalars = self.grad_estimator._zo_grad_estimate_paramwise(
                     batch_inputs, labels, self.criterion, seed
                 )
@@ -237,7 +237,7 @@ class ResetClient(AbstractClient):
                 # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
-            if self.grad_estimator.sgd_no_optim_update_model:
+            if self.grad_estimator.sgd_only_no_optim:
                 grad_scalars = self.grad_estimator._zo_grad_estimate_paramwise(
                     batch_inputs, labels, self.criterion, seed
                 )

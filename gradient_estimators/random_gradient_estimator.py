@@ -190,7 +190,7 @@ class RandomGradientEstimator:
                 _perturb = torch.randn(
                     *param.shape, device=self.device, dtype=self.torch_dtype, generator=rng
                 )
-                if param.grad is None:
+                if i == 0:
                     param.grad = _perturb.mul_(dir_grad / num_pert)
                 else:
                     param.grad += _perturb.mul_(dir_grad / num_pert)
