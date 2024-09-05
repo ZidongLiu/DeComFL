@@ -8,6 +8,7 @@ from shared.language_utils import LLMBatchInput
 GradEstimateMethod: TypeAlias = Literal["forward", "central"]
 
 
+# TODO: split this class into abstract class and several subcalsses.
 class RandomGradientEstimator:
     def __init__(
         self,
@@ -20,7 +21,8 @@ class RandomGradientEstimator:
         device: str | None = None,
         torch_dtype: torch.dtype = torch.float32,
         prune_mask_arr: torch.Tensor | None = None,
-        paramwise_perturb: bool = False,
+        paramwise_perturb: bool = True,
+        sgd_only_no_optim: bool = True,
     ):
         self.model = model
         if parameters is None:
@@ -38,6 +40,10 @@ class RandomGradientEstimator:
         if paramwise_perturb:
             assert prune_mask_arr is None
             assert normalize_perturbation is False
+
+        self.sgd_only_no_optim = sgd_only_no_optim
+        if sgd_only_no_optim:
+            assert self.paramwise_perturb
 
         self.normalize_perturbation = normalize_perturbation
         self.prune_mask_arr = None
@@ -114,6 +120,18 @@ class RandomGradientEstimator:
             self.generate_then_put_grad_paramwise(seed, perturbation_dir_grads)
 
         return perturbation_dir_grads
+
+    def sgd_no_optim_update_model(
+        self, perturbation_dir_grads: torch.Tensor, seed: int, lr: float
+    ) -> None:
+        num_pert = len(perturbation_dir_grads)
+        for i, dir_grad in enumerate(perturbation_dir_grads):
+            rng = self.get_rng(seed, i)
+            for param in self.parameters_list:
+                _perturb = torch.randn(
+                    *param.shape, device=self.device, dtype=self.torch_dtype, generator=rng
+                )
+                param.data.add_(_perturb, alpha=-lr * float(dir_grad) / num_pert)
 
     def _zo_grad_estimate(
         self,
@@ -220,6 +238,16 @@ class RandomGradientEstimator:
         iteration_grad_scalar: Sequence[torch.Tensor],
     ) -> None:
         assert len(iteration_seeds) == len(iteration_grad_scalar)
+
+        if self.sgd_only_no_optim:
+            lr = optimizer.defaults["lr"]  # Assume only one parameter group with lr.
+            assert self.paramwise_perturb
+            for one_update_seed, one_update_grad_dirs in zip(
+                iteration_seeds, iteration_grad_scalar
+            ):
+                self.sgd_no_optim_update_model(one_update_grad_dirs, one_update_seed, lr)
+            return
+
         # NOTE: this zero_grad operation is critical since it sets the parameter.grad to None
         # which is checked in self.generate_then_put_grad_paramwise
         optimizer.zero_grad()
@@ -237,6 +265,8 @@ class RandomGradientEstimator:
         iteration_seeds: Sequence[int],
         iteration_grad_scalar: Sequence[torch.Tensor],
     ) -> None:
+        # TODO: Support sgd_only_no_optim case.
+        assert not self.sgd_only_no_optim
         assert len(iteration_seeds) == len(iteration_grad_scalar)
         try:
             assert isinstance(optimizer, torch.optim.SGD) and optimizer.defaults["momentum"] == 0
