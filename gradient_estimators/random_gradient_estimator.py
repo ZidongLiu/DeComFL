@@ -281,7 +281,9 @@ class RandomGradientEstimator:
             if self.paramwise_perturb:
                 self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
             else:
-                self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
+                # generate_then_put_grad is WRONG!!!!!!!!!!!!!!! But I have no idea
+                self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
+                # self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
 
             for param in self.parameters_list:
                 param.add_(param.grad, alpha=lr)  # gradient ascent instead of descent.
