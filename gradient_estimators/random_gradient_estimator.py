@@ -21,8 +21,8 @@ class RandomGradientEstimator:
         device: str | None = None,
         torch_dtype: torch.dtype = torch.float32,
         prune_mask_arr: torch.Tensor | None = None,
-        paramwise_perturb: bool = True,
-        sgd_only_no_optim: bool = True,
+        paramwise_perturb: bool = False,
+        sgd_only_no_optim: bool = False,
     ):
         self.model = model
         if parameters is None:
