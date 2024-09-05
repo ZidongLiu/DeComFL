@@ -250,6 +250,7 @@ class ResetClient(AbstractClient):
                 grad_scalars: torch.Tensor = self.grad_estimator.compute_grad(
                     batch_inputs, labels, self.criterion, seed
                 )
+                self.optimizer.step()
             iteration_local_update_grad_vectors.append(grad_scalars)
 
             # get_train_info
