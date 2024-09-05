@@ -26,15 +26,15 @@ def parallalizable_client_job(
     # need no_grad because the outer-most no_grad context manager does not affect
     # operation inside sub-thread
     with torch.no_grad():
-        # step 1 map pull_grad_list data to client's device
+        # step 1: map pull_grad_list data to client's device
         transfered_grad_list = [
             [tensor.to(client.device) for tensor in tensors] for tensors in pull_grad_list
         ]
 
-        # step 2, client pull to update its model to latest
+        # step 2: client pull to update its model to latest
         client.pull_model(pull_seeds_list, transfered_grad_list)
 
-        # step 3, client local update and get its result
+        # step 3: client local update and get its result
         client_local_update_result = client.local_update(seeds=local_update_seeds)
 
     # move result to server device and return
@@ -46,11 +46,11 @@ LOCAL_GRAD_SCALAR_LIST: TypeAlias = list[list[torch.Tensor]]
 
 
 def execute_sampled_clients(
-    server: "CeZO_Server",
+    server,  # TODO: add good typehint here
     sampled_client_index: Sequence[int],
     seeds: Sequence[int],
     *,
-    parallel: bool = False
+    parallel: bool = False,
 ) -> tuple[Metric, Metric, LOCAL_GRAD_SCALAR_LIST]:
     local_grad_scalar_list: LOCAL_GRAD_SCALAR_LIST = []  # Clients X Local_update
     step_train_loss = Metric("Step train loss")

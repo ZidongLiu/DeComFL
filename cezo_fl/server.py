@@ -1,13 +1,16 @@
+from __future__ import annotations
 import random
 import torch
 from typing import Any, Iterable, Sequence
 from collections import deque
 
-from cezo_fl.shared import CriterionType, update_model_given_seed_and_grad
-from cezo_fl.client import AbstractClient
 from cezo_fl.run_client_jobs import execute_sampled_clients
+from cezo_fl.shared import CriterionType
+from cezo_fl.client import AbstractClient
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
+from byzantine.aggregation import mean, median, trim, krum
+from byzantine.attack import no_byz, gaussian_attack, sign_attack, trim_attack, krum_attack
 
 
 class SeedAndGradientRecords:
@@ -63,6 +66,7 @@ class CeZO_Server:
         self,
         clients: Sequence[AbstractClient],
         device: torch.device,
+        args,
         num_sample_clients: int = 10,
         local_update_steps: int = 10,
     ) -> None:
@@ -70,6 +74,7 @@ class CeZO_Server:
         self.device = device
         self.num_sample_clients = num_sample_clients
         self.local_update_steps = local_update_steps
+        self.args = args
 
         self.seed_grad_records = SeedAndGradientRecords()
         self.client_last_updates = [0 for _ in range(len(self.clients))]
@@ -93,10 +98,6 @@ class CeZO_Server:
         self.server_accuracy_func = accuracy_func
         self.optim = optimizer
         self.random_gradient_estimator = random_gradient_estimator
-
-    def train(self) -> None:
-        if self.server_model:
-            self.server_model.train()
 
     def get_sampled_client_index(self) -> list[int]:
         return random.sample(range(len(self.clients)), self.num_sample_clients)
@@ -125,29 +126,56 @@ class CeZO_Server:
             self, sampled_client_index, seeds, parallel=False
         )
 
-        # Step 3: server-side aggregation
-        avg_grad_scalar: list[torch.Tensor] = []
         for index in sampled_client_index:
             self.client_last_updates[index] = iteration
+        # Step 3: byzantine attack
+        if self.args.byz_type == "no_byz":
+            local_grad_scalar_list = no_byz(local_grad_scalar_list)
+        elif self.args.byz_type == "gaussian":
+            local_grad_scalar_list = gaussian_attack(local_grad_scalar_list, self.args.num_byz)
+        elif self.args.byz_type == "sign":
+            local_grad_scalar_list = sign_attack(local_grad_scalar_list, self.args.num_byz)
+        elif self.args.byz_type == "trim":
+            local_grad_scalar_list = trim_attack(local_grad_scalar_list, self.args.num_byz)
+        elif self.args.byz_type == "krum":
+            local_grad_scalar_list = krum_attack(
+                local_grad_scalar_list, self.args.num_byz, self.args.lr
+            )
+        else:
+            raise Exception(
+                "byz_type should be one of no_byz, gaussian, sign, trim, krum."
+                + f"But get {self.args.byz_type}"
+            )
 
-        for each_client_update in zip(*local_grad_scalar_list):
-            avg_grad_scalar.append(sum(each_client_update).div_(self.num_sample_clients))
+        # Step 4: server-side aggregation
+        if self.args.aggregation == "mean":
+            grad_scalar = mean(self.args.num_sample_clients, local_grad_scalar_list)
+        elif self.args.aggregation == "median":
+            grad_scalar = median(local_grad_scalar_list)
+        elif self.args.aggregation == "trim":
+            grad_scalar = trim(self.args.num_sample_clients, local_grad_scalar_list)
+        elif self.args.aggregation == "krum":
+            grad_scalar = krum(local_grad_scalar_list)
+        else:
+            raise Exception(
+                "aggregation type should be one of mean, median, trim, krum. "
+                + f"But get {self.args.aggregation}"
+            )
 
-        self.seed_grad_records.add_records(seeds=seeds, grad=avg_grad_scalar)
+        self.seed_grad_records.add_records(seeds=seeds, grad=grad_scalar)
 
         # Optional: optimize the memory. Remove is exclusive, i.e., the min last updates
         # information is still kept.
         self.seed_grad_records.remove_too_old(earliest_record_needs=min(self.client_last_updates))
 
         if self.server_model:
-            self.train()
             assert self.optim
             assert self.random_gradient_estimator
-            update_model_given_seed_and_grad(
+            self.server_model.train()
+            self.random_gradient_estimator.update_model_given_seed_and_grad(
                 self.optim,
-                self.random_gradient_estimator,
                 seeds,
-                avg_grad_scalar,
+                grad_scalar,
             )
 
         return step_train_loss.avg, step_train_accuracy.avg
@@ -155,10 +183,6 @@ class CeZO_Server:
     def eval_model(self, test_loader: Iterable[Any]) -> tuple[float, float]:
         if self.server_model is None:
             raise RuntimeError("set_server_model_and_criterion for server first.")
-        assert self.random_gradient_estimator
-        assert self.server_criterion
-        assert self.server_accuracy_func
-
         self.server_model.eval()
         eval_loss = Metric("Eval loss")
         eval_accuracy = Metric("Eval accuracy")

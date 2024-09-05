@@ -2,7 +2,6 @@ import torch
 
 
 class MultiEpochsDataLoader(torch.utils.data.DataLoader):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._DataLoader__initialized = False

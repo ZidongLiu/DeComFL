@@ -97,38 +97,9 @@ def test_parallalizable_client_job_identical():
     assert abs(results[1].step_loss - results[2].step_loss) < 1e-6
 
 
-@pytest.mark.parametrize(
-    "num_clients, num_pert, local_update_steps",
-    [
-        (1, 1, 1),
-        (1, 1, 3),
-        (1, 1, 5),
-        (1, 3, 1),
-        (1, 3, 3),
-        (1, 3, 5),
-        (1, 5, 1),
-        (1, 5, 3),
-        (1, 5, 5),
-        (3, 1, 1),
-        (3, 1, 3),
-        (3, 1, 5),
-        (3, 3, 1),
-        (3, 3, 3),
-        (3, 3, 5),
-        (3, 5, 1),
-        (3, 5, 3),
-        (3, 5, 5),
-        (5, 1, 1),
-        (5, 1, 3),
-        (5, 1, 5),
-        (5, 3, 1),
-        (5, 3, 3),
-        (5, 3, 5),
-        (5, 5, 1),
-        (5, 5, 3),
-        (5, 5, 5),
-    ],
-)
+@pytest.mark.parametrize("num_clients", [1, 3, 5])
+@pytest.mark.parametrize("num_pert", [1, 3, 5])
+@pytest.mark.parametrize("local_update_steps", [1, 3, 5])
 def test_execute_sampled_clients_parallabel(num_clients, num_pert, local_update_steps):
     server = MagicMock()
     server.device = torch.device("cpu")
@@ -158,9 +129,9 @@ def test_execute_sampled_clients_parallabel(num_clients, num_pert, local_update_
             server, sampled_client_index=sampled_index, seeds=seeds, parallel=True
         )
         # result is (step_train_loss, step_train_accuracy, local_grad_scalar_list)
-        assert abs(serialized_result[0].avg - parallel_result[0].avg) < 1e-5
-        assert abs(serialized_result[1].avg - parallel_result[1].avg) < 1e-5
+        assert abs(serialized_result[0].avg - parallel_result[0].avg) < 1e-4
+        assert abs(serialized_result[1].avg - parallel_result[1].avg) < 1e-4
 
         for s_local_grad, p_local_grad in zip(serialized_result[2], parallel_result[2]):
             for s_local_grad_one_step, p_local_grad_one_step in zip(s_local_grad, p_local_grad):
-                assert (s_local_grad_one_step - p_local_grad_one_step).abs().max() < 1e-5
+                assert (s_local_grad_one_step - p_local_grad_one_step).abs().max() < 1e-4

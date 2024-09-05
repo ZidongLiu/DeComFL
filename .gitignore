@@ -207,6 +207,7 @@ node_modules
 
 
 # The project used data related folder
+/.vscode/settings.json
 /data/*
 /tensorboards/*
 /saved_sparsity/*

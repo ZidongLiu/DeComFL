@@ -37,11 +37,11 @@ class FEMNIST(Dataset):
                 # if i == 100:
                 #     break
                 self.dic_users[i] = set()
-                l = len(train_data_x)
+                train_data_len = len(train_data_x)
                 cur_x = train_data_temp[train_clients[i]]["x"]
                 cur_y = train_data_temp[train_clients[i]]["y"]
                 for j in range(len(cur_x)):
-                    self.dic_users[i].add(j + l)
+                    self.dic_users[i].add(j + train_data_len)
                     train_data_x.append(np.array(cur_x[j]).reshape(28, 28))
                     train_data_y.append(cur_y[j])
             self.data = train_data_x
@@ -92,11 +92,11 @@ class ShakeSpeare(Dataset):
             train_data_y = []
             for i in range(len(train_clients)):
                 self.dic_users[i] = set()
-                l = len(train_data_x)
+                train_data_len = len(train_data_x)
                 cur_x = train_data_temp[train_clients[i]]["x"]
                 cur_y = train_data_temp[train_clients[i]]["y"]
                 for j in range(len(cur_x)):
-                    self.dic_users[i].add(j + l)
+                    self.dic_users[i].add(j + train_data_len)
                     train_data_x.append(cur_x[j])
                     train_data_y.append(cur_y[j])
             self.data = train_data_x

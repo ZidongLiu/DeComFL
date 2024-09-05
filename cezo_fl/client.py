@@ -9,11 +9,7 @@ from dataclasses import dataclass
 
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from cezo_fl.shared import (
-    CriterionType,
-    update_model_given_seed_and_grad,
-    revert_SGD_given_seed_and_grad,
-)
+from cezo_fl.shared import CriterionType
 
 
 @dataclass
@@ -29,7 +25,6 @@ class LocalUpdateResult:
 
 
 class AbstractClient:
-
     @abc.abstractproperty
     def device(self) -> torch.device:
         return torch.device(self._device)
@@ -63,7 +58,6 @@ class AbstractClient:
 
 
 class SyncClient(AbstractClient):
-
     def __init__(
         self,
         model: torch.nn.Module,
@@ -109,7 +103,7 @@ class SyncClient(AbstractClient):
         train_loss = Metric("Client train loss")
         train_accuracy = Metric("Client train accuracy")
 
-        for seed in seeds:
+        for seed in seeds:  # Length of seeds equals the number of local update.
             self.optimizer.zero_grad()
             # NOTE:dataloader manage its own randomnes state thus not affected by seed
             batch_inputs, labels = next(self.data_iterator)
@@ -121,10 +115,12 @@ class SyncClient(AbstractClient):
                 # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
-            rng = torch.Generator(device=self.device).manual_seed(seed)
             # generate grads and update model's gradient
-            seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion, rng)
-            iteration_local_update_grad_vectors.append(seed_grads)
+            # The length of grad_scalars is number of perturbations
+            grad_scalars: torch.Tensor = self.grad_estimator.compute_grad(
+                batch_inputs, labels, self.criterion, seed
+            )
+            iteration_local_update_grad_vectors.append(grad_scalars)
 
             # update model
             # NOTE: local model update also uses momentum and other states
@@ -149,9 +145,8 @@ class SyncClient(AbstractClient):
     def reset_model(self) -> None:
         """Reset the mode to the state before the local_update."""
         assert isinstance(self.optimizer, torch.optim.SGD)
-        revert_SGD_given_seed_and_grad(
+        self.grad_estimator.revert_model_given_seed_and_grad(
             self.optimizer,
-            self.grad_estimator,
             self.local_update_seeds,
             self.local_update_dir_grads,
         )
@@ -171,9 +166,8 @@ class SyncClient(AbstractClient):
         self.reset_model()
         # update model to latest version
         for iteration_seeds, iteration_grad_sclar in zip(seeds_list, gradient_scalar):
-            update_model_given_seed_and_grad(
+            self.grad_estimator.update_model_given_seed_and_grad(
                 self.optimizer,
-                self.grad_estimator,
                 iteration_seeds,
                 iteration_grad_sclar,
             )
@@ -183,7 +177,6 @@ class SyncClient(AbstractClient):
 
 
 class ResetClient(AbstractClient):
-
     def __init__(
         self,
         model: torch.nn.Module,
@@ -227,7 +220,7 @@ class ResetClient(AbstractClient):
         train_loss = Metric("Client train loss")
         train_accuracy = Metric("Client train accuracy")
 
-        for seed in seeds:
+        for seed in seeds:  # Length of seeds equals the number of local update.
             self.optimizer.zero_grad()
             # NOTE:dataloader manage its own randomnes state thus not affected by seed
             batch_inputs, labels = next(self.data_iterator)
@@ -239,10 +232,12 @@ class ResetClient(AbstractClient):
                 # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
-            rng = torch.Generator(device=self.device).manual_seed(seed)
             # generate grads and update model's gradient
-            seed_grads = self.grad_estimator.compute_grad(batch_inputs, labels, self.criterion, rng)
-            iteration_local_update_grad_vectors.append(seed_grads)
+            # The length of grad_scalars is number of perturbations
+            grad_scalars: torch.Tensor = self.grad_estimator.compute_grad(
+                batch_inputs, labels, self.criterion, seed
+            )
+            iteration_local_update_grad_vectors.append(grad_scalars)
 
             # update model
             # NOTE: local model update also uses momentum and other states
@@ -279,9 +274,8 @@ class ResetClient(AbstractClient):
         self.reset_model()
         # update model to latest version
         for iteration_seeds, iteration_grad_sclar in zip(seeds_list, gradient_scalar):
-            update_model_given_seed_and_grad(
+            self.grad_estimator.update_model_given_seed_and_grad(
                 self.optimizer,
-                self.grad_estimator,
                 iteration_seeds,
                 iteration_grad_sclar,
             )
