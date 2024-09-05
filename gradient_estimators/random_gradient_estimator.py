@@ -65,7 +65,9 @@ class RandomGradientEstimator:
         self.prune_mask_arr = prune_mask_arr
 
     def get_rng(self, seed: int, perturb_index: int) -> torch.Generator:
-        return torch.Generator(device=self.device).manual_seed(seed * perturb_index + perturb_index)
+        return torch.Generator(device=self.device).manual_seed(
+            seed * (perturb_index + 17) + perturb_index
+        )
 
     def generate_perturbation_norm(self, rng: torch.Generator | None = None) -> torch.Tensor:
         p = torch.randn(
@@ -255,9 +257,7 @@ class RandomGradientEstimator:
             if self.paramwise_perturb:
                 self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
             else:
-                # generate_then_put_grad is WRONG!!!!!!!!!!!!!!! But I have no idea
-                self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
-                # self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
+                self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
             # update model
             optimizer.step()
 
@@ -281,9 +281,7 @@ class RandomGradientEstimator:
             if self.paramwise_perturb:
                 self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
             else:
-                # generate_then_put_grad is WRONG!!!!!!!!!!!!!!! But I have no idea
-                self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
-                # self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
+                self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
 
             for param in self.parameters_list:
                 param.add_(param.grad, alpha=lr)  # gradient ascent instead of descent.
