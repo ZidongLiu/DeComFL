@@ -291,4 +291,5 @@ class ResetClient(AbstractClient):
             )
 
         # screenshot current pulled model
+        self.last_pull_state_dict = None
         self.last_pull_state_dict = self.screenshot()
