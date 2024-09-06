@@ -250,10 +250,8 @@ class RandomGradientEstimator:
                 self.sgd_no_optim_update_model(one_update_grad_dirs, one_update_seed, lr)
             return
 
-        # NOTE: this zero_grad operation is critical since it sets the parameter.grad to None
-        # which is checked in self.generate_then_put_grad_paramwise
         for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
-            optimizer.zero_grad()
+            # We don't really need optimizer.zero_grad() here because we put grad directly.
             if self.paramwise_perturb:
                 self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
             else:
@@ -277,7 +275,7 @@ class RandomGradientEstimator:
 
         lr, weight_decay = optimizer.defaults["lr"], optimizer.defaults["weight_decay"]
         for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
-            optimizer.zero_grad()
+            # We don't really need optimizer.zero_grad() here because we put grad directly.
             if self.paramwise_perturb:
                 self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
             else:
