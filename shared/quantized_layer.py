@@ -1,4 +1,5 @@
 import torch
+from unittest.mock import Mock, MagicMock
 
 
 class QuantizedLinearLayer(torch.nn.Module):
@@ -18,5 +19,8 @@ class QuantizedLinearLayer(torch.nn.Module):
 # Quantize the full connection layers
 def replace_layer(model):
     penultimate_layer = model.model.decoder.layers[-2]
-    penultimate_layer.fc1 = QuantizedLinearLayer(penultimate_layer.fc1)
-    penultimate_layer.fc2 = QuantizedLinearLayer(penultimate_layer.fc2)
+    com = QuantizedLinearLayer()
+    # com = MagicMock(return_value=penultimate_layer.fc1)
+    penultimate_layer.fc1 = com(penultimate_layer.fc1)
+    penultimate_layer.fc2 = com(penultimate_layer.fc2)
+    # com.forward.assert_called_with(penultimate_layer.fc1)
