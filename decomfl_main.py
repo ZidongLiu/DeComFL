@@ -11,7 +11,7 @@ from cezo_fl.server import CeZO_Server
 from cezo_fl.client import ResetClient
 from cezo_fl.fl_helpers import get_client_name
 
-from shared.model_helpers import get_current_datetime_str, get_trainable_model_parameters
+from shared import model_helpers
 from models.cnn_mnist import CNN_MNIST
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
@@ -32,7 +32,7 @@ def prepare_settings_underseed(args, device):
     torch.manual_seed(args.seed)
     if args.dataset == "mnist":
         model = CNN_MNIST().to(torch_dtype).to(device)
-        trainable_parameters = get_trainable_model_parameters(model)
+        trainable_parameters = model_helpers.get_trainable_model_parameters(model)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             trainable_parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
@@ -41,7 +41,7 @@ def prepare_settings_underseed(args, device):
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     elif args.dataset == "cifar10":
         model = LeNet().to(torch_dtype).to(device)
-        trainable_parameters = get_trainable_model_parameters(model)
+        trainable_parameters = model_helpers.get_trainable_model_parameters(model)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             trainable_parameters(), lr=args.lr, weight_decay=5e-4, momentum=args.momentum
@@ -52,7 +52,7 @@ def prepare_settings_underseed(args, device):
         # )
     elif args.dataset == "fashion":
         model = CNN_FMNIST().to(torch_dtype).to(device)
-        trainable_parameters = get_trainable_model_parameters(model)
+        trainable_parameters = model_helpers.get_trainable_model_parameters(model)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             trainable_parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
@@ -63,7 +63,7 @@ def prepare_settings_underseed(args, device):
         # )
     elif args.dataset == "shakespeare":
         model = CharLSTM().to(torch_dtype).to(device)
-        trainable_parameters = get_trainable_model_parameters(model)
+        trainable_parameters = model_helpers.get_trainable_model_parameters(model)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             trainable_parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4
@@ -84,7 +84,7 @@ def prepare_settings_underseed(args, device):
             )
             model = get_peft_model(model, lora_config).to(torch_dtype)
 
-        trainable_parameters = get_trainable_model_parameters(model)
+        trainable_parameters = model_helpers.get_trainable_model_parameters(model)
 
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
@@ -197,7 +197,11 @@ if __name__ == "__main__":
 
     if args.log_to_tensorboard:
         tensorboard_sub_folder = "-".join(
-            [get_args_str(args), server.server_model.model_name, get_current_datetime_str()]
+            [
+                get_args_str(args),
+                server.server_model.model_name,
+                model_helpers.get_current_datetime_str(),
+            ]
         )
         writer = SummaryWriter(
             path.join(
