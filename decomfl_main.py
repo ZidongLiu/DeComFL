@@ -110,6 +110,9 @@ def prepare_settings_underseed(args, device):
             grad_estimate_method=method,
             device=device,
             torch_dtype=torch_dtype,
+            # To save memory consumption, we have to use parameter-wise perturb + no_optim together.
+            sgd_only_no_optim=args.no_optim,
+            paramwise_perturb=args.no_optim,
         )
     else:
         raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")

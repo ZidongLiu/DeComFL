@@ -115,16 +115,21 @@ class SyncClient(AbstractClient):
                 # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
-            # generate grads and update model's gradient
-            # The length of grad_scalars is number of perturbations
-            grad_scalars: torch.Tensor = self.grad_estimator.compute_grad(
-                batch_inputs, labels, self.criterion, seed
-            )
+            if self.grad_estimator.sgd_only_no_optim:
+                grad_scalars = self.grad_estimator._zo_grad_estimate_paramwise(
+                    batch_inputs, labels, self.criterion, seed
+                )
+                self.grad_estimator.update_model_given_seed_and_grad(
+                    self.optimizer, [seed], [grad_scalars]
+                )
+            else:
+                # generate grads and update model's gradient
+                # The length of grad_scalars is number of perturbations
+                grad_scalars: torch.Tensor = self.grad_estimator.compute_grad(
+                    batch_inputs, labels, self.criterion, seed
+                )
+                self.optimizer.step()
             iteration_local_update_grad_vectors.append(grad_scalars)
-
-            # update model
-            # NOTE: local model update also uses momentum and other states
-            self.optimizer.step()
 
             # get_train_info
             pred = self.grad_estimator.model_forward(batch_inputs)
@@ -232,16 +237,21 @@ class ResetClient(AbstractClient):
                 # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
-            # generate grads and update model's gradient
-            # The length of grad_scalars is number of perturbations
-            grad_scalars: torch.Tensor = self.grad_estimator.compute_grad(
-                batch_inputs, labels, self.criterion, seed
-            )
+            if self.grad_estimator.sgd_only_no_optim:
+                grad_scalars = self.grad_estimator._zo_grad_estimate_paramwise(
+                    batch_inputs, labels, self.criterion, seed
+                )
+                self.grad_estimator.update_model_given_seed_and_grad(
+                    self.optimizer, [seed], [grad_scalars]
+                )
+            else:
+                # generate grads and update model's gradient
+                # The length of grad_scalars is number of perturbations
+                grad_scalars: torch.Tensor = self.grad_estimator.compute_grad(
+                    batch_inputs, labels, self.criterion, seed
+                )
+                self.optimizer.step()
             iteration_local_update_grad_vectors.append(grad_scalars)
-
-            # update model
-            # NOTE: local model update also uses momentum and other states
-            self.optimizer.step()
 
             # get_train_info
             pred = self.grad_estimator.model_forward(batch_inputs)
@@ -281,4 +291,5 @@ class ResetClient(AbstractClient):
             )
 
         # screenshot current pulled model
+        self.last_pull_state_dict = None
         self.last_pull_state_dict = self.screenshot()

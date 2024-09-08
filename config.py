@@ -28,6 +28,7 @@ DEFAULTS = {
     "log_to_tensorboard": None,
     "no_cuda": False,
     "no_mps": False,
+    "no_optim": False,
     "checkpoint": None,
     "create_many_checkpoint": True,
     "checkpoint_update_plan": "every10",
@@ -142,6 +143,12 @@ def get_params():
         default=DEFAULTS["no_mps"],
         help="disables macOS GPU training",
     )
+    parser.add_argument(
+        "--no-optim",
+        action="store_true",
+        default=DEFAULTS["no_optim"],
+        help="Update model without torch.optim (SGD only). This can significantly save memory.",
+    )
     return parser
 
 
@@ -196,6 +203,7 @@ class FakeArgs:
     log_to_tensorboard = None
     no_cuda = False
     no_mps = False
+    no_optim = False
     checkpoint = None
     create_many_checkpoint = True
     checkpoint_update_plan = "every10"
