@@ -8,7 +8,6 @@ Created on Wed Mar 27 20:58:19 2024
 import torch
 import torch.optim as optim
 from typing import Iterator
-from collections.abc import Callable
 from os import path
 
 

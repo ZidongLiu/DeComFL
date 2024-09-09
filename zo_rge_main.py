@@ -4,7 +4,7 @@ import torch.nn as nn
 from tensorboardX import SummaryWriter
 from os import path
 from shared.checkpoint import CheckPoint
-from shared.model_helpers import get_current_datetime_str, get_trainable_model_parameters
+from shared import model_helpers
 from shared.metrics import Metric, accuracy
 from pruning.helpers import generate_random_mask_arr
 from config import get_params, get_args_str
@@ -24,34 +24,42 @@ from typing import Any
 def prepare_settings(args, device):
     if args.dataset == "mnist":
         model = CNN_MNIST().to(device)
-        trainable_parameters = get_trainable_model_parameters(model)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            trainable_parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            weight_decay=1e-5,
+            momentum=args.momentum,
         )
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     elif args.dataset == "cifar10":
         model = LeNet().to(device)
-        trainable_parameters = get_trainable_model_parameters(model)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            trainable_parameters(), lr=args.lr, weight_decay=5e-4, momentum=args.momentum
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            weight_decay=5e-4,
+            momentum=args.momentum,
         )
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
     elif args.dataset == "fashion":
         model = CNN_FMNIST().to(device)
-        trainable_parameters = get_trainable_model_parameters(model)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            trainable_parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            weight_decay=1e-5,
+            momentum=args.momentum,
         )
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
     elif args.dataset == "shakespeare":
         model = CharLSTM().to(device)
-        trainable_parameters = get_trainable_model_parameters(model)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            trainable_parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            momentum=0.9,
+            weight_decay=5e-4,
         )
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
 
@@ -60,7 +68,7 @@ def prepare_settings(args, device):
         print(f"Using RGE {method}")
         grad_estimator = RGE(
             model,
-            parameters=trainable_parameters(),
+            parameters=model_helpers.get_trainable_model_parameters(model),
             mu=args.mu,
             num_pert=args.num_pert,
             grad_estimate_method=method,
@@ -147,7 +155,7 @@ if __name__ == "__main__":
 
     args_str = get_args_str(args) + "-" + model.model_name
     if args.log_to_tensorboard:
-        tensorboard_sub_folder = args_str + "-" + get_current_datetime_str()
+        tensorboard_sub_folder = args_str + "-" + model_helpers.get_current_datetime_str()
         writer = SummaryWriter(
             path.join(
                 "tensorboards",
@@ -175,7 +183,7 @@ if __name__ == "__main__":
 
         if checkpoint.should_update(eval_loss, eval_accuracy, epoch):
             checkpoint.save(
-                args_str + "-" + get_current_datetime_str(),
+                args_str + "-" + model_helpers.get_current_datetime_str(),
                 epoch,
                 subfolder=args.log_to_tensorboard,
             )
