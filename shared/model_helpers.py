@@ -7,6 +7,7 @@ Created on Wed Mar 27 20:58:19 2024
 
 import torch
 import torch.optim as optim
+from typing import Iterator
 from os import path
 
 
@@ -57,9 +58,17 @@ def load_model_and_optimizer(optimizer, model, model_path):
 
 def get_model_and_optimizer(model, optimizer=None, checkpoint=None):
     if optimizer is None:
-        optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0)
+        optimizer = optim.SGD(get_trainable_model_parameters(model), lr=0.01, momentum=0)
 
     if checkpoint:
         load_model_and_optimizer(optimizer, model, checkpoint)
 
     return model, optimizer
+
+
+def get_trainable_model_parameters(
+    model: torch.nn.Module,
+) -> Iterator[torch.nn.Parameter]:
+    for param in model.parameters():
+        if param.requires_grad:
+            yield param
