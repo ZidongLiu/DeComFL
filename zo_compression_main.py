@@ -3,25 +3,16 @@ import torch
 from tensorboardX import SummaryWriter
 from os import path
 from transformers import AutoModelForCausalLM, AutoTokenizer
-
 from config import get_params, get_args_str
 from preprocess import preprocess
-
 from cezo_fl.server import CeZO_Server
 from cezo_fl.client import ResetClient
 from cezo_fl.fl_helpers import get_client_name
-
 from shared.model_helpers import get_current_datetime_str
-from models.cnn_mnist import CNN_MNIST
-from models.lenet import LeNet
-from models.cnn_fashion import CNN_FMNIST
-from models.lstm import CharLSTM
 from shared.language_utils import get_lm_loss, LM_TEMPLATE_MAP, SUPPORTED_LLM
-from shared.metrics import accuracy
-
 from tqdm import tqdm
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from shared.quantized_layer import replace_layer
+from shared import quantized_layer
 
 
 def prepare_settings_underseed(args, device):
@@ -31,48 +22,12 @@ def prepare_settings_underseed(args, device):
         "bfloat16": torch.bfloat16,
     }[args.model_dtype]
     torch.manual_seed(args.seed)
-    if args.dataset == "mnist":
-        model = CNN_MNIST().to(torch_dtype).to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
-        )
-        accuracy_func = accuracy
-        # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
-    elif args.dataset == "cifar10":
-        model = LeNet().to(torch_dtype).to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model.parameters(), lr=args.lr, weight_decay=5e-4, momentum=args.momentum
-        )
-        accuracy_func = accuracy
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        #     optimizer, milestones=[200], gamma=0.1
-        # )
-    elif args.dataset == "fashion":
-        model = CNN_FMNIST().to(torch_dtype).to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
-        )
-        accuracy_func = accuracy
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        #     optimizer, milestones=[200], gamma=0.1
-        # )
-    elif args.dataset == "shakespeare":
-        model = CharLSTM().to(torch_dtype).to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
-        accuracy_func = accuracy
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        #     optimizer, milestones=[200], gamma=0.1
-        # )
-    elif args.dataset in LM_TEMPLATE_MAP.keys():
+    if args.dataset in LM_TEMPLATE_MAP.keys():
         large_model = args.large_model
         model_name = SUPPORTED_LLM[large_model]
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(device)
         # Quantize the LLM
-        replace_layer(model)
+        quantized_layer.modify_opt125m(model)
         model.model_name = large_model
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
@@ -169,8 +124,6 @@ def get_size_of_model(model):
 
 if __name__ == "__main__":
     args = get_params().parse_args()
-    if args.dataset == "shakespeare":
-        args.num_clients = 139
     print(args)
     device_map, train_loaders, test_loader = preprocess(args)
 
@@ -183,7 +136,7 @@ if __name__ == "__main__":
         writer = SummaryWriter(
             path.join(
                 "tensorboards",
-                "cezo_fl",
+                "zo-compression",
                 args.dataset,
                 args.log_to_tensorboard,
                 tensorboard_sub_folder,

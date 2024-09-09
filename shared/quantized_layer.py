@@ -1,26 +1,26 @@
 import torch
-from unittest.mock import Mock, MagicMock
+from transformers import AutoModelForCausalLM
+
+"""
+    This class is used to quantize a full-connection layer of OPT-125m model. 
+"""
 
 
-class QuantizedLinearLayer(torch.nn.Module):
+class QuantizedLinearLayer_Opt125m(torch.nn.Module):
     def __init__(self, original_layer):
-        super(QuantizedLinearLayer, self).__init__()
+        super(QuantizedLinearLayer_Opt125m, self).__init__()
         self.quantized_layer = torch.quantization.QuantStub()
         self.dequantized_layer = torch.quantization.DeQuantStub()
         self.original_layer = original_layer
 
     def forward(self, x):
         x = self.quantized_layer(x)
-        x = self.original_layer(x)
         x = self.dequantized_layer(x)
+        x = self.original_layer(x)
         return x
 
 
-# Quantize the full connection layers
-def replace_layer(model):
+# Quantize a full-connection layer of OPT-125m model
+def modify_opt125m(model: AutoModelForCausalLM):
     penultimate_layer = model.model.decoder.layers[-2]
-    com = QuantizedLinearLayer()
-    # com = MagicMock(return_value=penultimate_layer.fc1)
-    penultimate_layer.fc1 = com(penultimate_layer.fc1)
-    penultimate_layer.fc2 = com(penultimate_layer.fc2)
-    # com.forward.assert_called_with(penultimate_layer.fc1)
+    penultimate_layer.fc1 = QuantizedLinearLayer_Opt125m(penultimate_layer.fc1)
