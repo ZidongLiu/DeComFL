@@ -69,8 +69,7 @@ def get_model_and_optimizer(model, optimizer=None, checkpoint=None):
 
 def get_trainable_model_parameters(
     model: torch.nn.Module,
-) -> Callable[[], Iterator[torch.nn.Parameter]]:
-    def generator():
-        return filter(lambda x: x.requires_grad, model.parameters())
-
-    return generator
+) -> Iterator[torch.nn.Parameter]:
+    for param in model.parameters():
+        if param.requires_grad:
+            yield param

@@ -32,19 +32,24 @@ def prepare_settings_underseed(args, device):
     torch.manual_seed(args.seed)
     if args.dataset == "mnist":
         model = CNN_MNIST().to(torch_dtype).to(device)
-        trainable_parameters = model_helpers.get_trainable_model_parameters(model)
+
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            trainable_parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            weight_decay=1e-5,
+            momentum=args.momentum,
         )
         accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     elif args.dataset == "cifar10":
         model = LeNet().to(torch_dtype).to(device)
-        trainable_parameters = model_helpers.get_trainable_model_parameters(model)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            trainable_parameters(), lr=args.lr, weight_decay=5e-4, momentum=args.momentum
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            weight_decay=5e-4,
+            momentum=args.momentum,
         )
         accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
@@ -52,10 +57,12 @@ def prepare_settings_underseed(args, device):
         # )
     elif args.dataset == "fashion":
         model = CNN_FMNIST().to(torch_dtype).to(device)
-        trainable_parameters = model_helpers.get_trainable_model_parameters(model)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            trainable_parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            weight_decay=1e-5,
+            momentum=args.momentum,
         )
         accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
@@ -63,10 +70,12 @@ def prepare_settings_underseed(args, device):
         # )
     elif args.dataset == "shakespeare":
         model = CharLSTM().to(torch_dtype).to(device)
-        trainable_parameters = model_helpers.get_trainable_model_parameters(model)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            trainable_parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            momentum=0.9,
+            weight_decay=5e-4,
         )
         accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
@@ -84,8 +93,6 @@ def prepare_settings_underseed(args, device):
             )
             model = get_peft_model(model, lora_config).to(torch_dtype)
 
-        trainable_parameters = model_helpers.get_trainable_model_parameters(model)
-
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
         )
@@ -93,7 +100,10 @@ def prepare_settings_underseed(args, device):
         verbalizer_id_map = template.get_verbalizer_id(tokenizer)
         criterion = get_lm_loss("last_token", verbalizer_id_map)
         optimizer = torch.optim.SGD(
-            trainable_parameters(), lr=args.lr, momentum=0, weight_decay=5e-4
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            momentum=0,
+            weight_decay=5e-4,
         )
         accuracy_func = get_lm_loss("accuracy", verbalizer_id_map)
     else:
@@ -104,7 +114,7 @@ def prepare_settings_underseed(args, device):
         print(f"Using RGE {method}")
         grad_estimator = RGE(
             model,
-            parameters=trainable_parameters(),
+            parameters=model_helpers.get_trainable_model_parameters(model),
             mu=args.mu,
             num_pert=args.num_pert,
             grad_estimate_method=method,
