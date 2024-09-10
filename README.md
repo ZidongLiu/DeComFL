@@ -9,13 +9,13 @@ DeComFL is a library designed for training/fine-tuning deep learning models in t
 Table 1: Test accuracy comparsion of First-order SGD, MeZO and DeComFL on OPT-125m model.
 |Dataset\Algo.| FO-SGD | MeZO | DeComFL (P=5) | DeComFL (P=10) |
 |-|-|-|-|-|
-|SST-2|87.48%|83.99%|84.02%|85.08%|
-|CB|73.21%|72.49%|74.28%|75.00%|
-|WSC|58.13%|55.18%|59.13%|59.59%|
-|WIC|54.10%|53.25%|53.28%|53.38%|
-|MultiRC|60.77%|58.36%|59.06%|60.39%|
-|RTE|57.69%|52.91%|54.33%|57.05%|
-|BoolQ|62.34%|61.46%|61.36%|61.60%|
+|SST-2|87.48%|83.99%|84.02% (0.18MB)|85.08% (0.36MB)|
+|CB|73.21%|72.49%|74.28% (0.06MB)|75.00% (0.12MB)|
+|WSC|58.13%|55.18%|59.13% (0.18MB)|59.59% (0.36MB)|
+|WIC|54.10%|53.25%|53.28% (0.18MB)|53.38% (0.36MB)|
+|MultiRC|60.77%|58.36%|59.06% (0.12MB)|60.39% (0.24MB)|
+|RTE|57.69%|52.91%|54.33% (0.12MB)|57.05% (0.24MB)|
+|BoolQ|62.34%|61.46%|61.36% (0.12MB)|61.60% (0.24MB)|
 
 From the Table 1, we observe the effectiveness of DeComFL. We evaluate its performance with five and ten perturbations. Its performance outperforms MeZO in almost all datasets, and it can match the performance of FO-SGD and even excel that sometimes (i.e., on CB and WSC datasets).
 
