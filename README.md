@@ -17,6 +17,8 @@ Table 1: Test accuracy comparsion of First-order SGD, MeZO and DeComFL on OPT-12
 |RTE|57.69%|52.91%|54.33% (0.12MB)|57.05% (0.24MB)|
 |BoolQ|62.34%|61.46%|61.36% (0.12MB)|61.60% (0.24MB)|
 
+**Note:** The value enclosed in parentheses represents the total size of the vector transferred between the server and a single client throughout the entire fine-tuning phase. 
+
 From the Table 1, we observe the effectiveness of DeComFL. We evaluate its performance with five and ten perturbations. Its performance outperforms MeZO in almost all datasets, and it can match the performance of FO-SGD and even excel that sometimes (i.e., on CB and WSC datasets).
 
 ## Environment Setup
