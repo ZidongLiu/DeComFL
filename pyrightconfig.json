@@ -1,0 +1,6 @@
+{
+  "exclude": ["**/node_modules", "**/__pycache__", "results"],
+  "pythonVersion": "3.10",
+  "pythonPlatform": "All",
+  "reportPrivateImportUsage": false
+}

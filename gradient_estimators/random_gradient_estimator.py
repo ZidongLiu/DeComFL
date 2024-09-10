@@ -55,10 +55,12 @@ class RandomGradientEstimator:
     # TODO(zidong) move this func out of this class
     def model_forward(self, batch_inputs: torch.Tensor | LLMBatchInput):
         if isinstance(self.model, (OPTForCausalLM, PeftModel)):
+            assert isinstance(batch_inputs, LLMBatchInput)
             return self.model(
                 input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask
             )
         elif isinstance(self.model, torch.nn.Module):
+            assert isinstance(batch_inputs, torch.Tensor)
             return self.model(batch_inputs)
         else:
             raise Exception("This model type is not supported")
@@ -102,7 +104,7 @@ class RandomGradientEstimator:
             start += p.numel()
 
     def generate_then_put_grad(self, seed: int, dir_grads: torch.Tensor) -> None:
-        update_grad = 0
+        update_grad = torch.tensor(0)
         num_pert = len(dir_grads)
         for i, dir_grad in enumerate(dir_grads):
             rng = self.get_rng(seed, i)
@@ -157,6 +159,7 @@ class RandomGradientEstimator:
         grad: torch.Tensor | None = None
         dir_grads = []
         denominator_factor = 2 if self.grad_estimate_method == "central" else 1
+        pert_minus_loss = 0
         if self.grad_estimate_method == "forward":
             pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
 
@@ -173,14 +176,17 @@ class RandomGradientEstimator:
             elif self.grad_estimate_method == "forward":
                 self.perturb_model(pb_norm, alpha=-self.mu)  # Restore model
 
-            dir_grad = (pert_plus_loss - pert_minus_loss) / (self.mu * denominator_factor)
-            dir_grads += [dir_grad]
+            dir_grad = ((pert_plus_loss - pert_minus_loss) / (self.mu * denominator_factor)).item()
+            dir_grads.append(dir_grad)
+
             if grad is None:
                 grad = pb_norm.mul_(dir_grad)
             else:
                 grad.add_(pb_norm, alpha=dir_grad)
 
             del pb_norm
+
+        assert isinstance(grad, torch.Tensor)
 
         return grad.div_(self.num_pert), torch.tensor(dir_grads, device=self.device)
 
@@ -215,6 +221,8 @@ class RandomGradientEstimator:
     ) -> torch.Tensor:
         dir_grads = []
         denominator_factor = 2 if self.grad_estimate_method == "central" else 1
+
+        pert_minus_loss = 0
         if self.grad_estimate_method == "forward":
             pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
 
@@ -284,6 +292,7 @@ class RandomGradientEstimator:
                 self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
 
             for param in self.parameters_list:
+                assert isinstance(param.grad, torch.Tensor)
                 param.add_(param.grad, alpha=lr)  # gradient ascent instead of descent.
                 if weight_decay > 0:
                     param.mul_(1 / (1 - lr * weight_decay))
