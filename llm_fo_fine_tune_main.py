@@ -5,13 +5,13 @@ from config import get_params
 from preprocess import preprocess
 
 from shared.metrics import Metric
-from cezo_fl_main import prepare_settings_underseed
+import decomfl_main
 
 args = get_params().parse_args()
 
 
-args.dataset = "cb"
-args.lr = 1e-7
+args.dataset = "sst2"
+args.lr = 1e-3
 args.momentum = 0
 args.seed = 365
 args.num_clients = 1
@@ -45,11 +45,11 @@ inf_test_loader = inf_loader(test_loader)
 
 # args_str = get_args_str(args) + "-" + server.server_model.model_name
 
-model, criterion, optimizer, grad_estimator, accuracy_func = prepare_settings_underseed(
-    args, device
+model, criterion, optimizer, grad_estimator, accuracy_func = (
+    decomfl_main.prepare_settings_underseed(args, device)
 )
 model.to(device)
-
+print(model)
 acc = Metric("accuracy")
 model.eval()
 with torch.no_grad():
