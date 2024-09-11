@@ -5,18 +5,9 @@ from config import get_params
 from preprocess import preprocess
 
 from shared.metrics import Metric
-from cezo_fl_main import prepare_settings_underseed
+import decomfl_main
 
 args = get_params().parse_args()
-
-
-args.dataset = "cb"
-args.lr = 1e-7
-args.momentum = 0
-args.seed = 365
-args.num_clients = 1
-args.train_batch_size = 8
-args.test_batch_size = 10
 
 device_map, train_loaders, test_loader = preprocess(args)
 device = device_map["server"]
@@ -45,8 +36,8 @@ inf_test_loader = inf_loader(test_loader)
 
 # args_str = get_args_str(args) + "-" + server.server_model.model_name
 
-model, criterion, optimizer, grad_estimator, accuracy_func = prepare_settings_underseed(
-    args, device
+model, criterion, optimizer, grad_estimator, accuracy_func = (
+    decomfl_main.prepare_settings_underseed(args, device)
 )
 model.to(device)
 
