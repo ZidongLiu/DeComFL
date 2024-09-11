@@ -9,15 +9,6 @@ import decomfl_main
 
 args = get_params().parse_args()
 
-
-args.dataset = "sst2"
-args.lr = 1e-3
-args.momentum = 0
-args.seed = 365
-args.num_clients = 1
-args.train_batch_size = 8
-args.test_batch_size = 10
-
 device_map, train_loaders, test_loader = preprocess(args)
 device = device_map["server"]
 
@@ -49,7 +40,7 @@ model, criterion, optimizer, grad_estimator, accuracy_func = (
     decomfl_main.prepare_settings_underseed(args, device)
 )
 model.to(device)
-print(model)
+
 acc = Metric("accuracy")
 model.eval()
 with torch.no_grad():
