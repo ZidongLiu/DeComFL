@@ -1,7 +1,9 @@
 import grpc
-import sample_pb2
-import sample_pb2_grpc
-import data_helper
+from cezo_grpc import sample_pb2
+from cezo_grpc import sample_pb2_grpc
+from cezo_grpc import data_helper
+
+from cezo_fl import client
 
 rpc_master_addr = "localhost"
 rpc_master_port = 4242

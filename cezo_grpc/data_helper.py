@@ -1,4 +1,4 @@
-import sample_pb2
+from cezo_grpc import sample_pb2
 
 def protobuf_to_py_list_of_ints(message: sample_pb2.ListOfInts) -> list[int]:
 	return [v for v in message.data]

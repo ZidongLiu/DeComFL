@@ -1,8 +1,9 @@
 import grpc
-import data_helper
 from concurrent import futures
-import sample_pb2_grpc
-import sample_pb2
+
+from cezo_grpc import data_helper
+from cezo_grpc import sample_pb2_grpc
+from cezo_grpc import sample_pb2
 
 
 class SampleServer(sample_pb2_grpc.SampleServerServicer):
