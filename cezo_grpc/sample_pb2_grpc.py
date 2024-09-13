@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-import sample_pb2 as sample__pb2
+from cezo_grpc import sample_pb2 as cezo__grpc_dot_sample__pb2
 
 GRPC_GENERATED_VERSION = '1.66.1'
 GRPC_VERSION = grpc.__version__
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in sample_pb2_grpc.py depends on'
+        + f' but the generated code in cezo_grpc/sample_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -36,23 +36,23 @@ class SampleServerStub(object):
         """
         self.Connect = channel.unary_unary(
                 '/sample_server.SampleServer/Connect',
-                request_serializer=sample__pb2.EmptyRequest.SerializeToString,
-                response_deserializer=sample__pb2.ConnectResponse.FromString,
+                request_serializer=cezo__grpc_dot_sample__pb2.EmptyRequest.SerializeToString,
+                response_deserializer=cezo__grpc_dot_sample__pb2.ConnectResponse.FromString,
                 _registered_method=True)
         self.TryToJoinIteration = channel.unary_unary(
                 '/sample_server.SampleServer/TryToJoinIteration',
-                request_serializer=sample__pb2.TryToJoinIterationRequest.SerializeToString,
-                response_deserializer=sample__pb2.TryToJoinIterationResponse.FromString,
+                request_serializer=cezo__grpc_dot_sample__pb2.TryToJoinIterationRequest.SerializeToString,
+                response_deserializer=cezo__grpc_dot_sample__pb2.TryToJoinIterationResponse.FromString,
                 _registered_method=True)
         self.PullGradsAndSeeds = channel.unary_unary(
                 '/sample_server.SampleServer/PullGradsAndSeeds',
-                request_serializer=sample__pb2.PullGradsAndSeedsRequest.SerializeToString,
-                response_deserializer=sample__pb2.PullGradsAndSeedsResponse.FromString,
+                request_serializer=cezo__grpc_dot_sample__pb2.PullGradsAndSeedsRequest.SerializeToString,
+                response_deserializer=cezo__grpc_dot_sample__pb2.PullGradsAndSeedsResponse.FromString,
                 _registered_method=True)
         self.SubmitIteration = channel.unary_unary(
                 '/sample_server.SampleServer/SubmitIteration',
-                request_serializer=sample__pb2.SubmitIterationRequest.SerializeToString,
-                response_deserializer=sample__pb2.EmptyRequest.FromString,
+                request_serializer=cezo__grpc_dot_sample__pb2.SubmitIterationRequest.SerializeToString,
+                response_deserializer=cezo__grpc_dot_sample__pb2.EmptyRequest.FromString,
                 _registered_method=True)
 
 
@@ -88,23 +88,23 @@ def add_SampleServerServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Connect': grpc.unary_unary_rpc_method_handler(
                     servicer.Connect,
-                    request_deserializer=sample__pb2.EmptyRequest.FromString,
-                    response_serializer=sample__pb2.ConnectResponse.SerializeToString,
+                    request_deserializer=cezo__grpc_dot_sample__pb2.EmptyRequest.FromString,
+                    response_serializer=cezo__grpc_dot_sample__pb2.ConnectResponse.SerializeToString,
             ),
             'TryToJoinIteration': grpc.unary_unary_rpc_method_handler(
                     servicer.TryToJoinIteration,
-                    request_deserializer=sample__pb2.TryToJoinIterationRequest.FromString,
-                    response_serializer=sample__pb2.TryToJoinIterationResponse.SerializeToString,
+                    request_deserializer=cezo__grpc_dot_sample__pb2.TryToJoinIterationRequest.FromString,
+                    response_serializer=cezo__grpc_dot_sample__pb2.TryToJoinIterationResponse.SerializeToString,
             ),
             'PullGradsAndSeeds': grpc.unary_unary_rpc_method_handler(
                     servicer.PullGradsAndSeeds,
-                    request_deserializer=sample__pb2.PullGradsAndSeedsRequest.FromString,
-                    response_serializer=sample__pb2.PullGradsAndSeedsResponse.SerializeToString,
+                    request_deserializer=cezo__grpc_dot_sample__pb2.PullGradsAndSeedsRequest.FromString,
+                    response_serializer=cezo__grpc_dot_sample__pb2.PullGradsAndSeedsResponse.SerializeToString,
             ),
             'SubmitIteration': grpc.unary_unary_rpc_method_handler(
                     servicer.SubmitIteration,
-                    request_deserializer=sample__pb2.SubmitIterationRequest.FromString,
-                    response_serializer=sample__pb2.EmptyRequest.SerializeToString,
+                    request_deserializer=cezo__grpc_dot_sample__pb2.SubmitIterationRequest.FromString,
+                    response_serializer=cezo__grpc_dot_sample__pb2.EmptyRequest.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -132,8 +132,8 @@ class SampleServer(object):
             request,
             target,
             '/sample_server.SampleServer/Connect',
-            sample__pb2.EmptyRequest.SerializeToString,
-            sample__pb2.ConnectResponse.FromString,
+            cezo__grpc_dot_sample__pb2.EmptyRequest.SerializeToString,
+            cezo__grpc_dot_sample__pb2.ConnectResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -159,8 +159,8 @@ class SampleServer(object):
             request,
             target,
             '/sample_server.SampleServer/TryToJoinIteration',
-            sample__pb2.TryToJoinIterationRequest.SerializeToString,
-            sample__pb2.TryToJoinIterationResponse.FromString,
+            cezo__grpc_dot_sample__pb2.TryToJoinIterationRequest.SerializeToString,
+            cezo__grpc_dot_sample__pb2.TryToJoinIterationResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -186,8 +186,8 @@ class SampleServer(object):
             request,
             target,
             '/sample_server.SampleServer/PullGradsAndSeeds',
-            sample__pb2.PullGradsAndSeedsRequest.SerializeToString,
-            sample__pb2.PullGradsAndSeedsResponse.FromString,
+            cezo__grpc_dot_sample__pb2.PullGradsAndSeedsRequest.SerializeToString,
+            cezo__grpc_dot_sample__pb2.PullGradsAndSeedsResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -213,8 +213,8 @@ class SampleServer(object):
             request,
             target,
             '/sample_server.SampleServer/SubmitIteration',
-            sample__pb2.SubmitIterationRequest.SerializeToString,
-            sample__pb2.EmptyRequest.FromString,
+            cezo__grpc_dot_sample__pb2.SubmitIterationRequest.SerializeToString,
+            cezo__grpc_dot_sample__pb2.EmptyRequest.FromString,
             options,
             channel_credentials,
             insecure,
