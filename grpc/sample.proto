@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package sample_server;
+
+service SampleServer {
+  rpc Connect (EmptyRequest) returns (ConnectResponse) {}
+  rpc TryToJoinIteration (TryToJoinIterationRequest) returns (TryToJoinIterationResponse) {}
+  rpc PullGradsAndSeeds (PullGradsAndSeedsRequest) returns (PullGradsAndSeedsResponse) {}
+  rpc SubmitIteration (SubmitIterationRequest) returns (EmptyRequest) {}
+}
+
+message EmptyRequest {}
+
+message EmptyResponse {}
+
+message ConnectResponse {
+  bool successful = 1;
+  int32 clientIndex = 2;
+}
+
+message TryToJoinIterationRequest {
+  int32 clientIndex = 1;
+}
+
+message TryToJoinIterationResponse{
+  bool successful = 1;
+}
+
+message PullGradsAndSeedsRequest {
+  int32 clientIndex = 1;
+}
+
+message PullGradsAndSeedsResponse {
+  ListOfListOfInts seeds = 1;
+  ListOfListOfListOfFloats grads = 2;
+}
+
+message ListOfInts {
+  repeated int32 data = 1;
+}
+
+message ListOfListOfInts {
+  repeated ListOfInts data = 1;
+}
+
+message ListOfFloats {
+  repeated float data = 1;
+}
+
+message ListOfListOfFloats {
+  repeated ListOfFloats data = 1;
+}
+
+message ListOfListOfListOfFloats {
+  repeated ListOfListOfFloats data = 1;
+}
+
+
+message SubmitIterationRequest {
+  ListOfListOfFloats local_update_result = 1;
+}
