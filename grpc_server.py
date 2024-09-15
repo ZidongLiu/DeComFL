@@ -21,15 +21,15 @@ class ServerStatus(Enum):
 
 def find_first(lst: list, check_fn) -> int:
     try:
-        return next(i for i in range(len(lst)) if check_fn(lst))
+        return next(i for i, v in enumerate(lst) if check_fn(v))
     except StopIteration:
         return -1
 
 
 class SampleServer(sample_pb2_grpc.SampleServerServicer):
     def __init__(self):
-        self.num_clients = 1
-        self.num_sample_clients = 1
+        self.num_clients = 3
+        self.num_sample_clients = 2
         self.local_update_steps = 1
         self.seed_grad_records = server.SeedAndGradientRecords()
         self.client_last_updates = [0 for _ in range(self.num_clients)]
@@ -45,7 +45,7 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         self.iteration_local_grad_scalar: dict[int, list[torch.Tensor]] = {}
 
     def _get_next_connect_client_index(self) -> int:
-        return find_first(self.connected_clients, lambda x: x)
+        return find_first(self.connected_clients, lambda x: not x)
 
     def change_status(self, new_status: Enum) -> None:
         self.status = new_status
@@ -58,6 +58,7 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
             range(self.num_clients), self.num_sample_clients
         )
         self.iteration_local_grad_scalar = {}
+        print(f"Iteration: {self.iteration}, sampled_clients: {self.iteration_sampled_clients}")
 
     def try_swtich_from_connecting_to_training(self):
         # 1. check for current status == connecting
@@ -78,7 +79,16 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         print("Switch to Connecting")
         self.change_status(ServerStatus.connecting)
 
+    def _has_iteration_finished(self):
+        return all(
+            [
+                self.iteration_local_grad_scalar.get(client_index)
+                for client_index in self.iteration_sampled_clients
+            ]
+        )
+
     def _get_iteration_grad_scalar_list(self):
+        print("getting _get_iteration_grad_scalar_list")
         return [
             self.iteration_local_grad_scalar[client_index]
             for client_index in self.iteration_sampled_clients
@@ -98,7 +108,7 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         if self.status is not ServerStatus.training:
             return
         # 2. check if sampled client all have return result
-        if not all(self._get_iteration_grad_scalar_list()):
+        if not self._has_iteration_finished():
             return
         print("swtich from training to aggregating")
         # 3. change status to aggregating
@@ -115,6 +125,11 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
 
         self.connect_lock.acquire()
         client_index = self._get_next_connect_client_index()
+        if client_index == -1:
+            print("All clients slot are engaged, decline this connect request")
+            return sample_pb2.ConnectResponse(successful=False, clientIndex=client_index)
+
+        print(f"try to assign {client_index}")
         self.connected_clients[client_index] = True
         self.try_swtich_from_connecting_to_training()
         self.connect_lock.release()
@@ -180,8 +195,8 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
             self.iteration_local_grad_scalar[client_index] = local_update_result
 
     def SubmitIteration(self, request, context):
-        print("submit iteration", request.clientIndex)
         client_index = request.clientIndex
+        print(f"submit iteration from {client_index}")
 
         if (
             self.status is not ServerStatus.training
@@ -189,10 +204,12 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         ):
             return sample_pb2.EmptyResponse()
 
+        self.connect_lock.acquire()
         raw_grad_list = data_helper.protobuf_to_py_list_of_list_of_floats(request.gradTensors)
         grad_tensors = [torch.tensor(v) for v in raw_grad_list]
         self._apply_client_local_update_result(client_index, grad_tensors)
         self.try_switch_from_training_to_aggregating()
+        self.connect_lock.release()
         return sample_pb2.EmptyResponse()
 
 

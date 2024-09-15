@@ -67,8 +67,8 @@ if __name__ == "__main__":
     connect_result = repeat_every(
         lambda: ps_stub.Connect(sample_pb2.EmptyRequest()), lambda x: x.successful
     )
-    print("connected")
     client_index = connect_result.clientIndex
+    print(f"connected as client: {client_index}")
     # when program exits, we need to disconnect this client from server
     atexit.register(
         lambda: ps_stub.Disconnect(sample_pb2.DisconnectRequest(clientIndex=client_index))
