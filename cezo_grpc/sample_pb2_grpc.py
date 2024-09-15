@@ -39,15 +39,15 @@ class SampleServerStub(object):
                 request_serializer=cezo__grpc_dot_sample__pb2.EmptyRequest.SerializeToString,
                 response_deserializer=cezo__grpc_dot_sample__pb2.ConnectResponse.FromString,
                 _registered_method=True)
+        self.Disconnect = channel.unary_unary(
+                '/sample_server.SampleServer/Disconnect',
+                request_serializer=cezo__grpc_dot_sample__pb2.DisconnectRequest.SerializeToString,
+                response_deserializer=cezo__grpc_dot_sample__pb2.EmptyResponse.FromString,
+                _registered_method=True)
         self.TryToJoinIteration = channel.unary_unary(
                 '/sample_server.SampleServer/TryToJoinIteration',
                 request_serializer=cezo__grpc_dot_sample__pb2.TryToJoinIterationRequest.SerializeToString,
                 response_deserializer=cezo__grpc_dot_sample__pb2.TryToJoinIterationResponse.FromString,
-                _registered_method=True)
-        self.PullGradsAndSeeds = channel.unary_unary(
-                '/sample_server.SampleServer/PullGradsAndSeeds',
-                request_serializer=cezo__grpc_dot_sample__pb2.PullGradsAndSeedsRequest.SerializeToString,
-                response_deserializer=cezo__grpc_dot_sample__pb2.PullGradsAndSeedsResponse.FromString,
                 _registered_method=True)
         self.SubmitIteration = channel.unary_unary(
                 '/sample_server.SampleServer/SubmitIteration',
@@ -65,13 +65,13 @@ class SampleServerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def TryToJoinIteration(self, request, context):
+    def Disconnect(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def PullGradsAndSeeds(self, request, context):
+    def TryToJoinIteration(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -91,15 +91,15 @@ def add_SampleServerServicer_to_server(servicer, server):
                     request_deserializer=cezo__grpc_dot_sample__pb2.EmptyRequest.FromString,
                     response_serializer=cezo__grpc_dot_sample__pb2.ConnectResponse.SerializeToString,
             ),
+            'Disconnect': grpc.unary_unary_rpc_method_handler(
+                    servicer.Disconnect,
+                    request_deserializer=cezo__grpc_dot_sample__pb2.DisconnectRequest.FromString,
+                    response_serializer=cezo__grpc_dot_sample__pb2.EmptyResponse.SerializeToString,
+            ),
             'TryToJoinIteration': grpc.unary_unary_rpc_method_handler(
                     servicer.TryToJoinIteration,
                     request_deserializer=cezo__grpc_dot_sample__pb2.TryToJoinIterationRequest.FromString,
                     response_serializer=cezo__grpc_dot_sample__pb2.TryToJoinIterationResponse.SerializeToString,
-            ),
-            'PullGradsAndSeeds': grpc.unary_unary_rpc_method_handler(
-                    servicer.PullGradsAndSeeds,
-                    request_deserializer=cezo__grpc_dot_sample__pb2.PullGradsAndSeedsRequest.FromString,
-                    response_serializer=cezo__grpc_dot_sample__pb2.PullGradsAndSeedsResponse.SerializeToString,
             ),
             'SubmitIteration': grpc.unary_unary_rpc_method_handler(
                     servicer.SubmitIteration,
@@ -145,6 +145,33 @@ class SampleServer(object):
             _registered_method=True)
 
     @staticmethod
+    def Disconnect(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sample_server.SampleServer/Disconnect',
+            cezo__grpc_dot_sample__pb2.DisconnectRequest.SerializeToString,
+            cezo__grpc_dot_sample__pb2.EmptyResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
     def TryToJoinIteration(request,
             target,
             options=(),
@@ -161,33 +188,6 @@ class SampleServer(object):
             '/sample_server.SampleServer/TryToJoinIteration',
             cezo__grpc_dot_sample__pb2.TryToJoinIterationRequest.SerializeToString,
             cezo__grpc_dot_sample__pb2.TryToJoinIterationResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def PullGradsAndSeeds(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/sample_server.SampleServer/PullGradsAndSeeds',
-            cezo__grpc_dot_sample__pb2.PullGradsAndSeedsRequest.SerializeToString,
-            cezo__grpc_dot_sample__pb2.PullGradsAndSeedsResponse.FromString,
             options,
             channel_credentials,
             insecure,

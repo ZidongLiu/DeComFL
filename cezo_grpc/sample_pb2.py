@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16\x63\x65zo_grpc/sample.proto\x12\rsample_server\"\x0e\n\x0c\x45mptyRequest\"\x0f\n\rEmptyResponse\":\n\x0f\x43onnectResponse\x12\x12\n\nsuccessful\x18\x01 \x01(\x08\x12\x13\n\x0b\x63lientIndex\x18\x02 \x01(\x05\"0\n\x19TryToJoinIterationRequest\x12\x13\n\x0b\x63lientIndex\x18\x01 \x01(\x05\"0\n\x1aTryToJoinIterationResponse\x12\x12\n\nsuccessful\x18\x01 \x01(\x08\"/\n\x18PullGradsAndSeedsRequest\x12\x13\n\x0b\x63lientIndex\x18\x01 \x01(\x05\"\x83\x01\n\x19PullGradsAndSeedsResponse\x12.\n\x05seeds\x18\x01 \x01(\x0b\x32\x1f.sample_server.ListOfListOfInts\x12\x36\n\x05grads\x18\x02 \x01(\x0b\x32\'.sample_server.ListOfListOfListOfFloats\"\x1a\n\nListOfInts\x12\x0c\n\x04\x64\x61ta\x18\x01 \x03(\x05\";\n\x10ListOfListOfInts\x12\'\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32\x19.sample_server.ListOfInts\"\x1c\n\x0cListOfFloats\x12\x0c\n\x04\x64\x61ta\x18\x01 \x03(\x02\"?\n\x12ListOfListOfFloats\x12)\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32\x1b.sample_server.ListOfFloats\"K\n\x18ListOfListOfListOfFloats\x12/\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32!.sample_server.ListOfListOfFloats\"X\n\x16SubmitIterationRequest\x12>\n\x13local_update_result\x18\x01 \x01(\x0b\x32!.sample_server.ListOfListOfFloats2\x88\x03\n\x0cSampleServer\x12H\n\x07\x43onnect\x12\x1b.sample_server.EmptyRequest\x1a\x1e.sample_server.ConnectResponse\"\x00\x12k\n\x12TryToJoinIteration\x12(.sample_server.TryToJoinIterationRequest\x1a).sample_server.TryToJoinIterationResponse\"\x00\x12h\n\x11PullGradsAndSeeds\x12\'.sample_server.PullGradsAndSeedsRequest\x1a(.sample_server.PullGradsAndSeedsResponse\"\x00\x12W\n\x0fSubmitIteration\x12%.sample_server.SubmitIterationRequest\x1a\x1b.sample_server.EmptyRequest\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16\x63\x65zo_grpc/sample.proto\x12\rsample_server\"\x0e\n\x0c\x45mptyRequest\"\x0f\n\rEmptyResponse\":\n\x0f\x43onnectResponse\x12\x12\n\nsuccessful\x18\x01 \x01(\x08\x12\x13\n\x0b\x63lientIndex\x18\x02 \x01(\x05\"(\n\x11\x44isconnectRequest\x12\x13\n\x0b\x63lientIndex\x18\x01 \x01(\x05\"0\n\x19TryToJoinIterationRequest\x12\x13\n\x0b\x63lientIndex\x18\x01 \x01(\x05\"\xd3\x01\n\x1aTryToJoinIterationResponse\x12\x12\n\nsuccessful\x18\x01 \x01(\x08\x12\x32\n\tpullSeeds\x18\x02 \x01(\x0b\x32\x1f.sample_server.ListOfListOfInts\x12:\n\tpullGrads\x18\x03 \x01(\x0b\x32\'.sample_server.ListOfListOfListOfFloats\x12\x31\n\x0eiterationSeeds\x18\x04 \x01(\x0b\x32\x19.sample_server.ListOfInts\"\x8d\x01\n\x16SubmitIterationRequest\x12\x13\n\x0b\x63lientIndex\x18\x01 \x01(\x05\x12\x36\n\x0bgradTensors\x18\x02 \x01(\x0b\x32!.sample_server.ListOfListOfFloats\x12\x14\n\x0cstepAccuracy\x18\x03 \x01(\x02\x12\x10\n\x08stepLoss\x18\x04 \x01(\x02\"\x1a\n\nListOfInts\x12\x0c\n\x04\x64\x61ta\x18\x01 \x03(\x05\";\n\x10ListOfListOfInts\x12\'\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32\x19.sample_server.ListOfInts\"\x1c\n\x0cListOfFloats\x12\x0c\n\x04\x64\x61ta\x18\x01 \x03(\x02\"?\n\x12ListOfListOfFloats\x12)\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32\x1b.sample_server.ListOfFloats\"K\n\x18ListOfListOfListOfFloats\x12/\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32!.sample_server.ListOfListOfFloats2\xee\x02\n\x0cSampleServer\x12H\n\x07\x43onnect\x12\x1b.sample_server.EmptyRequest\x1a\x1e.sample_server.ConnectResponse\"\x00\x12N\n\nDisconnect\x12 .sample_server.DisconnectRequest\x1a\x1c.sample_server.EmptyResponse\"\x00\x12k\n\x12TryToJoinIteration\x12(.sample_server.TryToJoinIterationRequest\x1a).sample_server.TryToJoinIterationResponse\"\x00\x12W\n\x0fSubmitIteration\x12%.sample_server.SubmitIterationRequest\x1a\x1b.sample_server.EmptyRequest\"\x00\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,26 +37,24 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_EMPTYRESPONSE']._serialized_end=72
   _globals['_CONNECTRESPONSE']._serialized_start=74
   _globals['_CONNECTRESPONSE']._serialized_end=132
-  _globals['_TRYTOJOINITERATIONREQUEST']._serialized_start=134
-  _globals['_TRYTOJOINITERATIONREQUEST']._serialized_end=182
-  _globals['_TRYTOJOINITERATIONRESPONSE']._serialized_start=184
-  _globals['_TRYTOJOINITERATIONRESPONSE']._serialized_end=232
-  _globals['_PULLGRADSANDSEEDSREQUEST']._serialized_start=234
-  _globals['_PULLGRADSANDSEEDSREQUEST']._serialized_end=281
-  _globals['_PULLGRADSANDSEEDSRESPONSE']._serialized_start=284
-  _globals['_PULLGRADSANDSEEDSRESPONSE']._serialized_end=415
-  _globals['_LISTOFINTS']._serialized_start=417
-  _globals['_LISTOFINTS']._serialized_end=443
-  _globals['_LISTOFLISTOFINTS']._serialized_start=445
-  _globals['_LISTOFLISTOFINTS']._serialized_end=504
-  _globals['_LISTOFFLOATS']._serialized_start=506
-  _globals['_LISTOFFLOATS']._serialized_end=534
-  _globals['_LISTOFLISTOFFLOATS']._serialized_start=536
-  _globals['_LISTOFLISTOFFLOATS']._serialized_end=599
-  _globals['_LISTOFLISTOFLISTOFFLOATS']._serialized_start=601
-  _globals['_LISTOFLISTOFLISTOFFLOATS']._serialized_end=676
-  _globals['_SUBMITITERATIONREQUEST']._serialized_start=678
-  _globals['_SUBMITITERATIONREQUEST']._serialized_end=766
-  _globals['_SAMPLESERVER']._serialized_start=769
-  _globals['_SAMPLESERVER']._serialized_end=1161
+  _globals['_DISCONNECTREQUEST']._serialized_start=134
+  _globals['_DISCONNECTREQUEST']._serialized_end=174
+  _globals['_TRYTOJOINITERATIONREQUEST']._serialized_start=176
+  _globals['_TRYTOJOINITERATIONREQUEST']._serialized_end=224
+  _globals['_TRYTOJOINITERATIONRESPONSE']._serialized_start=227
+  _globals['_TRYTOJOINITERATIONRESPONSE']._serialized_end=438
+  _globals['_SUBMITITERATIONREQUEST']._serialized_start=441
+  _globals['_SUBMITITERATIONREQUEST']._serialized_end=582
+  _globals['_LISTOFINTS']._serialized_start=584
+  _globals['_LISTOFINTS']._serialized_end=610
+  _globals['_LISTOFLISTOFINTS']._serialized_start=612
+  _globals['_LISTOFLISTOFINTS']._serialized_end=671
+  _globals['_LISTOFFLOATS']._serialized_start=673
+  _globals['_LISTOFFLOATS']._serialized_end=701
+  _globals['_LISTOFLISTOFFLOATS']._serialized_start=703
+  _globals['_LISTOFLISTOFFLOATS']._serialized_end=766
+  _globals['_LISTOFLISTOFLISTOFFLOATS']._serialized_start=768
+  _globals['_LISTOFLISTOFLISTOFFLOATS']._serialized_end=843
+  _globals['_SAMPLESERVER']._serialized_start=846
+  _globals['_SAMPLESERVER']._serialized_end=1212
 # @@protoc_insertion_point(module_scope)

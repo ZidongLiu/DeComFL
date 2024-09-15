@@ -4,8 +4,8 @@ package sample_server;
 
 service SampleServer {
   rpc Connect (EmptyRequest) returns (ConnectResponse) {}
+  rpc Disconnect (DisconnectRequest) returns (EmptyResponse) {}
   rpc TryToJoinIteration (TryToJoinIterationRequest) returns (TryToJoinIterationResponse) {}
-  rpc PullGradsAndSeeds (PullGradsAndSeedsRequest) returns (PullGradsAndSeedsResponse) {}
   rpc SubmitIteration (SubmitIterationRequest) returns (EmptyRequest) {}
 }
 
@@ -18,22 +18,28 @@ message ConnectResponse {
   int32 clientIndex = 2;
 }
 
+message DisconnectRequest {
+  int32 clientIndex = 1;
+}
+
 message TryToJoinIterationRequest {
   int32 clientIndex = 1;
 }
 
 message TryToJoinIterationResponse{
   bool successful = 1;
+  ListOfListOfInts pullSeeds = 2;
+  ListOfListOfListOfFloats pullGrads = 3;
+  ListOfInts iterationSeeds = 4;
 }
 
-message PullGradsAndSeedsRequest {
+message SubmitIterationRequest {
   int32 clientIndex = 1;
+  ListOfListOfFloats gradTensors = 2;
+  float stepAccuracy = 3;
+  float stepLoss = 4;
 }
 
-message PullGradsAndSeedsResponse {
-  ListOfListOfInts seeds = 1;
-  ListOfListOfListOfFloats grads = 2;
-}
 
 message ListOfInts {
   repeated int32 data = 1;
@@ -53,9 +59,4 @@ message ListOfListOfFloats {
 
 message ListOfListOfListOfFloats {
   repeated ListOfListOfFloats data = 1;
-}
-
-
-message SubmitIterationRequest {
-  ListOfListOfFloats local_update_result = 1;
 }
