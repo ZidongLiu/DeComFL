@@ -1,8 +1,8 @@
+from typing import Callable, Sequence, TypeAlias
+
 import torch
-from typing import Sequence, Callable, TypeAlias
-from gradient_estimators.random_gradient_estimator import (
-    RandomGradientEstimator as RGE,
-)
+
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
 
 CriterionType: TypeAlias = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 

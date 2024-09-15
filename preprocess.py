@@ -1,21 +1,18 @@
+import json
+from typing import Union
+
 import torch
 import torchvision
 import torchvision.transforms as transforms
-import json
-from typing import Union
-from shared.dataset import ShakeSpeare
-from shared.language_utils import (
-    LM_TEMPLATE_MAP,
-    LM_DATASET_MAP,
-    LmTask,
-    CustomLMDataset,
-    get_collate_fn,
-    SUPPORTED_LLM,
-)
-from cezo_fl.fl_helpers import get_client_name
-from shared.data_split import dirichlet_split
 from datasets import load_dataset
 from transformers import AutoTokenizer
+
+from cezo_fl.fl_helpers import get_client_name
+from cezo_fl.util.data_split import dirichlet_split
+from cezo_fl.util.dataset import ShakeSpeare
+from cezo_fl.util.language_utils import (LM_DATASET_MAP, LM_TEMPLATE_MAP,
+                                         SUPPORTED_LLM, CustomLMDataset,
+                                         LmTask, get_collate_fn)
 
 
 def use_device(args):

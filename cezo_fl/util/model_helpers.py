@@ -5,10 +5,11 @@ Created on Wed Mar 27 20:58:19 2024
 @author: Zidong
 """
 
+from os import path
+from typing import Iterator
+
 import torch
 import torch.optim as optim
-from typing import Iterator
-from os import path
 
 
 def get_current_datetime_str():

@@ -1,10 +1,11 @@
-import torch
-from torch.nn import Parameter
-from typing import Callable, Iterator, TypeAlias, Literal, Sequence
-from transformers.models.opt.modeling_opt import OPTForCausalLM
-from peft import PeftModel
-from shared.language_utils import LLMBatchInput
+from typing import Callable, Iterator, Literal, Sequence, TypeAlias
 
+import torch
+from peft import PeftModel
+from torch.nn import Parameter
+from transformers.models.opt.modeling_opt import OPTForCausalLM
+
+from cezo_fl.util.language_utils import LLMBatchInput
 
 GradEstimateMethod: TypeAlias = Literal["forward", "central"]
 

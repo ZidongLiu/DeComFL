@@ -1,12 +1,13 @@
-from config import FakeArgs
-from cezo_fl.server import CeZO_Server, SeedAndGradientRecords
-from cezo_fl.client import AbstractClient, LocalUpdateResult
-from cezo_fl.shared import update_model_given_seed_and_grad
-
 from typing import Sequence
 from unittest.mock import MagicMock, patch
-from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
+
 import torch
+
+from cezo_fl.client import AbstractClient, LocalUpdateResult
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.server import CeZO_Server, SeedAndGradientRecords
+from cezo_fl.shared import update_model_given_seed_and_grad
+from config import FakeArgs
 
 
 def test_seed_records():

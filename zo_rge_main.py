@@ -1,24 +1,23 @@
+from os import path
+from typing import Any
+
 import torch
-from tqdm import tqdm
 import torch.nn as nn
 from tensorboardX import SummaryWriter
-from os import path
-from shared.checkpoint import CheckPoint
-from shared import model_helpers
-from shared.metrics import Metric, accuracy
-from pruning.helpers import generate_random_mask_arr
-from config import get_params, get_args_str
-from preprocess import preprocess, use_sparsity_dict
-from models.cnn_mnist import CNN_MNIST
-from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from gradient_estimators.coordinate_gradient_estimator import (
-    CoordinateGradientEstimator as CGE,
-)
-from models.lenet import LeNet
-from models.cnn_fashion import CNN_FMNIST
-from models.lstm import CharLSTM
+from tqdm import tqdm
 
-from typing import Any
+from cezo_fl.coordinate_gradient_estimator import \
+    CoordinateGradientEstimator as CGE
+from cezo_fl.models.cnn_fashion import CNN_FMNIST
+from cezo_fl.models.cnn_mnist import CNN_MNIST
+from cezo_fl.models.lenet import LeNet
+from cezo_fl.models.lstm import CharLSTM
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.util import model_helpers
+from cezo_fl.util.checkpoint import CheckPoint
+from cezo_fl.util.metrics import Metric, accuracy
+from config import get_args_str, get_params
+from preprocess import preprocess, use_sparsity_dict
 
 
 def prepare_settings(args, device):
@@ -168,9 +167,7 @@ if __name__ == "__main__":
     sparsity_dict = use_sparsity_dict(args, model.model_name)
     for epoch in range(args.epoch):
         if sparsity_dict is not None and epoch % args.mask_shuffle_interval == 0:
-            print("Updating gradient mask!")
-            mask_arr = generate_random_mask_arr(model, sparsity_dict, device)
-            grad_estimator.set_prune_mask(mask_arr)
+            raise NotImplementedError("We no longer support pruning mask.")
 
         train_loss, train_accuracy = train_model(epoch)
         if args.log_to_tensorboard:

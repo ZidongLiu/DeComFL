@@ -1,12 +1,14 @@
+from copy import deepcopy
+
 import torch
+from torch.optim import SGD
+
 from cezo_fl.client import SyncClient
-from models.cnn_mnist import CNN_MNIST
+from cezo_fl.models.cnn_mnist import CNN_MNIST
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.util.metrics import accuracy
 from config import FakeArgs
 from preprocess import preprocess
-from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from torch.optim import SGD
-from shared.metrics import accuracy
-from copy import deepcopy
 
 
 # NOTE: this unit test only passes for 1e-6

@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch import nn
 
-import gradient_estimators.random_gradient_estimator as RGE
+import cezo_fl.random_gradient_estimator as RGE
 
 
 class LinearModel(nn.Module):

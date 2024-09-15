@@ -1,7 +1,7 @@
+import contextlib
+import math
 from collections import defaultdict
 
-import math
-import contextlib
 import numpy as np
 from torch.utils.data.dataset import Subset
 

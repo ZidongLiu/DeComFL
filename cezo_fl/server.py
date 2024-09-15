@@ -1,16 +1,19 @@
 from __future__ import annotations
-import random
-import torch
-from typing import Any, Iterable, Sequence
-from collections import deque
 
+import random
+from collections import deque
+from typing import Any, Iterable, Sequence
+
+import torch
+
+from byzantine.aggregation import krum, mean, median, trim
+from byzantine.attack import (gaussian_attack, krum_attack, no_byz,
+                              sign_attack, trim_attack)
+from cezo_fl.client import AbstractClient
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
 from cezo_fl.run_client_jobs import execute_sampled_clients
 from cezo_fl.shared import CriterionType
-from cezo_fl.client import AbstractClient
-from shared.metrics import Metric
-from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from byzantine.aggregation import mean, median, trim, krum
-from byzantine.attack import no_byz, gaussian_attack, sign_attack, trim_attack, krum_attack
+from cezo_fl.util.metrics import Metric
 
 
 class SeedAndGradientRecords:

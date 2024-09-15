@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+import abc
+from copy import deepcopy
+from dataclasses import dataclass
+from typing import Iterator, Sequence
+
 import torch
 from torch.utils.data import DataLoader
-from typing import Sequence, Iterator
-from copy import deepcopy
-import abc
-from dataclasses import dataclass
 
-from shared.metrics import Metric
-from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
 from cezo_fl.shared import CriterionType
+from cezo_fl.util.metrics import Metric
 
 
 @dataclass
