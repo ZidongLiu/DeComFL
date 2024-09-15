@@ -7,8 +7,7 @@ from typing import Any, Iterable, Sequence
 import torch
 
 from byzantine.aggregation import krum, mean, median, trim
-from byzantine.attack import (gaussian_attack, krum_attack, no_byz,
-                              sign_attack, trim_attack)
+from byzantine.attack import gaussian_attack, krum_attack, no_byz, sign_attack, trim_attack
 from cezo_fl.client import AbstractClient
 from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
 from cezo_fl.run_client_jobs import execute_sampled_clients
