@@ -30,10 +30,10 @@ def find_first(lst: list, check_fn) -> int:
 class SampleServer(sample_pb2_grpc.SampleServerServicer):
     def __init__(self):
         self.should_eval = True
-        self.eval_iteration = 5
+        self.eval_iteration = 25
 
-        self.num_clients = 1
-        self.num_sample_clients = 1
+        self.num_clients = 3
+        self.num_sample_clients = 2
         self.local_update_steps = 1
 
         self.seed_grad_records = server.SeedAndGradientRecords()
