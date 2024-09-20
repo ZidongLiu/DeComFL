@@ -6,7 +6,12 @@ service SampleServer {
   rpc Connect (EmptyRequest) returns (ConnectResponse) {}
   rpc Disconnect (DisconnectRequest) returns (EmptyResponse) {}
   rpc TryToJoinIteration (TryToJoinIterationRequest) returns (TryToJoinIterationResponse) {}
-  rpc SubmitIteration (SubmitIterationRequest) returns (EmptyRequest) {}
+  rpc SubmitIteration (SubmitIterationRequest) returns (EmptyResponse) {}
+  
+  rpc ConnectEval (EmptyRequest) returns (ConnectResponse) {}
+  rpc DisconnectEval (EmptyRequest) returns (EmptyResponse) {}
+  rpc TryToEval (EmptyRequest) returns (TryToJoinIterationResponse) {}
+  rpc SubmitEvaluation (SubmitEvaluationRequest) returns (EmptyResponse) {}
 }
 
 message EmptyRequest {}
@@ -40,6 +45,10 @@ message SubmitIterationRequest {
   float stepLoss = 4;
 }
 
+message SubmitEvaluationRequest {
+  float evalAccuracy = 1;
+  float evalLoss = 2;
+}
 
 message ListOfInts {
   repeated int32 data = 1;

@@ -1,8 +1,6 @@
 from huggingface_hub.repository import atexit
-from numpy import repeat
 import torch
 import grpc
-from tqdm import cli
 from cezo_grpc import sample_pb2
 from cezo_grpc import sample_pb2_grpc
 from cezo_grpc import data_helper
@@ -17,7 +15,6 @@ import time
 
 def setup_client(args, client_index):
     device_map, train_loaders, _ = preprocess.preprocess(args)
-    client_index = 0
     client_name = fl_helpers.get_client_name(client_index)
     client_device = device_map[client_name]
     (

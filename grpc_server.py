@@ -17,6 +17,7 @@ class ServerStatus(Enum):
     connecting = "connecting"
     training = "training"
     aggregating = "aggregating"
+    evaluating = "evaluating"
 
 
 def find_first(lst: list, check_fn) -> int:
@@ -28,16 +29,22 @@ def find_first(lst: list, check_fn) -> int:
 
 class SampleServer(sample_pb2_grpc.SampleServerServicer):
     def __init__(self):
-        self.num_clients = 3
-        self.num_sample_clients = 2
+        self.should_eval = True
+        self.eval_iteration = 5
+
+        self.num_clients = 1
+        self.num_sample_clients = 1
         self.local_update_steps = 1
+
         self.seed_grad_records = server.SeedAndGradientRecords()
         self.client_last_updates = [0 for _ in range(self.num_clients)]
-
         self.status = ServerStatus.connecting
 
         self.connect_lock = threading.Lock()
         self.connected_clients: list[bool] = [False for _ in range(self.num_clients)]
+
+        self.eval_client_connected: bool = False
+        self.eval_client_last_update: int = 0
 
         self.iteration: int = -1
         self.iteration_seeds: list[int] = []
@@ -60,12 +67,17 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         self.iteration_local_grad_scalar = {}
         print(f"Iteration: {self.iteration}, sampled_clients: {self.iteration_sampled_clients}")
 
-    def try_swtich_from_connecting_to_training(self):
+    def _should_connect(self) -> bool:
+        training_not_all_connected = not all(self.connected_clients)
+        should_eval_and_eval_not_connected = self.should_eval and not self.eval_client_connected
+        return training_not_all_connected or should_eval_and_eval_not_connected
+
+    def try_swtich_from_connecting_to_training(self) -> None:
         # 1. check for current status == connecting
         if self.status is not ServerStatus.connecting:
             return
         # 2. check for connected_clients vs num_clients
-        if not all(self.connected_clients):
+        if self._should_connect():
             return
         # 3. initialize training data for next iteration
         print("swtich from connecting to training")
@@ -73,13 +85,13 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         # 4. change status to training
         self.change_status(ServerStatus.training)
 
-    def swtich_to_connecting(self):
-        if all(self.connected_clients):
+    def swtich_to_connecting(self) -> None:
+        if not self._should_connect():
             return
         print("Switch to Connecting")
         self.change_status(ServerStatus.connecting)
 
-    def _has_iteration_finished(self):
+    def _has_iteration_finished(self) -> bool:
         return all(
             [
                 self.iteration_local_grad_scalar.get(client_index)
@@ -87,23 +99,27 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
             ]
         )
 
-    def _get_iteration_grad_scalar_list(self):
-        print("getting _get_iteration_grad_scalar_list")
+    def _get_iteration_grad_scalar_list(self) -> list[list[torch.Tensor]]:
         return [
             self.iteration_local_grad_scalar[client_index]
             for client_index in self.iteration_sampled_clients
         ]
 
-    def _aggregate_and_update_server_record(self):
+    def _aggregate_and_update_server_record(self) -> None:
         local_grad_scalar_list = no_byz(self._get_iteration_grad_scalar_list())
         grad_scalar = mean(self.num_sample_clients, local_grad_scalar_list)
 
         self.seed_grad_records.add_records(seeds=self.iteration_seeds, grad=grad_scalar)
         # Optional: optimize the memory. Remove is exclusive, i.e., the min last updates
         # information is still kept.
-        self.seed_grad_records.remove_too_old(earliest_record_needs=min(self.client_last_updates))
+        if self.should_eval:
+            last_update_iterations = self.client_last_updates + [self.eval_client_last_update]
+        else:
+            last_update_iterations = self.client_last_updates
 
-    def try_switch_from_training_to_aggregating(self):
+        self.seed_grad_records.remove_too_old(earliest_record_needs=min(last_update_iterations))
+
+    def try_switch_from_training_to_aggregating(self) -> None:
         # 1. check for current status == training
         if self.status is not ServerStatus.training:
             return
@@ -115,7 +131,23 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         self.change_status(ServerStatus.aggregating)
         # 4. update seed_grad_records
         self._aggregate_and_update_server_record()
-        # 5. change to next training
+        # 5. change to next training or evaluating
+        if self.should_eval and self.iteration % self.eval_iteration == 0:
+            self.switch_from_aggregating_to_evaluating()
+        else:
+            self.switch_from_aggregating_to_training()
+
+    def switch_from_aggregating_to_training(self) -> None:
+        print("swtich from aggregating to training")
+        self.preprare_for_next_iteration()
+        self.change_status(ServerStatus.training)
+
+    def switch_from_aggregating_to_evaluating(self) -> None:
+        print("swtich from aggregating to evaluating")
+        self.change_status(ServerStatus.evaluating)
+
+    def switch_from_evaluating_to_training(self) -> None:
+        print("swtich from evaluating to training")
         self.preprare_for_next_iteration()
         self.change_status(ServerStatus.training)
 
@@ -180,13 +212,6 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
             iterationSeeds=data_helper.py_to_protobuf_list_of_ints(self.iteration_seeds),
         )
 
-    # def PullGradsAndSeeds(self, request, context):
-    #     seeds = sample_pb2.ListOfListOfInts(data=[sample_pb2.ListOfInts(data=[1])])
-    #     grads = sample_pb2.ListOfListOfListOfFloats(
-    #         data=[sample_pb2.ListOfListOfFloats(data=[sample_pb2.ListOfFloats(data=[0.3])])]
-    #     )
-    #     return sample_pb2.PullGradsAndSeedsResponse(seeds=seeds, grads=grads)
-
     def _apply_client_local_update_result(self, client_index, local_update_result):
         if client_index not in self.iteration_sampled_clients:
             return
@@ -210,6 +235,75 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         self._apply_client_local_update_result(client_index, grad_tensors)
         self.try_switch_from_training_to_aggregating()
         self.connect_lock.release()
+        return sample_pb2.EmptyResponse()
+
+    def ConnectEval(self, request, context):
+        if self.status is not ServerStatus.connecting:
+            return sample_pb2.ConnectResponse(successful=False, clientIndex=-1)
+
+        self.connect_lock.acquire()
+        if self.eval_client_connected:
+            print("A eval client is already connected!")
+            return sample_pb2.ConnectResponse(successful=False, clientIndex=-1)
+
+        print("Eval Client connected")
+        self.eval_client_connected = True
+        self.try_swtich_from_connecting_to_training()
+        self.connect_lock.release()
+        return sample_pb2.ConnectResponse(successful=True, clientIndex=-1)
+
+    def DisconnectEval(self, request, context):
+        # this can happen at any status, we force status to be connecting when this method is called
+        # TODO: depending on status, need to abort current iteration. May need to
+        self.connect_lock.acquire()
+        print("Eval client disconnected, waiting for new client to connect")
+        self.eval_client_connected = False
+        # next connected client will need to update from 0's iteration
+        self.eval_client_last_update = 0
+
+        self.swtich_to_connecting()
+        self.connect_lock.release()
+
+    def TryToEval(self, request, context):
+        if self.status is not ServerStatus.evaluating:
+            print("try to eval")
+            return sample_pb2.TryToJoinIterationResponse(
+                successful=False,
+                pullSeeds=data_helper.py_to_protobuf_list_of_list_of_ints([]),
+                pullGrads=data_helper.py_to_protobuf_list_of_list_of_list_of_floats([]),
+                iterationSeeds=data_helper.py_to_protobuf_list_of_ints([]),
+            )
+
+        # The seed and grad in last_update_iter is fetched as well
+        # Note at that iteration, we just reset the client model so that iteration
+        # information is needed as well.
+        print("before return try to eval 1", self.eval_client_last_update)
+        seeds_list = self.seed_grad_records.fetch_seed_records(self.eval_client_last_update)
+        grad_list = self.seed_grad_records.fetch_grad_records(self.eval_client_last_update)
+        print("seeds_list, grad_list", seeds_list, grad_list)
+        self.eval_client_last_update = self.iteration
+        print("before return try to eval 4")
+        return sample_pb2.TryToJoinIterationResponse(
+            successful=True,
+            pullSeeds=data_helper.py_to_protobuf_list_of_list_of_ints(seeds_list),
+            pullGrads=data_helper.py_to_protobuf_list_of_list_of_list_of_floats(
+                [[ts.tolist() for ts in vv] for vv in grad_list]
+            ),
+            iterationSeeds=data_helper.py_to_protobuf_list_of_ints([]),
+        )
+
+    def SubmitEvaluation(self, request, context):
+        print("submit evaluation")
+        if self.status is not ServerStatus.evaluating:
+            return sample_pb2.EmptyResponse()
+
+        eval_loss, eval_accuracy = request.evalLoss, request.evalAccuracy
+        print(
+            f"\nEvaluation(Iteration {self.iteration}): ",
+            f"Eval Loss:{eval_loss:.4f}, " f"Accuracy:{eval_accuracy * 100:.2f}%",
+        )
+        self.switch_from_evaluating_to_training()
+
         return sample_pb2.EmptyResponse()
 
 

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16\x63\x65zo_grpc/sample.proto\x12\rsample_server\"\x0e\n\x0c\x45mptyRequest\"\x0f\n\rEmptyResponse\":\n\x0f\x43onnectResponse\x12\x12\n\nsuccessful\x18\x01 \x01(\x08\x12\x13\n\x0b\x63lientIndex\x18\x02 \x01(\x05\"(\n\x11\x44isconnectRequest\x12\x13\n\x0b\x63lientIndex\x18\x01 \x01(\x05\"0\n\x19TryToJoinIterationRequest\x12\x13\n\x0b\x63lientIndex\x18\x01 \x01(\x05\"\xd3\x01\n\x1aTryToJoinIterationResponse\x12\x12\n\nsuccessful\x18\x01 \x01(\x08\x12\x32\n\tpullSeeds\x18\x02 \x01(\x0b\x32\x1f.sample_server.ListOfListOfInts\x12:\n\tpullGrads\x18\x03 \x01(\x0b\x32\'.sample_server.ListOfListOfListOfFloats\x12\x31\n\x0eiterationSeeds\x18\x04 \x01(\x0b\x32\x19.sample_server.ListOfInts\"\x8d\x01\n\x16SubmitIterationRequest\x12\x13\n\x0b\x63lientIndex\x18\x01 \x01(\x05\x12\x36\n\x0bgradTensors\x18\x02 \x01(\x0b\x32!.sample_server.ListOfListOfFloats\x12\x14\n\x0cstepAccuracy\x18\x03 \x01(\x02\x12\x10\n\x08stepLoss\x18\x04 \x01(\x02\"\x1a\n\nListOfInts\x12\x0c\n\x04\x64\x61ta\x18\x01 \x03(\x05\";\n\x10ListOfListOfInts\x12\'\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32\x19.sample_server.ListOfInts\"\x1c\n\x0cListOfFloats\x12\x0c\n\x04\x64\x61ta\x18\x01 \x03(\x02\"?\n\x12ListOfListOfFloats\x12)\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32\x1b.sample_server.ListOfFloats\"K\n\x18ListOfListOfListOfFloats\x12/\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32!.sample_server.ListOfListOfFloats2\xee\x02\n\x0cSampleServer\x12H\n\x07\x43onnect\x12\x1b.sample_server.EmptyRequest\x1a\x1e.sample_server.ConnectResponse\"\x00\x12N\n\nDisconnect\x12 .sample_server.DisconnectRequest\x1a\x1c.sample_server.EmptyResponse\"\x00\x12k\n\x12TryToJoinIteration\x12(.sample_server.TryToJoinIterationRequest\x1a).sample_server.TryToJoinIterationResponse\"\x00\x12W\n\x0fSubmitIteration\x12%.sample_server.SubmitIterationRequest\x1a\x1b.sample_server.EmptyRequest\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16\x63\x65zo_grpc/sample.proto\x12\rsample_server\"\x0e\n\x0c\x45mptyRequest\"\x0f\n\rEmptyResponse\":\n\x0f\x43onnectResponse\x12\x12\n\nsuccessful\x18\x01 \x01(\x08\x12\x13\n\x0b\x63lientIndex\x18\x02 \x01(\x05\"(\n\x11\x44isconnectRequest\x12\x13\n\x0b\x63lientIndex\x18\x01 \x01(\x05\"0\n\x19TryToJoinIterationRequest\x12\x13\n\x0b\x63lientIndex\x18\x01 \x01(\x05\"\xd3\x01\n\x1aTryToJoinIterationResponse\x12\x12\n\nsuccessful\x18\x01 \x01(\x08\x12\x32\n\tpullSeeds\x18\x02 \x01(\x0b\x32\x1f.sample_server.ListOfListOfInts\x12:\n\tpullGrads\x18\x03 \x01(\x0b\x32\'.sample_server.ListOfListOfListOfFloats\x12\x31\n\x0eiterationSeeds\x18\x04 \x01(\x0b\x32\x19.sample_server.ListOfInts\"\x8d\x01\n\x16SubmitIterationRequest\x12\x13\n\x0b\x63lientIndex\x18\x01 \x01(\x05\x12\x36\n\x0bgradTensors\x18\x02 \x01(\x0b\x32!.sample_server.ListOfListOfFloats\x12\x14\n\x0cstepAccuracy\x18\x03 \x01(\x02\x12\x10\n\x08stepLoss\x18\x04 \x01(\x02\"A\n\x17SubmitEvaluationRequest\x12\x14\n\x0c\x65valAccuracy\x18\x01 \x01(\x02\x12\x10\n\x08\x65valLoss\x18\x02 \x01(\x02\"\x1a\n\nListOfInts\x12\x0c\n\x04\x64\x61ta\x18\x01 \x03(\x05\";\n\x10ListOfListOfInts\x12\'\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32\x19.sample_server.ListOfInts\"\x1c\n\x0cListOfFloats\x12\x0c\n\x04\x64\x61ta\x18\x01 \x03(\x02\"?\n\x12ListOfListOfFloats\x12)\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32\x1b.sample_server.ListOfFloats\"K\n\x18ListOfListOfListOfFloats\x12/\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32!.sample_server.ListOfListOfFloats2\xbf\x05\n\x0cSampleServer\x12H\n\x07\x43onnect\x12\x1b.sample_server.EmptyRequest\x1a\x1e.sample_server.ConnectResponse\"\x00\x12N\n\nDisconnect\x12 .sample_server.DisconnectRequest\x1a\x1c.sample_server.EmptyResponse\"\x00\x12k\n\x12TryToJoinIteration\x12(.sample_server.TryToJoinIterationRequest\x1a).sample_server.TryToJoinIterationResponse\"\x00\x12X\n\x0fSubmitIteration\x12%.sample_server.SubmitIterationRequest\x1a\x1c.sample_server.EmptyResponse\"\x00\x12L\n\x0b\x43onnectEval\x12\x1b.sample_server.EmptyRequest\x1a\x1e.sample_server.ConnectResponse\"\x00\x12M\n\x0e\x44isconnectEval\x12\x1b.sample_server.EmptyRequest\x1a\x1c.sample_server.EmptyResponse\"\x00\x12U\n\tTryToEval\x12\x1b.sample_server.EmptyRequest\x1a).sample_server.TryToJoinIterationResponse\"\x00\x12Z\n\x10SubmitEvaluation\x12&.sample_server.SubmitEvaluationRequest\x1a\x1c.sample_server.EmptyResponse\"\x00\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -45,16 +45,18 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_TRYTOJOINITERATIONRESPONSE']._serialized_end=438
   _globals['_SUBMITITERATIONREQUEST']._serialized_start=441
   _globals['_SUBMITITERATIONREQUEST']._serialized_end=582
-  _globals['_LISTOFINTS']._serialized_start=584
-  _globals['_LISTOFINTS']._serialized_end=610
-  _globals['_LISTOFLISTOFINTS']._serialized_start=612
-  _globals['_LISTOFLISTOFINTS']._serialized_end=671
-  _globals['_LISTOFFLOATS']._serialized_start=673
-  _globals['_LISTOFFLOATS']._serialized_end=701
-  _globals['_LISTOFLISTOFFLOATS']._serialized_start=703
-  _globals['_LISTOFLISTOFFLOATS']._serialized_end=766
-  _globals['_LISTOFLISTOFLISTOFFLOATS']._serialized_start=768
-  _globals['_LISTOFLISTOFLISTOFFLOATS']._serialized_end=843
-  _globals['_SAMPLESERVER']._serialized_start=846
-  _globals['_SAMPLESERVER']._serialized_end=1212
+  _globals['_SUBMITEVALUATIONREQUEST']._serialized_start=584
+  _globals['_SUBMITEVALUATIONREQUEST']._serialized_end=649
+  _globals['_LISTOFINTS']._serialized_start=651
+  _globals['_LISTOFINTS']._serialized_end=677
+  _globals['_LISTOFLISTOFINTS']._serialized_start=679
+  _globals['_LISTOFLISTOFINTS']._serialized_end=738
+  _globals['_LISTOFFLOATS']._serialized_start=740
+  _globals['_LISTOFFLOATS']._serialized_end=768
+  _globals['_LISTOFLISTOFFLOATS']._serialized_start=770
+  _globals['_LISTOFLISTOFFLOATS']._serialized_end=833
+  _globals['_LISTOFLISTOFLISTOFFLOATS']._serialized_start=835
+  _globals['_LISTOFLISTOFLISTOFFLOATS']._serialized_end=910
+  _globals['_SAMPLESERVER']._serialized_start=913
+  _globals['_SAMPLESERVER']._serialized_end=1616
 # @@protoc_insertion_point(module_scope)

@@ -52,7 +52,27 @@ class SampleServerStub(object):
         self.SubmitIteration = channel.unary_unary(
                 '/sample_server.SampleServer/SubmitIteration',
                 request_serializer=cezo__grpc_dot_sample__pb2.SubmitIterationRequest.SerializeToString,
-                response_deserializer=cezo__grpc_dot_sample__pb2.EmptyRequest.FromString,
+                response_deserializer=cezo__grpc_dot_sample__pb2.EmptyResponse.FromString,
+                _registered_method=True)
+        self.ConnectEval = channel.unary_unary(
+                '/sample_server.SampleServer/ConnectEval',
+                request_serializer=cezo__grpc_dot_sample__pb2.EmptyRequest.SerializeToString,
+                response_deserializer=cezo__grpc_dot_sample__pb2.ConnectResponse.FromString,
+                _registered_method=True)
+        self.DisconnectEval = channel.unary_unary(
+                '/sample_server.SampleServer/DisconnectEval',
+                request_serializer=cezo__grpc_dot_sample__pb2.EmptyRequest.SerializeToString,
+                response_deserializer=cezo__grpc_dot_sample__pb2.EmptyResponse.FromString,
+                _registered_method=True)
+        self.TryToEval = channel.unary_unary(
+                '/sample_server.SampleServer/TryToEval',
+                request_serializer=cezo__grpc_dot_sample__pb2.EmptyRequest.SerializeToString,
+                response_deserializer=cezo__grpc_dot_sample__pb2.TryToJoinIterationResponse.FromString,
+                _registered_method=True)
+        self.SubmitEvaluation = channel.unary_unary(
+                '/sample_server.SampleServer/SubmitEvaluation',
+                request_serializer=cezo__grpc_dot_sample__pb2.SubmitEvaluationRequest.SerializeToString,
+                response_deserializer=cezo__grpc_dot_sample__pb2.EmptyResponse.FromString,
                 _registered_method=True)
 
 
@@ -83,6 +103,30 @@ class SampleServerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ConnectEval(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DisconnectEval(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def TryToEval(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SubmitEvaluation(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_SampleServerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -104,7 +148,27 @@ def add_SampleServerServicer_to_server(servicer, server):
             'SubmitIteration': grpc.unary_unary_rpc_method_handler(
                     servicer.SubmitIteration,
                     request_deserializer=cezo__grpc_dot_sample__pb2.SubmitIterationRequest.FromString,
-                    response_serializer=cezo__grpc_dot_sample__pb2.EmptyRequest.SerializeToString,
+                    response_serializer=cezo__grpc_dot_sample__pb2.EmptyResponse.SerializeToString,
+            ),
+            'ConnectEval': grpc.unary_unary_rpc_method_handler(
+                    servicer.ConnectEval,
+                    request_deserializer=cezo__grpc_dot_sample__pb2.EmptyRequest.FromString,
+                    response_serializer=cezo__grpc_dot_sample__pb2.ConnectResponse.SerializeToString,
+            ),
+            'DisconnectEval': grpc.unary_unary_rpc_method_handler(
+                    servicer.DisconnectEval,
+                    request_deserializer=cezo__grpc_dot_sample__pb2.EmptyRequest.FromString,
+                    response_serializer=cezo__grpc_dot_sample__pb2.EmptyResponse.SerializeToString,
+            ),
+            'TryToEval': grpc.unary_unary_rpc_method_handler(
+                    servicer.TryToEval,
+                    request_deserializer=cezo__grpc_dot_sample__pb2.EmptyRequest.FromString,
+                    response_serializer=cezo__grpc_dot_sample__pb2.TryToJoinIterationResponse.SerializeToString,
+            ),
+            'SubmitEvaluation': grpc.unary_unary_rpc_method_handler(
+                    servicer.SubmitEvaluation,
+                    request_deserializer=cezo__grpc_dot_sample__pb2.SubmitEvaluationRequest.FromString,
+                    response_serializer=cezo__grpc_dot_sample__pb2.EmptyResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -214,7 +278,115 @@ class SampleServer(object):
             target,
             '/sample_server.SampleServer/SubmitIteration',
             cezo__grpc_dot_sample__pb2.SubmitIterationRequest.SerializeToString,
-            cezo__grpc_dot_sample__pb2.EmptyRequest.FromString,
+            cezo__grpc_dot_sample__pb2.EmptyResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ConnectEval(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sample_server.SampleServer/ConnectEval',
+            cezo__grpc_dot_sample__pb2.EmptyRequest.SerializeToString,
+            cezo__grpc_dot_sample__pb2.ConnectResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DisconnectEval(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sample_server.SampleServer/DisconnectEval',
+            cezo__grpc_dot_sample__pb2.EmptyRequest.SerializeToString,
+            cezo__grpc_dot_sample__pb2.EmptyResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def TryToEval(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sample_server.SampleServer/TryToEval',
+            cezo__grpc_dot_sample__pb2.EmptyRequest.SerializeToString,
+            cezo__grpc_dot_sample__pb2.TryToJoinIterationResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SubmitEvaluation(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/sample_server.SampleServer/SubmitEvaluation',
+            cezo__grpc_dot_sample__pb2.SubmitEvaluationRequest.SerializeToString,
+            cezo__grpc_dot_sample__pb2.EmptyResponse.FromString,
             options,
             channel_credentials,
             insecure,
