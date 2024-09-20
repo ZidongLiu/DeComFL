@@ -171,7 +171,6 @@ class CeZO_Server:
         if self.server_model:
             assert self.optim
             assert self.random_gradient_estimator
-            print(seeds, grad_scalar)
             self.server_model.train()
             self.random_gradient_estimator.update_model_given_seed_and_grad(
                 self.optim,
