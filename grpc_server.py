@@ -18,6 +18,8 @@ class ServerStatus(Enum):
     training = "training"
     aggregating = "aggregating"
     evaluating = "evaluating"
+    # TODO: implement finishing logic when training iteration reaches the target
+    finishing = "finishing"
 
 
 def find_first(lst: list, check_fn) -> int:
@@ -40,7 +42,8 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         self.client_last_updates = [0 for _ in range(self.num_clients)]
         self.status = ServerStatus.connecting
 
-        self.connect_lock = threading.Lock()
+        self.lock = threading.Lock()
+
         self.connected_clients: list[bool] = [False for _ in range(self.num_clients)]
 
         self.eval_client_connected: bool = False
@@ -50,6 +53,12 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         self.iteration_seeds: list[int] = []
         self.iteration_sampled_clients: list[int] = []
         self.iteration_local_grad_scalar: dict[int, list[torch.Tensor]] = {}
+
+    def _get_connect_status(self):
+        if self.should_eval:
+            return f"train clients: {self.connected_clients}, eval client: {self.eval_client_connected}"
+        else:
+            return f"train clients: {self.connected_clients}"
 
     def _get_next_connect_client_index(self) -> int:
         return find_first(self.connected_clients, lambda x: not x)
@@ -152,65 +161,64 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         self.change_status(ServerStatus.training)
 
     def Connect(self, request, context):
-        if self.status is not ServerStatus.connecting:
-            return sample_pb2.ConnectResponse(successful=False, clientIndex=-1)
+        with self.lock:
+            if self.status is not ServerStatus.connecting:
+                return sample_pb2.ConnectResponse(successful=False, clientIndex=-1)
 
-        self.connect_lock.acquire()
-        client_index = self._get_next_connect_client_index()
-        if client_index == -1:
-            print("All clients slot are engaged, decline this connect request")
-            return sample_pb2.ConnectResponse(successful=False, clientIndex=client_index)
+            client_index = self._get_next_connect_client_index()
+            if client_index == -1:
+                print("All clients slot are engaged, decline this connect request")
+                return sample_pb2.ConnectResponse(successful=False, clientIndex=client_index)
 
-        print(f"try to assign {client_index}")
-        self.connected_clients[client_index] = True
-        self.try_swtich_from_connecting_to_training()
-        self.connect_lock.release()
-        return sample_pb2.ConnectResponse(successful=True, clientIndex=client_index)
+            self.connected_clients[client_index] = True
+            print(f"Just assigned {client_index}. {self._get_connect_status()}")
+            self.try_swtich_from_connecting_to_training()
+            return sample_pb2.ConnectResponse(successful=True, clientIndex=client_index)
 
     def Disconnect(self, request, context):
         # this can happen at any status, we force status to be connecting when this method is called
         # TODO: depending on status, need to abort current iteration. May need to
-        self.connect_lock.acquire()
-        client_index = request.clientIndex
-        print(f"client {client_index} disconnected, waiting for new client to connect")
-        self.connected_clients[client_index] = False
-        # next connected client will need to update from 0's iteration
-        self.client_last_updates[client_index] = 0
-        self.swtich_to_connecting()
-        self.connect_lock.release()
+        with self.lock:
+            client_index = request.clientIndex
+            print(f"client {client_index} disconnected, waiting for new client to connect")
+            self.connected_clients[client_index] = False
+            # next connected client will need to update from 0's iteration
+            self.client_last_updates[client_index] = 0
+            self.swtich_to_connecting()
 
-        return sample_pb2.EmptyResponse()
+            return sample_pb2.EmptyResponse()
 
     def TryToJoinIteration(self, request, context):
-        client_index = request.clientIndex
-        if (
-            self.status is not ServerStatus.training
-            or client_index not in self.iteration_sampled_clients
-        ):
+        with self.lock:
+            client_index = request.clientIndex
+            if (
+                self.status is not ServerStatus.training
+                or client_index not in self.iteration_sampled_clients
+            ):
+                return sample_pb2.TryToJoinIterationResponse(
+                    successful=False,
+                    pullSeeds=data_helper.py_to_protobuf_list_of_list_of_ints([]),
+                    pullGrads=data_helper.py_to_protobuf_list_of_list_of_list_of_floats([]),
+                    iterationSeeds=data_helper.py_to_protobuf_list_of_ints([]),
+                )
+
+            last_update_iter = self.client_last_updates[client_index]
+            # The seed and grad in last_update_iter is fetched as well
+            # Note at that iteration, we just reset the client model so that iteration
+            # information is needed as well.
+            seeds_list = self.seed_grad_records.fetch_seed_records(last_update_iter)
+            grad_list = self.seed_grad_records.fetch_grad_records(last_update_iter)
+
+            self.client_last_updates[client_index] = self.iteration
+
             return sample_pb2.TryToJoinIterationResponse(
-                successful=False,
-                pullSeeds=data_helper.py_to_protobuf_list_of_list_of_ints([]),
-                pullGrads=data_helper.py_to_protobuf_list_of_list_of_list_of_floats([]),
-                iterationSeeds=data_helper.py_to_protobuf_list_of_ints([]),
+                successful=True,
+                pullSeeds=data_helper.py_to_protobuf_list_of_list_of_ints(seeds_list),
+                pullGrads=data_helper.py_to_protobuf_list_of_list_of_list_of_floats(
+                    [[ts.tolist() for ts in vv] for vv in grad_list]
+                ),
+                iterationSeeds=data_helper.py_to_protobuf_list_of_ints(self.iteration_seeds),
             )
-
-        last_update_iter = self.client_last_updates[client_index]
-        # The seed and grad in last_update_iter is fetched as well
-        # Note at that iteration, we just reset the client model so that iteration
-        # information is needed as well.
-        seeds_list = self.seed_grad_records.fetch_seed_records(last_update_iter)
-        grad_list = self.seed_grad_records.fetch_grad_records(last_update_iter)
-
-        self.client_last_updates[client_index] = self.iteration
-
-        return sample_pb2.TryToJoinIterationResponse(
-            successful=True,
-            pullSeeds=data_helper.py_to_protobuf_list_of_list_of_ints(seeds_list),
-            pullGrads=data_helper.py_to_protobuf_list_of_list_of_list_of_floats(
-                [[ts.tolist() for ts in vv] for vv in grad_list]
-            ),
-            iterationSeeds=data_helper.py_to_protobuf_list_of_ints(self.iteration_seeds),
-        )
 
     def _apply_client_local_update_result(self, client_index, local_update_result):
         if client_index not in self.iteration_sampled_clients:
@@ -220,91 +228,85 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
             self.iteration_local_grad_scalar[client_index] = local_update_result
 
     def SubmitIteration(self, request, context):
-        client_index = request.clientIndex
-        print(f"submit iteration from {client_index}")
+        with self.lock:
+            client_index = request.clientIndex
+            print(f"submit iteration from {client_index}")
 
-        if (
-            self.status is not ServerStatus.training
-            or client_index not in self.iteration_sampled_clients
-        ):
+            if (
+                self.status is not ServerStatus.training
+                or client_index not in self.iteration_sampled_clients
+            ):
+                return sample_pb2.EmptyResponse()
+
+            raw_grad_list = data_helper.protobuf_to_py_list_of_list_of_floats(request.gradTensors)
+            grad_tensors = [torch.tensor(v) for v in raw_grad_list]
+            self._apply_client_local_update_result(client_index, grad_tensors)
+            self.try_switch_from_training_to_aggregating()
             return sample_pb2.EmptyResponse()
 
-        self.connect_lock.acquire()
-        raw_grad_list = data_helper.protobuf_to_py_list_of_list_of_floats(request.gradTensors)
-        grad_tensors = [torch.tensor(v) for v in raw_grad_list]
-        self._apply_client_local_update_result(client_index, grad_tensors)
-        self.try_switch_from_training_to_aggregating()
-        self.connect_lock.release()
-        return sample_pb2.EmptyResponse()
-
     def ConnectEval(self, request, context):
-        if self.status is not ServerStatus.connecting:
-            return sample_pb2.ConnectResponse(successful=False, clientIndex=-1)
+        with self.lock:
+            if self.status is not ServerStatus.connecting:
+                return sample_pb2.ConnectResponse(successful=False, clientIndex=-1)
 
-        self.connect_lock.acquire()
-        if self.eval_client_connected:
-            print("A eval client is already connected!")
-            return sample_pb2.ConnectResponse(successful=False, clientIndex=-1)
+            if self.eval_client_connected:
+                print("A eval client is already connected!")
+                return sample_pb2.ConnectResponse(successful=False, clientIndex=-1)
 
-        print("Eval Client connected")
-        self.eval_client_connected = True
-        self.try_swtich_from_connecting_to_training()
-        self.connect_lock.release()
-        return sample_pb2.ConnectResponse(successful=True, clientIndex=-1)
+            self.eval_client_connected = True
+            print(f"Eval Client connected. {self._get_connect_status()}")
+            self.try_swtich_from_connecting_to_training()
+            return sample_pb2.ConnectResponse(successful=True, clientIndex=-1)
 
     def DisconnectEval(self, request, context):
         # this can happen at any status, we force status to be connecting when this method is called
         # TODO: depending on status, need to abort current iteration. May need to
-        self.connect_lock.acquire()
-        print("Eval client disconnected, waiting for new client to connect")
-        self.eval_client_connected = False
-        # next connected client will need to update from 0's iteration
-        self.eval_client_last_update = 0
+        with self.lock:
+            print("Eval client disconnected, waiting for new client to connect")
+            self.eval_client_connected = False
+            # next connected client will need to update from 0's iteration
+            self.eval_client_last_update = 0
 
-        self.swtich_to_connecting()
-        self.connect_lock.release()
+            self.swtich_to_connecting()
 
     def TryToEval(self, request, context):
-        if self.status is not ServerStatus.evaluating:
-            print("try to eval")
+        with self.lock:
+            if self.status is not ServerStatus.evaluating:
+                return sample_pb2.TryToJoinIterationResponse(
+                    successful=False,
+                    pullSeeds=data_helper.py_to_protobuf_list_of_list_of_ints([]),
+                    pullGrads=data_helper.py_to_protobuf_list_of_list_of_list_of_floats([]),
+                    iterationSeeds=data_helper.py_to_protobuf_list_of_ints([]),
+                )
+
+            # The seed and grad in last_update_iter is fetched as well
+            # Note at that iteration, we just reset the client model so that iteration
+            # information is needed as well.
+            seeds_list = self.seed_grad_records.fetch_seed_records(self.eval_client_last_update)
+            grad_list = self.seed_grad_records.fetch_grad_records(self.eval_client_last_update)
+            self.eval_client_last_update = self.iteration
             return sample_pb2.TryToJoinIterationResponse(
-                successful=False,
-                pullSeeds=data_helper.py_to_protobuf_list_of_list_of_ints([]),
-                pullGrads=data_helper.py_to_protobuf_list_of_list_of_list_of_floats([]),
+                successful=True,
+                pullSeeds=data_helper.py_to_protobuf_list_of_list_of_ints(seeds_list),
+                pullGrads=data_helper.py_to_protobuf_list_of_list_of_list_of_floats(
+                    [[ts.tolist() for ts in vv] for vv in grad_list]
+                ),
                 iterationSeeds=data_helper.py_to_protobuf_list_of_ints([]),
             )
 
-        # The seed and grad in last_update_iter is fetched as well
-        # Note at that iteration, we just reset the client model so that iteration
-        # information is needed as well.
-        print("before return try to eval 1", self.eval_client_last_update)
-        seeds_list = self.seed_grad_records.fetch_seed_records(self.eval_client_last_update)
-        grad_list = self.seed_grad_records.fetch_grad_records(self.eval_client_last_update)
-        print("seeds_list, grad_list", seeds_list, grad_list)
-        self.eval_client_last_update = self.iteration
-        print("before return try to eval 4")
-        return sample_pb2.TryToJoinIterationResponse(
-            successful=True,
-            pullSeeds=data_helper.py_to_protobuf_list_of_list_of_ints(seeds_list),
-            pullGrads=data_helper.py_to_protobuf_list_of_list_of_list_of_floats(
-                [[ts.tolist() for ts in vv] for vv in grad_list]
-            ),
-            iterationSeeds=data_helper.py_to_protobuf_list_of_ints([]),
-        )
-
     def SubmitEvaluation(self, request, context):
-        print("submit evaluation")
-        if self.status is not ServerStatus.evaluating:
+        with self.lock:
+            if self.status is not ServerStatus.evaluating:
+                return sample_pb2.EmptyResponse()
+
+            eval_loss, eval_accuracy = request.evalLoss, request.evalAccuracy
+            print(
+                f"\nEvaluation(Iteration {self.iteration}): ",
+                f"Eval Loss:{eval_loss:.4f}, " f"Accuracy:{eval_accuracy * 100:.2f}%",
+            )
+            self.switch_from_evaluating_to_training()
+
             return sample_pb2.EmptyResponse()
-
-        eval_loss, eval_accuracy = request.evalLoss, request.evalAccuracy
-        print(
-            f"\nEvaluation(Iteration {self.iteration}): ",
-            f"Eval Loss:{eval_loss:.4f}, " f"Accuracy:{eval_accuracy * 100:.2f}%",
-        )
-        self.switch_from_evaluating_to_training()
-
-        return sample_pb2.EmptyResponse()
 
 
 def serve(rpc_master_port, rpc_num_workers):
