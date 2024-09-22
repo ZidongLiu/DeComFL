@@ -54,12 +54,7 @@ def setup_eval_model(args):
     return update_model, eval_model, device
 
 
-if __name__ == "__main__":
-    args = config.get_params().parse_args()
-    if args.dataset == "shakespeare":
-        args.num_clients = 139
-    print(args)
-
+def eval_with_args(args):
     ps_stub = grpc_client.get_stub()
 
     grpc_client.repeat_every(
@@ -89,7 +84,6 @@ if __name__ == "__main__":
             tensor_grad_list = [
                 [torch.tensor(v, device=device) for v in vv] for vv in raw_grad_list
             ]
-            print(tensor_grad_list)
 
             update_model(pull_seeds_list, tensor_grad_list)
             eval_loss, eval_accuracy = eval_model()
@@ -100,4 +94,12 @@ if __name__ == "__main__":
             )
 
         grpc_client.repeat_every(try_to_eval, lambda x: False)
-    print("success")
+
+
+if __name__ == "__main__":
+    args = config.get_params().parse_args()
+    if args.dataset == "shakespeare":
+        args.num_clients = 139
+    print(args)
+
+    eval_with_args(args)

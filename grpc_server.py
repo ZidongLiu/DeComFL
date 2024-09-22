@@ -11,6 +11,7 @@ from cezo_grpc import sample_pb2
 from cezo_fl import server
 from byzantine.aggregation import mean
 from byzantine.attack import no_byz
+import config
 
 
 class ServerStatus(Enum):
@@ -30,13 +31,13 @@ def find_first(lst: list, check_fn) -> int:
 
 
 class SampleServer(sample_pb2_grpc.SampleServerServicer):
-    def __init__(self):
+    def __init__(self, num_clients, num_sample_clients, local_update_steps):
         self.should_eval = True
         self.eval_iteration = 25
 
-        self.num_clients = 3
-        self.num_sample_clients = 2
-        self.local_update_steps = 1
+        self.num_clients = num_clients
+        self.num_sample_clients = num_sample_clients
+        self.local_update_steps = local_update_steps
 
         self.seed_grad_records = server.SeedAndGradientRecords()
         self.client_last_updates = [0 for _ in range(self.num_clients)]
@@ -309,9 +310,13 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
             return sample_pb2.EmptyResponse()
 
 
-def serve(rpc_master_port, rpc_num_workers):
+def serve(args):
+    rpc_master_port = 4242
+    rpc_num_workers = 8
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=rpc_num_workers))
-    sample_pb2_grpc.add_SampleServerServicer_to_server(SampleServer(), server)
+    sample_pb2_grpc.add_SampleServerServicer_to_server(
+        SampleServer(args.num_clients, args.num_sample_clients, args.local_update_steps), server
+    )
     server.add_insecure_port(f"localhost:{rpc_master_port}")
     print(f"Parameter server starting on [::]:{rpc_master_port}")
     server.start()
@@ -319,4 +324,8 @@ def serve(rpc_master_port, rpc_num_workers):
 
 
 if __name__ == "__main__":
-    serve(4242, 8)
+    args = config.get_params().parse_args()
+    if args.dataset == "shakespeare":
+        args.num_clients = 139
+    print(args)
+    serve(args)

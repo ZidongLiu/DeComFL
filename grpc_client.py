@@ -53,12 +53,7 @@ def get_stub():
     return ps_stub
 
 
-if __name__ == "__main__":
-    args = config.get_params().parse_args()
-    if args.dataset == "shakespeare":
-        args.num_clients = 139
-    print(args)
-
+def train_with_args(args):
     ps_stub = get_stub()
 
     connect_result = repeat_every(
@@ -111,4 +106,11 @@ if __name__ == "__main__":
             )
 
         repeat_every(try_to_join_iteration, lambda x: False)
-    print("success")
+
+
+if __name__ == "__main__":
+    args = config.get_params().parse_args()
+    if args.dataset == "shakespeare":
+        args.num_clients = 139
+    print(args)
+    train_with_args(args)
