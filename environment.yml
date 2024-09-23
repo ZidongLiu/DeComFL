@@ -17,6 +17,9 @@ dependencies:
   - pytorch::pytorch=2.3
   - pytorch::torchvision=0.18
 
+  - grpcio-tools=1.62.2
+  - conda-forge::grpcio=1.62.2
+
   - numpy=1.23
   - tensorboardx=2.6
   - tqdm=4.66

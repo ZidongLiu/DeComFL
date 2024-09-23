@@ -35,6 +35,7 @@ For READMD.md, we will use `environment.yml` whenever a environment file is need
 3. Once installation is finished, run `conda activate decomfl` to use the created virtual env.
 4. (Optional) If you see something like `conda init before activate`. Run `conda init`, then restart your terminal/powershell. Then repeat step 3.
 5. Run any command provided in [Run Experiments](#run-experiments) section. If code works, then congratulations, you have successfully set up the environment for this repo!
+6. Update the environemtn if there are some missing dependencies, most recent change was introduced by adding grpc. Try `conda env update --file environment.yml --prune`. The `--prune` option causes conda to remove any dependencies that are no longer required from the environment.
 
 ## Run Experiments
 
@@ -43,7 +44,6 @@ For READMD.md, we will use `environment.yml` whenever a environment file is need
 
 - **Run DeComFL:** Follow FL routine, split data into chunks and train on different clients.
   Usage example: `python decomfl_main.py --large-model=opt-125m --dataset=sst2 --iterations=1000 --train-batch-size=32 --test-batch-size=200 --eval-iterations=25 --num-clients=3 --num-sample-clients=2 --local-update-steps=1 --num-pert=5 --lr=1e-5 --mu=1e-3 --grad-estimate-method=rge-forward`
-
 
 ## Citation
 
@@ -57,7 +57,8 @@ For READMD.md, we will use `environment.yml` whenever a environment file is need
 ```
 
 ## Our Team
-DeComFL is currently contributed and maintained by **Zidong Liu** (ComboCurve), **Bicheng Ying** (Google) and **Zhe Li** (RIT), and advised by Prof. **Haibo Yang** (RIT). 
+
+DeComFL is currently contributed and maintained by **Zidong Liu** (ComboCurve), **Bicheng Ying** (Google) and **Zhe Li** (RIT), and advised by Prof. **Haibo Yang** (RIT).
 
 <div style="display: flex; justify-content: space-between;">
     <img src="https://github.com/user-attachments/assets/b3982917-e302-42c3-b396-e33bb9f52c90" alt="Image 1" style="width: 80%;" />
