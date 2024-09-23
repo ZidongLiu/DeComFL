@@ -156,6 +156,29 @@ def get_params():
     return parser
 
 
+def get_params_grpc():
+    parser = get_params()
+    parser.add_argument(
+        "--rpc_master_addr",
+        type=str,
+        default="localhost",
+        help="Address of the RPC master node (the parameter server).",
+    )
+    parser.add_argument(
+        "--rpc_master_port",
+        type=int,
+        default=4242,
+        help="Port of the RPC master node (the parameter server).",
+    )
+    parser.add_argument(
+        "--rpc_num_workers",
+        type=int,
+        default=8,
+        help="Number of workers for training, excluding the parameter server.",
+    )
+    return parser
+
+
 def get_args_dict(args):
     return {key: getattr(args, key) for key in DEFAULTS.keys()}
 

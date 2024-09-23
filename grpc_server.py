@@ -311,20 +311,20 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
 
 
 def serve(args):
-    rpc_master_port = 4242
-    rpc_num_workers = 8
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=rpc_num_workers))
+    rpc_master_port = args.rpc_master_port
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=args.rpc_num_workers))
     sample_pb2_grpc.add_SampleServerServicer_to_server(
         SampleServer(args.num_clients, args.num_sample_clients, args.local_update_steps), server
     )
-    server.add_insecure_port(f"localhost:{rpc_master_port}")
-    print(f"Parameter server starting on [::]:{rpc_master_port}")
+    port_str = f"{args.rpc_master_addr}:{rpc_master_port}"
+    server.add_insecure_port(port_str)
+    print(f"Parameter server starting on {port_str}")
     server.start()
     server.wait_for_termination()
 
 
 if __name__ == "__main__":
-    args = config.get_params().parse_args()
+    args = config.get_params_grpc().parse_args()
     if args.dataset == "shakespeare":
         args.num_clients = 139
     print(args)

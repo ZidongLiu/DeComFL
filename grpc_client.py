@@ -109,7 +109,7 @@ def train_with_args(args):
 
 
 if __name__ == "__main__":
-    args = config.get_params().parse_args()
+    args = config.get_params_grpc().parse_args()
     if args.dataset == "shakespeare":
         args.num_clients = 139
     print(args)
