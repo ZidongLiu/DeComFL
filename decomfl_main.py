@@ -19,8 +19,7 @@ from cezo_fl.models.lstm import CharLSTM
 from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
 from cezo_fl.server import CeZO_Server
 from cezo_fl.util import model_helpers
-from cezo_fl.util.language_utils import (LM_TEMPLATE_MAP, SUPPORTED_LLM,
-                                         get_lm_loss)
+from cezo_fl.util.language_utils import LM_TEMPLATE_MAP, SUPPORTED_LLM, get_lm_loss
 from cezo_fl.util.metrics import accuracy
 from config import get_args_str, get_params
 from preprocess import preprocess
