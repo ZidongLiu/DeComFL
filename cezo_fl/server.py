@@ -1,7 +1,7 @@
 from __future__ import annotations
 import random
 import torch
-from typing import Any, Iterable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 from collections import deque
 
 from cezo_fl.run_client_jobs import execute_sampled_clients
@@ -9,8 +9,27 @@ from cezo_fl.shared import CriterionType
 from cezo_fl.client import AbstractClient
 from shared.metrics import Metric
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from byzantine.aggregation import mean, median, trim, krum
-from byzantine.attack import no_byz, gaussian_attack, sign_attack, trim_attack, krum_attack
+
+# Type alias
+# OneRoundGradScalars contains a list (K local update) of (P perturbation) gradient scalars.
+OneRoundGradScalars = list[torch.Tensor]
+# MultiRoundGradScalars is a list of multiple OneRoundGradScalars for multiple rounds.
+MultiRoundGradScalars = list[list[torch.Tensor]]
+# MultiClientOneRoundGradScalars is a list of OneRoundGradScalars for multiple client
+MultiClientOneRoundGradScalars = list[list[torch.Tensor]]
+
+AggregationFunc = Callable[[MultiClientOneRoundGradScalars], OneRoundGradScalars]
+AttackFunc = Callable[[MultiClientOneRoundGradScalars], MultiClientOneRoundGradScalars]
+
+
+def fed_avg(
+    local_grad_scalar_list: MultiClientOneRoundGradScalars,
+) -> OneRoundGradScalars:
+    num_sample_clients = len(local_grad_scalar_list)
+    grad_scalar: list[torch.Tensor] = []
+    for each_local_step_update in zip(*local_grad_scalar_list):
+        grad_scalar.append(sum(each_local_step_update).div_(num_sample_clients))
+    return grad_scalar
 
 
 class SeedAndGradientRecords:
@@ -66,7 +85,6 @@ class CeZO_Server:
         self,
         clients: Sequence[AbstractClient],
         device: torch.device,
-        args,
         num_sample_clients: int = 10,
         local_update_steps: int = 10,
     ) -> None:
@@ -74,7 +92,6 @@ class CeZO_Server:
         self.device = device
         self.num_sample_clients = num_sample_clients
         self.local_update_steps = local_update_steps
-        self.args = args
 
         self.seed_grad_records = SeedAndGradientRecords()
         self.client_last_updates = [0 for _ in range(len(self.clients))]
@@ -84,6 +101,9 @@ class CeZO_Server:
         self.server_accuracy_func = None
         self.optim: torch.optim.Optimizer | None = None
         self.random_gradient_estimator: RGE | None = None
+
+        self._aggregation_func = fed_avg
+        self._attack_func = lambda x: x  # No attach
 
     def set_server_model_and_criterion(
         self,
@@ -116,6 +136,24 @@ class CeZO_Server:
             for p in self.optim.param_groups:
                 p["lr"] = lr
 
+    def aggregation_func(
+        self, local_grad_scalar_list: MultiClientOneRoundGradScalars
+    ) -> OneRoundGradScalars:
+        return self._aggregation_func(local_grad_scalar_list)
+
+    def attack_func(
+        self, local_grad_scalar_list: MultiClientOneRoundGradScalars
+    ) -> MultiClientOneRoundGradScalars:
+        return self._attack_func(local_grad_scalar_list)
+
+    def register_aggregation_func(self, aggregation_func: AggregationFunc) -> None:
+        # TODO add function signature check
+        self._aggregation_func = aggregation_func
+
+    def register_attack_func(self, attack_func: AttackFunc) -> None:
+        # TODO add function signature check
+        self._attack_func = attack_func
+
     def train_one_step(self, iteration: int) -> tuple[float, float]:
         # Step 0: initiate something
         sampled_client_index = self.get_sampled_client_index()
@@ -128,41 +166,13 @@ class CeZO_Server:
 
         for index in sampled_client_index:
             self.client_last_updates[index] = iteration
-        # Step 3: byzantine attack
-        if self.args.byz_type == "no_byz":
-            local_grad_scalar_list = no_byz(local_grad_scalar_list)
-        elif self.args.byz_type == "gaussian":
-            local_grad_scalar_list = gaussian_attack(local_grad_scalar_list, self.args.num_byz)
-        elif self.args.byz_type == "sign":
-            local_grad_scalar_list = sign_attack(local_grad_scalar_list, self.args.num_byz)
-        elif self.args.byz_type == "trim":
-            local_grad_scalar_list = trim_attack(local_grad_scalar_list, self.args.num_byz)
-        elif self.args.byz_type == "krum":
-            local_grad_scalar_list = krum_attack(
-                local_grad_scalar_list, self.args.num_byz, self.args.lr
-            )
-        else:
-            raise Exception(
-                "byz_type should be one of no_byz, gaussian, sign, trim, krum."
-                + f"But get {self.args.byz_type}"
-            )
 
-        # Step 4: server-side aggregation
-        if self.args.aggregation == "mean":
-            grad_scalar = mean(self.args.num_sample_clients, local_grad_scalar_list)
-        elif self.args.aggregation == "median":
-            grad_scalar = median(local_grad_scalar_list)
-        elif self.args.aggregation == "trim":
-            grad_scalar = trim(self.args.num_sample_clients, local_grad_scalar_list)
-        elif self.args.aggregation == "krum":
-            grad_scalar = krum(local_grad_scalar_list)
-        else:
-            raise Exception(
-                "aggregation type should be one of mean, median, trim, krum. "
-                + f"But get {self.args.aggregation}"
-            )
+        # Step 3 aggregation of local grad scalar with (possible attack).
+        local_grad_scalar_list = self.attack_func(local_grad_scalar_list)
+        global_grad_scalar = self.aggregation_func(local_grad_scalar_list)
 
-        self.seed_grad_records.add_records(seeds=seeds, grad=grad_scalar)
+        # Step 4: update the last update records
+        self.seed_grad_records.add_records(seeds=seeds, grad=global_grad_scalar)
 
         # Optional: optimize the memory. Remove is exclusive, i.e., the min last updates
         # information is still kept.
@@ -175,7 +185,7 @@ class CeZO_Server:
             self.random_gradient_estimator.update_model_given_seed_and_grad(
                 self.optim,
                 seeds,
-                grad_scalar,
+                global_grad_scalar,
             )
 
         return step_train_loss.avg, step_train_accuracy.avg
