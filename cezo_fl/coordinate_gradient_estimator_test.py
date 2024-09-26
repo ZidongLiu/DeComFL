@@ -3,8 +3,10 @@ import torch
 from torch import nn
 from torch.optim import SGD
 
-from cezo_fl.coordinate_gradient_estimator import CoordinateGradientEstimator as CGE
-from cezo_fl.coordinate_gradient_estimator import get_parameter_indices_for_ith_elem
+from cezo_fl.coordinate_gradient_estimator import \
+    CoordinateGradientEstimator as CGE
+from cezo_fl.coordinate_gradient_estimator import \
+    get_parameter_indices_for_ith_elem
 
 
 class LinearReg(nn.Module):
