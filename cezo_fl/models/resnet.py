@@ -11,7 +11,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 
-
 __all__ = [
     # imagenet
     "ResNet18",

@@ -1,14 +1,16 @@
 from __future__ import annotations
-import random
-import torch
-from typing import Any, Callable, Iterable, Sequence
-from collections import deque
 
+import random
+from collections import deque
+from typing import Any, Callable, Iterable, Sequence
+
+import torch
+
+from cezo_fl.client import AbstractClient
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
 from cezo_fl.run_client_jobs import execute_sampled_clients
 from cezo_fl.shared import CriterionType
-from cezo_fl.client import AbstractClient
-from shared.metrics import Metric
-from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.util.metrics import Metric
 
 # Type alias
 # OneRoundGradScalars contains a list (K local update) of (P perturbation) gradient scalars.

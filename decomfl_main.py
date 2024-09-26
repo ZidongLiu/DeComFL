@@ -1,30 +1,28 @@
 import functools
+from os import path
 
 import torch
 import torch.nn as nn
+from peft import LoraConfig, get_peft_model
 from tensorboardX import SummaryWriter
-from os import path
+from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
-
-from config import get_params, get_args_str
-from preprocess import preprocess
 
 from byzantine import aggregation as byz_agg
 from byzantine import attack as byz_attack
-from cezo_fl.server import CeZO_Server
 from cezo_fl.client import ResetClient
 from cezo_fl.fl_helpers import get_client_name
-
-from shared import model_helpers
-from models.cnn_mnist import CNN_MNIST
-from models.lenet import LeNet
-from models.cnn_fashion import CNN_FMNIST
-from models.lstm import CharLSTM
-from shared.language_utils import get_lm_loss, LM_TEMPLATE_MAP, SUPPORTED_LLM
-from shared.metrics import accuracy
-from peft import get_peft_model, LoraConfig
-from tqdm import tqdm
-from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.models.cnn_fashion import CNN_FMNIST
+from cezo_fl.models.cnn_mnist import CNN_MNIST
+from cezo_fl.models.lenet import LeNet
+from cezo_fl.models.lstm import CharLSTM
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.server import CeZO_Server
+from cezo_fl.util import model_helpers
+from cezo_fl.util.language_utils import LM_TEMPLATE_MAP, SUPPORTED_LLM, get_lm_loss
+from cezo_fl.util.metrics import accuracy
+from config import get_args_str, get_params
+from preprocess import preprocess
 
 
 def prepare_settings_underseed(args, device):

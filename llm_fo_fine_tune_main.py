@@ -1,11 +1,10 @@
 import torch
 from tqdm import tqdm
 
+import decomfl_main
+from cezo_fl.util.metrics import Metric
 from config import get_params
 from preprocess import preprocess
-
-from shared.metrics import Metric
-import decomfl_main
 
 args = get_params().parse_args()
 

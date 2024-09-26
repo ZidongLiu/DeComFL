@@ -1,10 +1,11 @@
-import torch
-from typing import Sequence, TypeAlias
-from concurrent.futures import ThreadPoolExecutor
 from asyncio.futures import Future
+from concurrent.futures import ThreadPoolExecutor
+from typing import Sequence, TypeAlias
 
-from shared.metrics import Metric
+import torch
+
 from cezo_fl.client import AbstractClient, LocalUpdateResult
+from cezo_fl.util.metrics import Metric
 
 
 def parallalizable_client_job(

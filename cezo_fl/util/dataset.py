@@ -1,10 +1,12 @@
 import json
 import os
 from collections import defaultdict
+
 import numpy as np
-from torch.utils.data import Dataset
 import torch
-from shared.language_utils import word_to_indices, letter_to_vec
+from torch.utils.data import Dataset
+
+from cezo_fl.util.language_utils import letter_to_vec, word_to_indices
 
 
 class FEMNIST(Dataset):
