@@ -15,13 +15,14 @@ from cezo_fl.server import CeZO_Server
 from cezo_fl.client import ResetClient
 from cezo_fl.fl_helpers import get_client_name
 
-from shared.model_helpers import get_current_datetime_str
+from shared import model_helpers
 from models.cnn_mnist import CNN_MNIST
 from models.lenet import LeNet
 from models.cnn_fashion import CNN_FMNIST
 from models.lstm import CharLSTM
 from shared.language_utils import get_lm_loss, LM_TEMPLATE_MAP, SUPPORTED_LLM
 from shared.metrics import accuracy
+from peft import get_peft_model, LoraConfig
 from tqdm import tqdm
 from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
 
@@ -35,9 +36,13 @@ def prepare_settings_underseed(args, device):
     torch.manual_seed(args.seed)
     if args.dataset == "mnist":
         model = CNN_MNIST().to(torch_dtype).to(device)
+
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            weight_decay=1e-5,
+            momentum=args.momentum,
         )
         accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
@@ -45,7 +50,10 @@ def prepare_settings_underseed(args, device):
         model = LeNet().to(torch_dtype).to(device)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            model.parameters(), lr=args.lr, weight_decay=5e-4, momentum=args.momentum
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            weight_decay=5e-4,
+            momentum=args.momentum,
         )
         accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
@@ -55,7 +63,10 @@ def prepare_settings_underseed(args, device):
         model = CNN_FMNIST().to(torch_dtype).to(device)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            model.parameters(), lr=args.lr, weight_decay=1e-5, momentum=args.momentum
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            weight_decay=1e-5,
+            momentum=args.momentum,
         )
         accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
@@ -64,7 +75,12 @@ def prepare_settings_underseed(args, device):
     elif args.dataset == "shakespeare":
         model = CharLSTM().to(torch_dtype).to(device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+        optimizer = torch.optim.SGD(
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            momentum=0.9,
+            weight_decay=5e-4,
+        )
         accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
         #     optimizer, milestones=[200], gamma=0.1
@@ -74,13 +90,25 @@ def prepare_settings_underseed(args, device):
         model_name = SUPPORTED_LLM[large_model]
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(device)
         model.model_name = large_model
+        if args.lora:
+            # this step initialize lora parameters, which should be under control of seed
+            lora_config = LoraConfig(
+                r=args.lora_r, lora_alpha=args.lora_alpha, target_modules=["q_proj", "v_proj"]
+            )
+            model = get_peft_model(model, lora_config).to(torch_dtype)
+
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
         )
         template = LM_TEMPLATE_MAP[args.dataset]()
         verbalizer_id_map = template.get_verbalizer_id(tokenizer)
         criterion = get_lm_loss("last_token", verbalizer_id_map)
-        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0, weight_decay=5e-4)
+        optimizer = torch.optim.SGD(
+            model_helpers.get_trainable_model_parameters(model),
+            lr=args.lr,
+            momentum=0,
+            weight_decay=5e-4,
+        )
         accuracy_func = get_lm_loss("accuracy", verbalizer_id_map)
     else:
         raise Exception(f"Dataset {args.dataset} is not supported")
@@ -90,11 +118,15 @@ def prepare_settings_underseed(args, device):
         print(f"Using RGE {method}")
         grad_estimator = RGE(
             model,
+            parameters=model_helpers.get_trainable_model_parameters(model),
             mu=args.mu,
             num_pert=args.num_pert,
             grad_estimate_method=method,
             device=device,
             torch_dtype=torch_dtype,
+            # To save memory consumption, we have to use parameter-wise perturb + no_optim together.
+            sgd_only_no_optim=args.no_optim,
+            paramwise_perturb=args.no_optim,
         )
     else:
         raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
@@ -133,7 +165,6 @@ def setup_server_and_clients(
     server = CeZO_Server(
         clients,
         server_device,
-        args=args,
         num_sample_clients=args.num_sample_clients,
         local_update_steps=args.local_update_steps,
     )
@@ -223,7 +254,7 @@ if __name__ == "__main__":
             [
                 get_args_str(args),
                 server.server_model.model_name,
-                get_current_datetime_str(),
+                model_helpers.get_current_datetime_str(),
             ]
         )
         writer = SummaryWriter(

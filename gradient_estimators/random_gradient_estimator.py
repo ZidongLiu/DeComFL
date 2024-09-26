@@ -1,17 +1,19 @@
 import torch
 from torch.nn import Parameter
 from typing import Callable, Iterator, TypeAlias, Literal, Sequence
-import transformers
+from transformers.models.opt.modeling_opt import OPTForCausalLM
+from peft import PeftModel
 from shared.language_utils import LLMBatchInput
 
 
 GradEstimateMethod: TypeAlias = Literal["forward", "central"]
 
 
+# TODO: split this class into abstract class and several subcalsses.
 class RandomGradientEstimator:
     def __init__(
         self,
-        model: torch.nn.Module | transformers.models.opt.modeling_opt.OPTForCausalLM,
+        model: torch.nn.Module | OPTForCausalLM | PeftModel,
         parameters: Iterator[Parameter] | None = None,
         mu=1e-3,
         num_pert=1,
@@ -21,12 +23,14 @@ class RandomGradientEstimator:
         torch_dtype: torch.dtype = torch.float32,
         prune_mask_arr: torch.Tensor | None = None,
         paramwise_perturb: bool = False,
+        sgd_only_no_optim: bool = False,
     ):
         self.model = model
         if parameters is None:
             parameters = model.parameters()
         self.parameters_list: list[Parameter] = [p for p in parameters if p.requires_grad]
         self.total_dimensions = sum([p.numel() for p in self.parameters_list])
+        print(f"trainable model size: {self.total_dimensions}")
 
         self.mu = mu
         self.num_pert = num_pert
@@ -39,6 +43,10 @@ class RandomGradientEstimator:
             assert prune_mask_arr is None
             assert normalize_perturbation is False
 
+        self.sgd_only_no_optim = sgd_only_no_optim
+        if sgd_only_no_optim:
+            assert self.paramwise_perturb
+
         self.normalize_perturbation = normalize_perturbation
         self.prune_mask_arr = None
         if prune_mask_arr:
@@ -46,7 +54,7 @@ class RandomGradientEstimator:
 
     # TODO(zidong) move this func out of this class
     def model_forward(self, batch_inputs: torch.Tensor | LLMBatchInput):
-        if isinstance(self.model, transformers.models.opt.modeling_opt.OPTForCausalLM):
+        if isinstance(self.model, (OPTForCausalLM, PeftModel)):
             return self.model(
                 input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask
             )
@@ -59,7 +67,9 @@ class RandomGradientEstimator:
         self.prune_mask_arr = prune_mask_arr
 
     def get_rng(self, seed: int, perturb_index: int) -> torch.Generator:
-        return torch.Generator(device=self.device).manual_seed(seed * perturb_index + perturb_index)
+        return torch.Generator(device=self.device).manual_seed(
+            seed * (perturb_index + 17) + perturb_index
+        )
 
     def generate_perturbation_norm(self, rng: torch.Generator | None = None) -> torch.Tensor:
         p = torch.randn(
@@ -96,8 +106,8 @@ class RandomGradientEstimator:
         num_pert = len(dir_grads)
         for i, dir_grad in enumerate(dir_grads):
             rng = self.get_rng(seed, i)
-            update_grad += self.generate_perturbation_norm(rng).mul_(dir_grad)
-        self.put_grad(update_grad.div_(num_pert))
+            update_grad += self.generate_perturbation_norm(rng).mul_(dir_grad / num_pert)
+        self.put_grad(update_grad)
 
     def compute_grad(self, batch_inputs, labels, criterion, seed: int) -> torch.Tensor:
         if not self.paramwise_perturb:
@@ -114,6 +124,18 @@ class RandomGradientEstimator:
             self.generate_then_put_grad_paramwise(seed, perturbation_dir_grads)
 
         return perturbation_dir_grads
+
+    def sgd_no_optim_update_model(
+        self, perturbation_dir_grads: torch.Tensor, seed: int, lr: float
+    ) -> None:
+        num_pert = len(perturbation_dir_grads)
+        for i, dir_grad in enumerate(perturbation_dir_grads):
+            rng = self.get_rng(seed, i)
+            for param in self.parameters_list:
+                _perturb = torch.randn(
+                    *param.shape, device=self.device, dtype=self.torch_dtype, generator=rng
+                )
+                param.data.add_(_perturb, alpha=-lr * float(dir_grad) / num_pert)
 
     def _zo_grad_estimate(
         self,
@@ -170,7 +192,7 @@ class RandomGradientEstimator:
                 _perturb = torch.randn(
                     *param.shape, device=self.device, dtype=self.torch_dtype, generator=rng
                 )
-                if param.grad is None:
+                if i == 0:
                     param.grad = _perturb.mul_(dir_grad / num_pert)
                 else:
                     param.grad += _perturb.mul_(dir_grad / num_pert)
@@ -220,10 +242,18 @@ class RandomGradientEstimator:
         iteration_grad_scalar: Sequence[torch.Tensor],
     ) -> None:
         assert len(iteration_seeds) == len(iteration_grad_scalar)
-        # NOTE: this zero_grad operation is critical since it sets the parameter.grad to None
-        # which is checked in self.generate_then_put_grad_paramwise
-        optimizer.zero_grad()
+
+        if self.sgd_only_no_optim:
+            lr = optimizer.defaults["lr"]  # Assume only one parameter group with lr.
+            assert self.paramwise_perturb
+            for one_update_seed, one_update_grad_dirs in zip(
+                iteration_seeds, iteration_grad_scalar
+            ):
+                self.sgd_no_optim_update_model(one_update_grad_dirs, one_update_seed, lr)
+            return
+
         for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
+            # We don't really need optimizer.zero_grad() here because we put grad directly.
             if self.paramwise_perturb:
                 self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
             else:
@@ -237,6 +267,8 @@ class RandomGradientEstimator:
         iteration_seeds: Sequence[int],
         iteration_grad_scalar: Sequence[torch.Tensor],
     ) -> None:
+        # TODO: Support sgd_only_no_optim case.
+        assert not self.sgd_only_no_optim
         assert len(iteration_seeds) == len(iteration_grad_scalar)
         try:
             assert isinstance(optimizer, torch.optim.SGD) and optimizer.defaults["momentum"] == 0
@@ -244,8 +276,8 @@ class RandomGradientEstimator:
             raise Exception("Revert only supports SGD without momentum")
 
         lr, weight_decay = optimizer.defaults["lr"], optimizer.defaults["weight_decay"]
-        optimizer.zero_grad()
         for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
+            # We don't really need optimizer.zero_grad() here because we put grad directly.
             if self.paramwise_perturb:
                 self.generate_then_put_grad_paramwise(one_update_seed, one_update_grad_dirs)
             else:

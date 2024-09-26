@@ -4,29 +4,31 @@ from dataclasses import dataclass
 DEFAULTS = {
     # large model
     "large_model": "opt-1.3b",
+    "model_dtype": "float32",
+    # LoRA
+    "lora": False,
+    "lora_r": 8,
+    "lora_alpha": 16,
+    # general
     "train_batch_size": 256,
     "test_batch_size": 1000,
     "lr": 1e-4,
     "epoch": 500,
-    "mu": 1e-4,
     "compressor": "quant",
-    "num_pert": 1,
     "dataset": "mnist",
-    "model_dtype": "float32",
     "momentum": 0.9,
     "warmup_epochs": 5,
-    "adjust_perturb": False,
-    "sparsity_file": None,
-    "mask_shuffle_interval": 5,
-    "grad_estimate_method": "rge-central",
     "seed": 365,
     "num_workers": 2,
     "log_to_tensorboard": None,
     "no_cuda": False,
     "no_mps": False,
-    "checkpoint": None,
-    "create_many_checkpoint": True,
-    "checkpoint_update_plan": "every10",
+    "no_optim": False,
+    # ZO grad estimator
+    "mu": 1e-4,
+    "num_pert": 1,
+    "adjust_perturb": False,
+    "grad_estimate_method": "rge-central",
     # FedDisco
     "iterations": 100,
     "eval_iterations": 20,
@@ -39,6 +41,13 @@ DEFAULTS = {
     "aggregation": "mean",
     "byz_type": "no_byz",
     "num_byz": 1,
+    # Pruning
+    "sparsity_file": None,
+    "mask_shuffle_interval": 5,
+    # Check Points
+    "checkpoint": None,
+    "create_many_checkpoint": True,
+    "checkpoint_update_plan": "every10",
 }
 
 
@@ -50,6 +59,9 @@ def get_params():
     parser.add_argument(
         "--large-model", type=str, default=DEFAULTS["large_model"], choices=["opt-1.3b", "opt-125m"]
     )
+    parser.add_argument("--lora", action="store_true", default=DEFAULTS["lora"])
+    parser.add_argument("--lora-r", type=int, default=DEFAULTS["lora_r"])
+    parser.add_argument("--lora-alpha", type=int, default=DEFAULTS["lora_alpha"])
 
     # cezo-fl
     parser.add_argument("--iterations", type=int, default=DEFAULTS["iterations"])
@@ -135,6 +147,12 @@ def get_params():
         default=DEFAULTS["no_mps"],
         help="disables macOS GPU training",
     )
+    parser.add_argument(
+        "--no-optim",
+        action="store_true",
+        default=DEFAULTS["no_optim"],
+        help="Update model without torch.optim (SGD only). This can significantly save memory.",
+    )
     return parser
 
 
@@ -168,39 +186,49 @@ def get_args_str(args):
 
 @dataclass
 class FakeArgs:
-    large_model = "opt-1.3b"
-    train_batch_size = 256
-    test_batch_size = 1000
-    lr = 1e-4
-    epoch = 500
-    mu = 1e-4
-    compressor = "quant"
-    num_pert = 1
-    dataset = "mnist"
-    model_dtype = "float32"
-    momentum = 0.9
-    warmup_epochs = 5
-    adjust_perturb = False
-    sparsity_file = None
-    mask_shuffle_interval = 5
-    grad_estimate_method = "rge-central"
-    seed = 365
-    num_workers = 2
-    log_to_tensorboard = None
-    no_cuda = False
-    no_mps = False
-    checkpoint = None
-    create_many_checkpoint = True
-    checkpoint_update_plan = "every10"
+    # large model
+    large_model = DEFAULTS["large_model"]
+    model_dtype = DEFAULTS["model_dtype"]
+    # LoRA
+    lora = DEFAULTS["lora"]
+    lora_r = DEFAULTS["lora_r"]
+    lora_alpha = DEFAULTS["lora_alpha"]
+    # general
+    train_batch_size = DEFAULTS["train_batch_size"]
+    test_batch_size = DEFAULTS["test_batch_size"]
+    lr = DEFAULTS["lr"]
+    epoch = DEFAULTS["epoch"]
+    compressor = DEFAULTS["compressor"]
+    dataset = DEFAULTS["dataset"]
+    momentum = DEFAULTS["momentum"]
+    warmup_epochs = DEFAULTS["warmup_epochs"]
+    seed = DEFAULTS["seed"]
+    num_workers = DEFAULTS["num_workers"]
+    log_to_tensorboard = DEFAULTS["log_to_tensorboard"]
+    no_cuda = DEFAULTS["no_cuda"]
+    no_mps = DEFAULTS["no_mps"]
+    no_optim = DEFAULTS["no_optim"]
+    # ZO grad estimator
+    mu = DEFAULTS["mu"]
+    num_pert = DEFAULTS["num_pert"]
+    adjust_perturb = DEFAULTS["adjust_perturb"]
+    grad_estimate_method = DEFAULTS["grad_estimate_method"]
     # FedDisco
-    iterations = 100
-    eval_iterations = 20
-    num_clients = 5
-    num_sample_clients = 3
-    local_update_steps = 1
-    iid = True
-    dirichlet_alpha = 1
+    iterations = DEFAULTS["iterations"]
+    eval_iterations = DEFAULTS["eval_iterations"]
+    num_clients = DEFAULTS["num_clients"]
+    num_sample_clients = DEFAULTS["num_sample_clients"]
+    local_update_steps = DEFAULTS["local_update_steps"]
+    iid = DEFAULTS["iid"]
+    dirichlet_alpha = DEFAULTS["dirichlet_alpha"]
     # Byzantine
-    aggregation = "mean"
-    byz_type = "no_byz"
-    num_byz = 1
+    aggregation = DEFAULTS["aggregation"]
+    byz_type = DEFAULTS["byz_type"]
+    num_byz = DEFAULTS["num_byz"]
+    # Pruning
+    sparsity_file = DEFAULTS["sparsity_file"]
+    mask_shuffle_interval = DEFAULTS["mask_shuffle_interval"]
+    # Check Points
+    checkpoint = DEFAULTS["checkpoint"]
+    create_many_checkpoint = DEFAULTS["create_many_checkpoint"]
+    checkpoint_update_plan = DEFAULTS["checkpoint_update_plan"]
