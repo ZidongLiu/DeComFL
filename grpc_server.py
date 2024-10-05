@@ -117,7 +117,7 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
 
     def _aggregate_and_update_server_record(self) -> None:
         local_grad_scalar_list = no_byz(self._get_iteration_grad_scalar_list())
-        grad_scalar = mean(self.num_sample_clients, local_grad_scalar_list)
+        grad_scalar = mean(local_grad_scalar_list)
 
         self.seed_grad_records.add_records(seeds=self.iteration_seeds, grad=grad_scalar)
         # Optional: optimize the memory. Remove is exclusive, i.e., the min last updates

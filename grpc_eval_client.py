@@ -10,7 +10,7 @@ import config
 import preprocess
 import decomfl_main
 
-from shared.metrics import Metric
+from cezo_fl.util.metrics import Metric
 
 
 def setup_eval_model(args):
