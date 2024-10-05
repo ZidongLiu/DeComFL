@@ -1,20 +1,17 @@
 from os import path
 
 import torch
-
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 
-
-from fed_avg.server import FedAvgServer
-from fed_avg.client import FedAvgClient
 from cezo_fl.fl_helpers import get_client_name
-
 from cezo_fl.util import model_helpers
 from config import get_args_str, get_params
+from decomfl_main import prepare_settings_underseed
+from fed_avg.client import FedAvgClient
+from fed_avg.server import FedAvgServer
 from preprocess import preprocess
 
-from decomfl_main import prepare_settings_underseed
 
 def setup_server_and_clients(
     args, device_map: dict[str, torch.device], train_loaders

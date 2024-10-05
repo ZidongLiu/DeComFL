@@ -11,6 +11,7 @@ from cezo_fl.util.model_helpers import model_forward
 
 from .client import FedAvgClient
 
+
 class FedAvgServer:
     def __init__(
         self,
@@ -58,8 +59,8 @@ class FedAvgServer:
 
         # Step 1 & 2: pull model and local update
         running_sum = [0 for _ in self.server_model.parameters()]
-        step_train_loss = Metric('train_loss')
-        step_train_accuracy = Metric('train_loss')
+        step_train_loss = Metric("train_loss")
+        step_train_accuracy = Metric("train_loss")
         for index in sampled_client_indices:
             client = self.clients[index]
             client.pull_model(self.server_model)
@@ -68,7 +69,7 @@ class FedAvgServer:
             step_train_accuracy.update(client_accuracy)
             for i, p in enumerate(client.model.parameters()):
                 running_sum[i] += p.to(self.device)
-        
+
         self.update_server_model(running_sum)
 
         return step_train_loss.avg, step_train_accuracy.avg
@@ -79,13 +80,8 @@ class FedAvgServer:
         eval_accuracy = Metric("Eval accuracy")
         with torch.no_grad():
             for _, (batch_inputs, batch_labels) in enumerate(test_loader):
-                if (
-                    self.device != torch.device("cpu")
-                    or self.dtype != torch.float32
-                ):
-                    batch_inputs = batch_inputs.to(
-                        self.device, self.dtype
-                    )
+                if self.device != torch.device("cpu") or self.dtype != torch.float32:
+                    batch_inputs = batch_inputs.to(self.device, self.dtype)
                     # NOTE: label does not convert to dtype
                     batch_labels = batch_labels.to(self.device)
                 pred = model_forward(self.server_model, batch_inputs)
