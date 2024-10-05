@@ -1,26 +1,28 @@
-import torch.nn as nn
-import torch
-from tensorboardX import SummaryWriter
+import functools
 from os import path
+
+import torch
+import torch.nn as nn
+from peft import LoraConfig, get_peft_model
+from tensorboardX import SummaryWriter
+from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from config import get_params, get_args_str
-from preprocess import preprocess
-
-from cezo_fl.server import CeZO_Server
+from byzantine import aggregation as byz_agg
+from byzantine import attack as byz_attack
 from cezo_fl.client import ResetClient
 from cezo_fl.fl_helpers import get_client_name
-
-from shared import model_helpers
-from models.cnn_mnist import CNN_MNIST
-from models.lenet import LeNet
-from models.cnn_fashion import CNN_FMNIST
-from models.lstm import CharLSTM
-from shared.language_utils import get_lm_loss, LM_TEMPLATE_MAP, SUPPORTED_LLM
-from shared.metrics import accuracy
-from peft import get_peft_model, LoraConfig
-from tqdm import tqdm
-from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.models.cnn_fashion import CNN_FMNIST
+from cezo_fl.models.cnn_mnist import CNN_MNIST
+from cezo_fl.models.lenet import LeNet
+from cezo_fl.models.lstm import CharLSTM
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.server import CeZO_Server
+from cezo_fl.util import model_helpers
+from cezo_fl.util.language_utils import LM_TEMPLATE_MAP, SUPPORTED_LLM, get_lm_loss
+from cezo_fl.util.metrics import accuracy
+from config import get_args_str, get_params
+from preprocess import preprocess
 
 
 def prepare_settings_underseed(args, device):
@@ -161,7 +163,6 @@ def setup_server_and_clients(
     server = CeZO_Server(
         clients,
         server_device,
-        args=args,
         num_sample_clients=args.num_sample_clients,
         local_update_steps=args.local_update_steps,
     )
@@ -182,6 +183,47 @@ def setup_server_and_clients(
         server_optimizer,
         server_grad_estimator,
     )
+
+    # TODO(lizhe) move this into a seperate main file.
+    # Prepare the Byzantine attack
+    if args.byz_type == "no_byz":
+        server.register_attack_func(byz_attack.no_byz)
+    elif args.byz_type == "gaussian":
+        server.register_attack_func(
+            functools.partial(byz_attack.gaussian_attack, num_attack=args.num_byz)
+        )
+    elif args.byz_type == "sign":
+        server.register_attack_func(
+            functools.partial(byz_attack.sign_attack, num_attack=args.num_byz)
+        )
+    elif args.byz_type == "trim":
+        server.register_attack_func(
+            functools.partial(byz_attack.trim_attack, num_attack=args.num_byz)
+        )
+    elif args.byz_type == "krum":
+        server.register_attack_func(
+            functools.partial(byz_attack.krum_attack, num_attack=args.num_byz, lr=args.lr)
+        )
+    else:
+        raise Exception(
+            "byz_type should be one of no_byz, gaussian, sign, trim, krum."
+            + f"But get {args.byz_type}"
+        )
+
+    if args.aggregation == "mean":
+        server.register_aggregation_func(byz_agg.mean)
+    elif args.aggregation == "median":
+        server.register_aggregation_func(byz_agg.median)
+    elif args.aggregation == "trim":
+        server.register_aggregation_func(byz_agg.trim)
+    elif args.aggregation == "krum":
+        server.register_aggregation_func(byz_agg.krum)
+    else:
+        raise Exception(
+            "aggregation type should be one of mean, median, trim, krum. "
+            + f"But get {args.aggregation}"
+        )
+
     return server
 
 

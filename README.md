@@ -6,18 +6,171 @@ DeComFL is a library designed for training/fine-tuning deep learning models in t
 
 ## Performance
 
-Table 1: Test accuracy comparsion of First-order SGD, MeZO and DeComFL on OPT-125m model.
-|Dataset\Algo.| FO-SGD | MeZO | DeComFL (P=5) | DeComFL (P=10) |
-|-|-|-|-|-|
-|SST-2|87.48%|83.99%|84.02%|85.08%|
-|CB|73.21%|72.49%|74.28%|75.00%|
-|WSC|58.13%|55.18%|59.13%|59.59%|
-|WIC|54.10%|53.25%|53.28%|53.38%|
-|MultiRC|60.77%|58.36%|59.06%|60.39%|
-|RTE|57.69%|52.91%|54.33%|57.05%|
-|BoolQ|62.34%|61.46%|61.36%|61.60%|
+From Table 1 and 2, we observe the DeComFL's effectiveness in communication cost reduction. We evaluate its performance with five and ten perturbations. Its performance matches or even outperforms MeZO and FedZO in all datasets. Surprisingly, DeComFL can just require about **1MB communication cost** to converge, which is a significant saving compared with other algorithms. 
 
-From the Table 1, we observe the effectiveness of DeComFL. We evaluate its performance with five and ten perturbations. Its performance outperforms MeZO in almost all datasets, and it can match the performance of FO-SGD and even excel that sometimes (i.e., on CB and WSC datasets).
+<table>
+  <caption style="caption-side: top; text-align: center; font-weight: bold;">Table 1: Test accuracy and communication cost on fine-tuning tasks</caption>
+  <thead>
+    <tr>
+      <th style="text-align: center;">Model</th>
+      <th style="text-align: center;">Dataset / Task</th>
+      <th style="text-align: center;">MeZO</th>
+      <th style="text-align: center;">FedZO with P = 5</th>
+      <th style="text-align: center;">DeComFL with P = 5</th>
+      <th style="text-align: center;">DeComFL with P = 10</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="6" style="text-align: center;">OPT-125M</td>
+      <td style="text-align: center;">SST-2</td>
+      <td style="text-align: center;">83.99%</td>
+      <td style="text-align: center;">84.11% (0.27 TB)</td>
+      <td style="text-align: center;">84.02% (0.18 MB)</td>
+      <td style="text-align: center;">85.08% (0.36 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">CB</td>
+      <td style="text-align: center;">72.49%</td>
+      <td style="text-align: center;">73.97% (0.09 TB)</td>
+      <td style="text-align: center;">74.28% (0.06 MB)</td>
+      <td style="text-align: center;">75.00% (0.12 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">WSC</td>
+      <td style="text-align: center;">55.18%</td>
+      <td style="text-align: center;">59.43% (0.27 TB)</td>
+      <td style="text-align: center;">59.13% (0.18 MB)</td>
+      <td style="text-align: center;">59.59% (0.36 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">WIC</td>
+      <td style="text-align: center;">53.25%</td>
+      <td style="text-align: center;">53.31% (0.27 TB)</td>
+      <td style="text-align: center;">53.28% (0.18 MB)</td>
+      <td style="text-align: center;">53.38% (0.36 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">RTE</td>
+      <td style="text-align: center;">52.91%</td>
+      <td style="text-align: center;">53.42% (0.18 TB)</td>
+      <td style="text-align: center;">54.33% (0.12 MB)</td>
+      <td style="text-align: center;">57.05% (0.24 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">BoolQ</td>
+      <td style="text-align: center;">61.46%</td>
+      <td style="text-align: center;">61.20% (0.18 TB)</td>
+      <td style="text-align: center;">61.36% (0.12 MB)</td>
+      <td style="text-align: center;">61.60% (0.24 MB)</td>
+    </tr>
+    <tr>
+      <td rowspan="6" style="text-align: center;">OPT-1.3B</td>
+      <td style="text-align: center;">SST-2</td>
+      <td style="text-align: center;">90.23%</td>
+      <td style="text-align: center;">90.17% (1937.15 TB)</td>
+      <td style="text-align: center;">90.02% (0.12 MB)</td>
+      <td style="text-align: center;">90.78% (0.24 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">CB</td>
+      <td style="text-align: center;">74.01%</td>
+      <td style="text-align: center;">74.41% (2905.73 TB)</td>
+      <td style="text-align: center;">74.40% (0.18 MB)</td>
+      <td style="text-align: center;">75.71% (0.36 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">WSC</td>
+      <td style="text-align: center;">58.21%</td>
+      <td style="text-align: center;">59.95% (2905.73 TB)</td>
+      <td style="text-align: center;">60.41% (0.18 MB)</td>
+      <td style="text-align: center;">64.16% (0.36 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">WIC</td>
+      <td style="text-align: center;">55.95%</td>
+      <td style="text-align: center;">56.06% (1937.15 TB)</td>
+      <td style="text-align: center;">55.97% (0.12 MB)</td>
+      <td style="text-align: center;">56.14% (0.24 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">RTE</td>
+      <td style="text-align: center;">57.57%</td>
+      <td style="text-align: center;">58.88% (1452.86 TB)</td>
+      <td style="text-align: center;">59.42% (0.90 MB)</td>
+      <td style="text-align: center;">60.89% (1.80 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">BoolQ</td>
+      <td style="text-align: center;">61.98%</td>
+      <td style="text-align: center;">62.01% (1452.86 TB)</td>
+      <td style="text-align: center;">62.17% (0.90 MB)</td>
+      <td style="text-align: center;">62.50% (1.80 MB)</td>
+    </tr>
+  </tbody>
+</table>
+
+
+<table>
+  <caption style="caption-side: top; text-align: center; font-weight: bold;">Table 2: Test accuracy on fine-tuning tasks (LoRA)</caption>
+  <thead>
+    <tr>
+      <th style="text-align: center;">Model</th>
+      <th style="text-align: center;">Dataset / Task</th>
+      <th style="text-align: center;">MeZO</th>
+      <th style="text-align: center;">FedZO with P = 5</th>
+      <th style="text-align: center;">DeComFL with P = 5</th>
+      <th style="text-align: center;">DeComFL with P = 10</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center;" rowspan="6">OPT-125M</td>
+      <td style="text-align: center;">SST-2</td>
+      <td style="text-align: center;">85.07%</td>
+      <td style="text-align: center;">85.34% (279.40 TB)</td>
+      <td style="text-align: center;">85.42% (0.18 MB)</td>
+      <td style="text-align: center;">85.44% (0.36 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">CB</td>
+      <td style="text-align: center;">69.64%</td>
+      <td style="text-align: center;">70.55% (93.13 TB)</td>
+      <td style="text-align: center;">71.07% (0.06 MB)</td>
+      <td style="text-align: center;">71.43% (0.12 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">WSC</td>
+      <td style="text-align: center;">52.66%</td>
+      <td style="text-align: center;">54.61% (93.13 TB)</td>
+      <td style="text-align: center;">54.53% (0.06 MB)</td>
+      <td style="text-align: center;">57.03% (0.12 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">WIC</td>
+      <td style="text-align: center;">53.49%</td>
+      <td style="text-align: center;">53.12% (186.26 TB)</td>
+      <td style="text-align: center;">53.08% (0.12 MB)</td>
+      <td style="text-align: center;">53.71% (0.24 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">RTE</td>
+      <td style="text-align: center;">50.15%</td>
+      <td style="text-align: center;">50.92% (46.57 TB)</td>
+      <td style="text-align: center;">51.40% (0.03 MB)</td>
+      <td style="text-align: center;">51.40% (0.06 MB)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">BoolQ</td>
+      <td style="text-align: center;">60.68%</td>
+      <td style="text-align: center;">60.53% (46.57 TB)</td>
+      <td style="text-align: center;">60.12% (0.03 MB)</td>
+      <td style="text-align: center;">60.78% (0.06 MB)</td>
+    </tr>
+  </tbody>
+</table>
+
+
 
 ## Environment Setup
 
@@ -50,15 +203,14 @@ For READMD.md, we will use `environment.yml` whenever a environment file is need
 ```
 @article{li2024achieving,
   title={Achieving Dimension-Free Communication in Federated Learning via Zeroth-Order Optimization},
-  author={Li, Zhe and Ying, Bicheng and Liu, Zidong and Yang, Haibo},
+  author={Li, Zhe and Ying, Bicheng and Liu, Zidong and Dong, Chaosheng and Yang, Haibo},
   journal={arXiv preprint arXiv:2405.15861},
   year={2024}
 }
 ```
 
-## Our Team
-
-DeComFL is currently contributed and maintained by **Zidong Liu** (ComboCurve), **Bicheng Ying** (Google) and **Zhe Li** (RIT), and advised by Prof. **Haibo Yang** (RIT).
+## Contributors
+DeComFL is currently contributed and maintained by <a href="https://zidongliu.github.io/" style="text-decoration: none;">**Zidong Liu**</a> (ComboCurve), <a href="https://scholar.google.com/citations?user=LuF6KX4AAAAJ&hl=en&oi=ao" style="text-decoration: none;">**Bicheng Ying**</a> (Google) and <a href="https://rogerrogerusc.github.io/" style="text-decoration: none;">**Zhe Li**</a> (RIT), and advised by Prof. <a href="https://haibo-yang-osu.github.io/homepage/" style="text-decoration: none;">**Haibo Yang**</a> (RIT). 
 
 <div style="display: flex; justify-content: space-between;">
     <img src="https://github.com/user-attachments/assets/b3982917-e302-42c3-b396-e33bb9f52c90" alt="Image 1" style="width: 80%;" />

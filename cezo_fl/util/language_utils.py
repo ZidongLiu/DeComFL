@@ -1,8 +1,9 @@
-import torch
-from typing import Literal
+from dataclasses import dataclass
 from enum import Enum
 from functools import partial
-from dataclasses import dataclass
+from typing import Literal
+
+import torch
 
 # utils for shakespeare dataset
 

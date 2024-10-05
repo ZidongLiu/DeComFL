@@ -1,6 +1,8 @@
-from torch import nn
-from shared import model_helpers
 from types import GeneratorType
+
+from torch import nn
+
+from cezo_fl.util import model_helpers
 
 
 def test_get_trainable_model_parameters():

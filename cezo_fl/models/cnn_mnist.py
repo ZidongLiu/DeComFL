@@ -1,6 +1,4 @@
 from torch import nn
-from shared import compression
-
 
 # This commented CNN have exploding gradient issue when batch_size = 4
 # class CNN_MNIST(nn.Module):
@@ -21,11 +19,11 @@ from shared import compression
 #         return x
 
 
-class COMPRESSED_CNN_MNIST(nn.Module):
-    model_name = "COMPRESSED_CNN_MNIST"
+class CNN_MNIST(nn.Module):
+    model_name = "CNN_MNIST"
 
     def __init__(self):
-        super(COMPRESSED_CNN_MNIST, self).__init__()
+        super(CNN_MNIST, self).__init__()
         self.conv1 = nn.Sequential(
             nn.Conv2d(
                 in_channels=1,
@@ -46,9 +44,8 @@ class COMPRESSED_CNN_MNIST(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        # compress activation by top-k
-        x = compression.top_k(tensor=x, k=8)
         x = self.conv2(x)
+        # flatten the output of conv2 to (batch_size, 32 * 7 * 7)
         x = x.view(x.size(0), -1)
         output = self.out(x)
         return output

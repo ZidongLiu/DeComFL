@@ -1,9 +1,8 @@
 import torch
 
 
-def mean(
-    num_sample_clients: int, local_grad_scalar_list: list[list[torch.Tensor]]
-) -> list[torch.Tensor]:
+def mean(local_grad_scalar_list: list[list[torch.Tensor]]) -> list[torch.Tensor]:
+    num_sample_clients = len(local_grad_scalar_list)
     grad_scalar: list[torch.Tensor] = []
     for each_local_step_update in zip(*local_grad_scalar_list):
         grad_scalar.append(sum(each_local_step_update).div_(num_sample_clients))
@@ -21,9 +20,8 @@ def median(local_grad_scalar_list: list[list[torch.Tensor]]) -> list[torch.Tenso
 
 # delete the biggest f and smallest f elements,
 # and then calculate the average of the rest of elements
-def trim(
-    num_sample_clients: int, local_grad_scalar_list: list[list[torch.Tensor]], f=1
-) -> list[torch.Tensor]:
+def trim(local_grad_scalar_list: list[list[torch.Tensor]], f=1) -> list[torch.Tensor]:
+    num_sample_clients = len(local_grad_scalar_list)
     assert 0 < 2 * f < len(local_grad_scalar_list)
     grad_scalar: list[torch.Tensor] = []
     for each_local_step_update in zip(*local_grad_scalar_list):

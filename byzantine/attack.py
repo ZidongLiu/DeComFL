@@ -1,5 +1,6 @@
-import torch
 import random
+
+import torch
 
 
 # not use Byzantine attack

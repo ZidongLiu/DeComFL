@@ -1,6 +1,7 @@
+from typing import Iterator
+
 import torch
 from torch.nn import Parameter
-from typing import Iterator
 
 
 def get_parameter_indices_for_ith_elem(i, cumsum_dimension):
