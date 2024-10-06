@@ -7,7 +7,7 @@ channels:
 dependencies:
   - python=3.10
   - pytest=8.3
-  - conda-forge::pyright=1.1.378
+  - conda-forge::mypy=1.11
   - conda-forge::ruff=0.6
 
   - conda-forge::accelerate=0.33
