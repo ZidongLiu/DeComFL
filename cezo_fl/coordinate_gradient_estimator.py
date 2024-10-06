@@ -37,7 +37,7 @@ class CoordinateGradientEstimator:
             [p.numel() for p in self.parameters_list], device=self.device
         )
         self.cumsum_dimension = torch.cumsum(self.parameter_dimension, dim=0)
-        self.total_dimensions = torch.sum(self.parameter_dimension).item()
+        self.total_dimensions = int(torch.sum(self.parameter_dimension).item())
 
         self.mu = mu
 
