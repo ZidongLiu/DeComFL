@@ -20,7 +20,7 @@ from cezo_fl.util.language_utils import (
 )
 
 
-def use_device(args):
+def use_device(args) -> tuple[dict[str, torch.device], dict]:
     num_clients = args.num_clients
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()

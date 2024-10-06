@@ -229,6 +229,7 @@ def setup_server_and_clients(
 
 # get_warmup_lr is not used for now.
 def get_warmup_lr(args, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
+    assert isinstance(args.lr, float) and isinstance(args.warmup_epochs, int)
     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
     return args.lr * current_iterations / overall_iterations
