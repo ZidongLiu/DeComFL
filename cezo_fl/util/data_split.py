@@ -40,7 +40,8 @@ def get_dirichlet_split_indexes(
     # This is a matrix with dimension "num_split * num_classes"
     full_class_prob = np.random.dirichlet(alpha * data_class_prob, num_split)
 
-    split_label_idx = [[] for _ in range(num_split)]
+    split_label_idx: list[list[int]] = [[] for _ in range(num_split)]
+
     for label, label_indices in label_indices_dict.items():
         cum_prob = np.cumsum(full_class_prob[:, label])
         normalized_cum_prob = (cum_prob / cum_prob[-1]).tolist()
