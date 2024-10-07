@@ -24,7 +24,6 @@ class CoordinateGradientEstimator:
         parameters: Iterator[Parameter] | None = None,
         mu=1e-3,
         device: str | None = None,
-        prune_mask_arr: torch.Tensor | None = None,
     ):
         self.device = device
         self.model = model
@@ -40,15 +39,6 @@ class CoordinateGradientEstimator:
         self.total_dimensions = int(torch.sum(self.parameter_dimension).item())
 
         self.mu = mu
-
-        self.prune_mask_arr = None
-        self.prune_mask_indices = None
-        if prune_mask_arr:
-            self.set_prune_mask(prune_mask_arr)
-
-    def set_prune_mask(self, prune_mask_arr):
-        self.prune_mask_arr = prune_mask_arr
-        self.prune_mask_indices = torch.argwhere(prune_mask_arr).view(-1)
 
     def estimate_ith_parameter_grad(self, i, loss_fn, base_loss):
         index_of_parameter_in_parameters_list, index_within_parameter = (
@@ -73,12 +63,7 @@ class CoordinateGradientEstimator:
             start += p.numel()
 
     def get_estimate_indices(self):
-        if self.prune_mask_indices is None:
-            estimate_indices = range(self.total_dimensions)
-        else:
-            estimate_indices = self.prune_mask_indices
-
-        return estimate_indices
+        return range(self.total_dimensions)
 
     def compute_grad(self, batch_inputs, labels, criterion) -> None:
         grad = torch.zeros(self.total_dimensions, device=self.device)

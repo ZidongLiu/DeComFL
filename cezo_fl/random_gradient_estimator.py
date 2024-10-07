@@ -22,7 +22,6 @@ class RandomGradientEstimator:
         normalize_perturbation: bool = False,
         device: str | None = None,
         torch_dtype: torch.dtype = torch.float32,
-        prune_mask_arr: torch.Tensor | None = None,
         paramwise_perturb: bool = False,
         sgd_only_no_optim: bool = False,
     ):
@@ -41,7 +40,6 @@ class RandomGradientEstimator:
 
         self.paramwise_perturb = paramwise_perturb
         if paramwise_perturb:
-            assert prune_mask_arr is None
             assert normalize_perturbation is False
 
         self.sgd_only_no_optim = sgd_only_no_optim
@@ -49,9 +47,6 @@ class RandomGradientEstimator:
             assert self.paramwise_perturb
 
         self.normalize_perturbation = normalize_perturbation
-        self.prune_mask_arr = None
-        if prune_mask_arr:
-            self.set_prune_mask(prune_mask_arr)
 
     # TODO(zidong) move this func out of this class
     def model_forward(self, batch_inputs: torch.Tensor | LLMBatchInput):
@@ -65,9 +60,6 @@ class RandomGradientEstimator:
         else:
             raise Exception("This model type is not supported")
 
-    def set_prune_mask(self, prune_mask_arr) -> None:
-        self.prune_mask_arr = prune_mask_arr
-
     def get_rng(self, seed: int, perturb_index: int) -> torch.Generator:
         return torch.Generator(device=self.device).manual_seed(
             seed * (perturb_index + 17) + perturb_index
@@ -77,8 +69,6 @@ class RandomGradientEstimator:
         p = torch.randn(
             self.total_dimensions, device=self.device, dtype=self.torch_dtype, generator=rng
         )
-        if self.prune_mask_arr is not None:
-            p.mul_(self.prune_mask_arr)
 
         if self.normalize_perturbation:
             p.div_(torch.norm(p))
@@ -296,26 +286,3 @@ class RandomGradientEstimator:
                 param.add_(param.grad, alpha=lr)  # gradient ascent instead of descent.
                 if weight_decay > 0:
                     param.mul_(1 / (1 - lr * weight_decay))
-
-
-# Copied from DeepZero and slightly modified
-@torch.no_grad()
-def functional_forward_rge(func, params_dict: dict, num_pert, mu):
-    base = func(params_dict)
-    grads_dict = {}
-    for _ in range(num_pert):
-        perturbs_dict, perturbed_params_dict = {}, {}
-        for key, param in params_dict.items():
-            perturb = torch.randn_like(param)
-            perturb /= torch.norm(perturb) + 1e-8
-            perturb *= mu
-            perturbs_dict[key] = perturb
-            perturbed_params_dict[key] = perturb + param
-        directional_derivative = (func(perturbed_params_dict) - base) / mu
-        if len(grads_dict.keys()) == len(params_dict.keys()):
-            for key, perturb in perturbs_dict.items():
-                grads_dict[key] += perturb * directional_derivative / num_pert
-        else:
-            for key, perturb in perturbs_dict.items():
-                grads_dict[key] = perturb * directional_derivative / num_pert
-    return grads_dict
