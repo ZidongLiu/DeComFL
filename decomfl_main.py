@@ -249,6 +249,7 @@ if __name__ == "__main__":
     server = setup_server_and_clients(args, device_map, train_loaders)
 
     if args.log_to_tensorboard:
+        assert server.server_model
         tensorboard_sub_folder = "-".join(
             [
                 get_args_str(args),

@@ -26,6 +26,9 @@ class LocalUpdateResult:
 
 
 class AbstractClient:
+    device: torch.device
+    optimizer: torch.optim.Optimizer
+
     @abc.abstractmethod
     def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
         """Returns a sequence of gradient scalar tensors for each local update.

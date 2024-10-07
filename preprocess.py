@@ -2,6 +2,7 @@ import json
 from typing import Union
 
 import torch
+from torch.utils.data.dataset import Subset
 import torchvision
 import torchvision.transforms as transforms
 from datasets import load_dataset
@@ -164,6 +165,7 @@ def preprocess(
 
     # already updated at main function
     num_clients = args.num_clients
+    splitted_train_sets: list[DatasetSplit] | list[Subset]
     if args.dataset == "shakespeare":
         dict_users = train_dataset.get_client_dic()
         splitted_train_sets = [

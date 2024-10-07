@@ -56,6 +56,7 @@ class RandomGradientEstimator:
     # TODO(zidong) move this func out of this class
     def model_forward(self, batch_inputs: torch.Tensor | LLMBatchInput):
         if isinstance(self.model, (OPTForCausalLM, PeftModel)):
+            assert isinstance(batch_inputs, LLMBatchInput)
             return self.model(
                 input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask
             )
@@ -103,11 +104,16 @@ class RandomGradientEstimator:
             start += p.numel()
 
     def generate_then_put_grad(self, seed: int, dir_grads: torch.Tensor) -> None:
-        update_grad = 0
+        update_grad: torch.Tensor | None = None
         num_pert = len(dir_grads)
         for i, dir_grad in enumerate(dir_grads):
             rng = self.get_rng(seed, i)
-            update_grad += self.generate_perturbation_norm(rng).mul_(dir_grad / num_pert)
+            update = self.generate_perturbation_norm(rng).mul_(dir_grad / num_pert)
+            if update_grad is None:
+                update_grad = update
+            else:
+                update_grad += update
+        assert update_grad is not None
         self.put_grad(update_grad)
 
     def compute_grad(self, batch_inputs, labels, criterion, seed: int) -> torch.Tensor:
@@ -183,6 +189,7 @@ class RandomGradientEstimator:
 
             del pb_norm
 
+        assert grad is not None
         return grad.div_(self.num_pert), torch.tensor(dir_grads, device=self.device)
 
     def generate_then_put_grad_paramwise(self, seed: int, dir_grads: torch.Tensor) -> None:
@@ -285,6 +292,7 @@ class RandomGradientEstimator:
                 self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
 
             for param in self.parameters_list:
+                assert param.grad
                 param.add_(param.grad, alpha=lr)  # gradient ascent instead of descent.
                 if weight_decay > 0:
                     param.mul_(1 / (1 - lr * weight_decay))
