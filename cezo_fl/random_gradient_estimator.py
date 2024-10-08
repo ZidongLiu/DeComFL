@@ -20,7 +20,7 @@ class RandomGradientEstimator:
         num_pert=1,
         grad_estimate_method: GradEstimateMethod = "central",
         normalize_perturbation: bool = False,
-        device: str | None = None,
+        device: torch.device | None = None,
         torch_dtype: torch.dtype = torch.float32,
         paramwise_perturb: bool = False,
         sgd_only_no_optim: bool = False,
