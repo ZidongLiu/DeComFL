@@ -2,12 +2,17 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import partial
 from typing import Literal
-
+from collections import Counter
+import re
+import string
 import torch
+import numpy as np
 
 # utils for shakespeare dataset
 
-ALL_LETTERS = "\n !\"&'(),-.0123456789:;>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[]abcdefghijklmnopqrstuvwxyz}"
+ALL_LETTERS = (
+    "\n !\"&'(),-.0123456789:;>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[]abcdefghijklmnopqrstuvwxyz}"
+)
 NUM_LETTERS = len(ALL_LETTERS)
 
 
@@ -128,7 +133,9 @@ class CBTemplate(ClassificationTemplate):
     def verbalize_for_pred(self, sample):
         premise = sample["premise"]
         hypothesis = sample["hypothesis"]
-        return f'Suppose {premise} Can we infer that "{hypothesis}"? Yes, No, or Maybe?\n'
+        return (
+            f'Suppose {premise} Can we infer that "{hypothesis}"? Yes, No, or Maybe?\n'
+        )
 
 
 class WICTemplate(ClassificationTemplate):
@@ -153,6 +160,90 @@ class WSCTemplate(ClassificationTemplate):
         return f'{text}\nIn the previous sentence, does the pronoun "{span2.lower()}" refer to {span1}? Yes or No?\n'
 
 
+class Template:
+    def encode(self, sample):
+        """
+        Return prompted version of the example (without the answer/candidate)
+        """
+        raise NotImplementedError
+
+    def verbalize(self, sample, candidate):
+        """
+        Return the prompted version of the example (with the answer/candidate)
+        """
+        return candidate
+
+    def encode_sfc(self, sample):
+        """
+        Same as encode, but for SFC (calibration) -- this usually means the input is not included
+        """
+        return "<mask>"
+
+    def verbalize_sfc(self, sample, candidate):
+        """
+        Same as verbalize, but for SFC (calibration) -- this usually means the input is not included
+        """
+        return candidate
+
+
+class SQuADTemplate(Template):
+
+    def encode(self, sample):
+        question = sample.data["question"].strip()
+        title = sample.data["title"]
+        context = sample.data["context"]
+        answer = sample.data["answers"][
+            0
+        ]  # there are multiple answers. for the prompt we only take the first one
+
+        return f"Title: {title}\nContext: {context}\nQuestion: {question}\nAnswer:"
+
+    def verbalize(self, sample, candidate):
+        question = sample.data["question"].strip()
+        title = sample.data["title"]
+        context = sample.data["context"]
+        answer = sample.data["answers"][
+            0
+        ]  # there are multiple answers. for the prompt we only take the first one
+
+        return f"Title: {title}\nContext: {context}\nQuestion: {question}\nAnswer: {answer}\n"
+
+    def encode_sfc(self, sample):
+        raise NotImplementedError
+
+    def verbalize_sfc(self, sample, candidate):
+        raise NotImplementedError
+
+
+class DROPTemplate(Template):
+
+    def encode(self, sample):
+        question = sample.data["question"].strip()
+        # title = sample.data['title']
+        context = sample.data["context"]
+        answer = sample.data["answers"][
+            0
+        ]  # there are multiple answers. for the prompt we only take the first one
+
+        return f"Passage: {context}\nQuestion: {question}\nAnswer:"
+
+    def verbalize(self, sample, candidate):
+        question = sample.data["question"].strip()
+        # title = sample.data['title']
+        context = sample.data["context"]
+        answer = sample.data["answers"][
+            0
+        ]  # there are multiple answers. for the prompt we only take the first one
+
+        return f"Passage: {context}\nQuestion: {question}\nAnswer: {answer}\n"
+
+    def encode_sfc(self, sample):
+        raise NotImplementedError
+
+    def verbalize_sfc(self, sample, candidate):
+        raise NotImplementedError
+
+
 class LmTask(Enum):
     sst2 = "sst2"
     rte = "rte"
@@ -161,6 +252,8 @@ class LmTask(Enum):
     wic = "wic"
     wsc = "wsc"
     boolq = "boolq"
+    squad = "squad"
+    drop = "drop"
 
 
 LM_DATASET_MAP = {
@@ -171,6 +264,8 @@ LM_DATASET_MAP = {
     LmTask.wic.name: "super_glue",
     LmTask.wsc.name: "super_glue",
     LmTask.boolq.name: "super_glue",
+    LmTask.squad.name: "squad",  # Not sure...
+    LmTask.drop.name: "drop",  # Not sure...
 }
 
 LM_TEMPLATE_MAP = {
@@ -181,6 +276,8 @@ LM_TEMPLATE_MAP = {
     LmTask.wic.name: WICTemplate,
     LmTask.wsc.name: WSCTemplate,
     LmTask.boolq.name: BoolQTemplate,
+    LmTask.squad.name: SQuADTemplate,
+    LmTask.drop.name: DROPTemplate,
 }
 
 
@@ -199,7 +296,10 @@ def get_collate_fn(tokenizer, max_length):
     def collate_fn(batch):
         # Pad sequences to the max length in the batch
         padded_batch = tokenizer.pad(
-            {"input_ids": batch}, padding=True, max_length=max_length, return_tensors="pt"
+            {"input_ids": batch},
+            padding=True,
+            max_length=max_length,
+            return_tensors="pt",
         )
         input_ids = padded_batch["input_ids"]
         attention_mask = padded_batch["attention_mask"]
@@ -212,7 +312,8 @@ def get_collate_fn(tokenizer, max_length):
 
 
 def get_lm_loss(
-    loss_type: Literal["full_sentence", "last_token", "accuracy"], verbalizer_id_map: dict[int, int]
+    loss_type: Literal["full_sentence", "last_token", "accuracy", "f1"],
+    verbalizer_id_map: dict[int, int],
 ):
     n_candidate = len(verbalizer_id_map)
     verbalizer_id_list = [verbalizer_id_map[i] for i in range(n_candidate)]
@@ -231,6 +332,9 @@ def get_lm_loss(
             verbalizer_id_map=verbalizer_id_map,
             verbalizer_id_list=verbalizer_id_list,
         )
+    elif loss_type == "f1":
+        # ...
+        return
 
 
 def full_sentence_cross_entropy_loss(batch_pred, sentence_label_tokens):
@@ -248,17 +352,62 @@ def last_token_cross_entropy_loss(
     batch_pred, sentence_label_tokens, verbalizer_id_map, verbalizer_id_list
 ):
     logits = batch_pred.logits
-    last_token_batch_pred = logits[:, -1, verbalizer_id_list].view(-1, len(verbalizer_id_list))
+    last_token_batch_pred = logits[:, -1, verbalizer_id_list].view(
+        -1, len(verbalizer_id_list)
+    )
     last_token_label = (sentence_label_tokens[:, -1] == verbalizer_id_map[1]).to(int)
 
     loss = torch.nn.functional.cross_entropy(last_token_batch_pred, last_token_label)
     return loss
 
 
-def last_token_accuracy(batch_pred, sentence_label_tokens, verbalizer_id_map, verbalizer_id_list):
+def last_token_accuracy(
+    batch_pred, sentence_label_tokens, verbalizer_id_map, verbalizer_id_list
+):
     logits = batch_pred.logits
-    last_token_batch_pred = logits[:, -1, verbalizer_id_list].view(-1, len(verbalizer_id_list))
+    last_token_batch_pred = logits[:, -1, verbalizer_id_list].view(
+        -1, len(verbalizer_id_list)
+    )
     last_token_label = (sentence_label_tokens[:, -1] == verbalizer_id_map[1]).to(int)
 
     pred = last_token_batch_pred.max(1, keepdim=True)[1]
     return pred.eq(last_token_label.view_as(pred)).cpu().float().mean()
+
+
+def normalize_answer(s):
+    def remove_articles(text):
+        return re.sub(r"\b(a|an|the)\b", " ", text)
+
+    def white_space_fix(text):
+        return " ".join(text.split())
+
+    def remove_punc(text):
+        exclude = set(string.punctuation)
+        return "".join(ch for ch in text if ch not in exclude)
+
+    def lower(text):
+        return text.lower()
+
+    return white_space_fix(remove_articles(remove_punc(lower(s))))
+
+
+def f1(pred, gold):
+    """
+    This separate F1 function is used as non-differentiable metric for SQuAD
+    """
+    if gold[0] == "CANNOTANSWER" or gold[0] == "no answer":
+        return int(normalize_answer(gold[0]) == normalize_answer(pred))
+    else:
+        all_f1s = []
+        for ans in gold:
+            prediction_tokens = normalize_answer(pred).split()
+            ground_truth_tokens = normalize_answer(ans).split()
+            common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
+            num_same = sum(common.values())
+            if num_same == 0:
+                all_f1s.append(0)
+            else:
+                precision = 1.0 * num_same / len(prediction_tokens)
+                recall = 1.0 * num_same / len(ground_truth_tokens)
+                all_f1s.append((2 * precision * recall) / (precision + recall))
+        return np.max(all_f1s)
