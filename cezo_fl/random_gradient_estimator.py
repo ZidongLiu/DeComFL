@@ -69,17 +69,20 @@ class RandomGradientEstimator:
                 raise ValueError(
                     "The model for generation_mode must be OPTForCausalLM or peft model"
                 )
+            generation_mode_kwargs = self.generation_mode_kwargs
+            # We may need a copy for dynamic modification
             if "max_new_tokens" in self.generation_mode_kwargs:
+                generation_mode_kwargs = self.generation_mode_kwargs.copy()
                 assert "max_length" in self.generation_mode_kwargs  # both should be specified.
                 # Dynamic adjust the max_new_tokens according to input length
-                self.generation_mode_kwargs["max_new_tokens"] = min(
-                    self.generation_mode_kwargs["max_new_tokens"],
-                    self.generation_mode_kwargs["max_length"] - batch_inputs.input_ids.size(1),
+                generation_mode_kwargs["max_new_tokens"] = min(
+                    generation_mode_kwargs["max_new_tokens"],
+                    generation_mode_kwargs["max_length"] - batch_inputs.input_ids.size(1),
                 )
-                del self.generation_mode_kwargs["max_length"]
+                del generation_mode_kwargs["max_length"]
             return self.model.generate(
                 batch_inputs.input_ids,  # attention_mask is not needed for generation model.
-                **self.generation_mode_kwargs,
+                **generation_mode_kwargs,
             )
         if isinstance(self.model, (OPTForCausalLM, PeftModel)):
             return self.model(
