@@ -418,6 +418,6 @@ def f1_loss(
 
     for pred, pos_and_gold in zip(batch_pred, golden_outputs):
         _, gold_sentence = pos_and_gold
-        pred_stence = tokenizer.decode(pred[start_pos:], skip_special_tokens=True).strip()
-        f1s.append(f1_score(pred_stence, gold_sentence))
+        pred_sentence = tokenizer.decode(pred[start_pos:], skip_special_tokens=True).strip()
+        f1s.append(f1_score(pred_sentence, gold_sentence))
     return -torch.tensor(np.mean(f1s), dtype=torch.float32)
