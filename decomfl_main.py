@@ -87,9 +87,9 @@ def prepare_settings_underseed(args, device):
         if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"]:
             large_model = args.large_model
             model_name = SUPPORTED_LLM[large_model]
-            model = AutoModelForCausalLM.from_pretrained(
-                model_name, torch_dtype=torch_dtype
-            ).to(device)
+            model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(
+                device
+            )
             model.model_name = large_model
             if args.lora:
                 # this step initialize lora parameters, which should be under control of seed
@@ -116,9 +116,9 @@ def prepare_settings_underseed(args, device):
         elif args.dataset in ["squad", "drop"]:
             large_model = args.large_model
             model_name = SUPPORTED_LLM[large_model]
-            model = AutoModelForCausalLM.from_pretrained(
-                model_name, torch_dtype=torch_dtype
-            ).to(device)
+            model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(
+                device
+            )
             model.model_name = large_model
             template = LM_TEMPLATE_MAP[args.dataset]()
             verbalizer_id_map = template.get_verbalizer_id(tokenizer)
@@ -149,9 +149,7 @@ def prepare_settings_underseed(args, device):
             paramwise_perturb=args.no_optim,
         )
     else:
-        raise Exception(
-            f"Grad estimate method {args.grad_estimate_method} not supported"
-        )
+        raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
     return model, criterion, optimizer, grad_estimator, accuracy_func
 
 
@@ -226,9 +224,7 @@ def setup_server_and_clients(
         )
     elif args.byz_type == "krum":
         server.register_attack_func(
-            functools.partial(
-                byz_attack.krum_attack, num_attack=args.num_byz, lr=args.lr
-            )
+            functools.partial(byz_attack.krum_attack, num_attack=args.num_byz, lr=args.lr)
         )
     else:
         raise Exception(
@@ -254,9 +250,7 @@ def setup_server_and_clients(
 
 
 # get_warmup_lr is not used for now.
-def get_warmup_lr(
-    args, current_epoch: int, current_iter: int, iters_per_epoch: int
-) -> float:
+def get_warmup_lr(args, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
     return args.lr * current_iterations / overall_iterations

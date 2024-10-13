@@ -32,8 +32,7 @@ def use_device(args):
         kwargs = {"pin_memory": True, "shuffle": args.dataset != "shakespeare"}
         server_device = {"server": torch.device("cuda:0")}
         client_devices = {
-            get_client_name(i): torch.device(f"cuda:{(i+1) % num_gpu}")
-            for i in range(num_clients)
+            get_client_name(i): torch.device(f"cuda:{(i+1) % num_gpu}") for i in range(num_clients)
         }
     elif use_mps:
         print("----- Using mps -----")
@@ -41,18 +40,14 @@ def use_device(args):
         args.model_dtype = "float32"
         kwargs = {}
         server_device = {"server": torch.device("mps")}
-        client_devices = {
-            get_client_name(i): torch.device("mps") for i in range(num_clients)
-        }
+        client_devices = {get_client_name(i): torch.device("mps") for i in range(num_clients)}
     else:
         print("----- Using cpu -----")
         print("----- Forcing model_dtype = float32 -----")
         args.model_dtype = "float32"
         kwargs = {}
         server_device = {"server": torch.device("cpu")}
-        client_devices = {
-            get_client_name(i): torch.device("cpu") for i in range(num_clients)
-        }
+        client_devices = {get_client_name(i): torch.device("cpu") for i in range(num_clients)}
 
     return server_device | client_devices, kwargs
 
@@ -103,9 +98,7 @@ def preprocess(
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
-                ),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ]
         )
         train_dataset = torchvision.datasets.CIFAR10(
@@ -114,9 +107,7 @@ def preprocess(
         transform_test = transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
-                ),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ]
         )
         test_dataset = torchvision.datasets.CIFAR10(
@@ -162,12 +153,8 @@ def preprocess(
         encoded_train_texts = list(map(template.verbalize, raw_train_dataset))
         encoded_test_texts = list(map(template.verbalize, raw_test_dataset))
 
-        train_dataset = CustomLMDataset(
-            encoded_train_texts, tokenizer, max_length=max_length
-        )
-        test_dataset = CustomLMDataset(
-            encoded_test_texts, tokenizer, max_length=max_length
-        )
+        train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)
+        test_dataset = CustomLMDataset(encoded_test_texts, tokenizer, max_length=max_length)
         test_loader = torch.utils.data.DataLoader(
             test_dataset,
             batch_size=args.test_batch_size,
@@ -183,8 +170,7 @@ def preprocess(
     if args.dataset == "shakespeare":
         dict_users = train_dataset.get_client_dic()
         splitted_train_sets = [
-            DatasetSplit(train_dataset, dict_users[client_idx])
-            for client_idx in range(num_clients)
+            DatasetSplit(train_dataset, dict_users[client_idx]) for client_idx in range(num_clients)
         ]
     elif args.dataset in LM_TEMPLATE_MAP.keys():
         if args.iid:
