@@ -73,7 +73,7 @@ class RandomGradientEstimator:
             # We may need a copy for dynamic modification
             if "max_new_tokens" in self.generation_mode_kwargs:
                 generation_mode_kwargs = self.generation_mode_kwargs.copy()
-                assert "max_length" in self.generation_mode_kwargs  # both should be specified.
+                assert "max_length" in generation_mode_kwargs  # both should be specified.
                 # Dynamic adjust the max_new_tokens according to input length
                 generation_mode_kwargs["max_new_tokens"] = min(
                     generation_mode_kwargs["max_new_tokens"],
