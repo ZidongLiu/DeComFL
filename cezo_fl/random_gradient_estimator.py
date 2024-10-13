@@ -25,6 +25,8 @@ class RandomGradientEstimator:
         prune_mask_arr: torch.Tensor | None = None,
         paramwise_perturb: bool = False,
         sgd_only_no_optim: bool = False,
+        generation_mode: bool = False,
+        generation_mode_kwargs: dict[str, Any] | None = None,
     ):
         self.model = model
         if parameters is None:
@@ -53,23 +55,31 @@ class RandomGradientEstimator:
         if prune_mask_arr:
             self.set_prune_mask(prune_mask_arr)
 
+        # For the forward function used in generation mode usage
+        self.generation_mode = generation_mode
+        self.generation_mode_kwargs = generation_mode_kwargs if generation_mode_kwargs else {}
+
     # TODO(zidong) move this func out of this class
     def model_forward(
         self,
         batch_inputs: torch.Tensor | LLMBatchInput,
-        generation_mode: bool = False,
-        generation_mode_kwargs: dict[str, Any] | None = None,
     ):
-        if generation_mode:
+        if self.generation_mode:
             if not isinstance(self.model, (OPTForCausalLM, PeftModel)):
                 raise ValueError(
                     "The model for generation_mode must be OPTForCausalLM or peft model"
                 )
-            if generation_mode_kwargs is None:
-                generation_mode_kwargs = {}
+            if "max_new_tokens" in self.generation_mode_kwargs:
+                assert "max_length" in self.generation_mode_kwargs  # both should be specified.
+                # Dynamic adjust the max_new_tokens according to input length
+                self.generation_mode_kwargs["max_new_tokens"] = min(
+                    self.generation_mode_kwargs["max_new_tokens"],
+                    self.generation_mode_kwargs["max_length"] - batch_inputs.input_ids.size(1),
+                )
+                del self.generation_mode_kwargs["max_length"]
             return self.model.generate(
                 batch_inputs.input_ids,  # attention_mask is not needed for generation model.
-                **generation_mode_kwargs,
+                **self.generation_mode_kwargs,
             )
         if isinstance(self.model, (OPTForCausalLM, PeftModel)):
             return self.model(
