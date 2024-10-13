@@ -84,13 +84,15 @@ def prepare_settings_underseed(args, device):
         #     optimizer, milestones=[200], gamma=0.1
         # )
     elif args.dataset in LM_TEMPLATE_MAP.keys():
+        large_model = args.large_model
+        model_name = SUPPORTED_LLM[large_model]
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(device)
+        model.model_name = large_model
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name, padding_side="left", truncate_side="left"
+        )
+        template = LM_TEMPLATE_MAP[args.dataset]()
         if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"]:
-            large_model = args.large_model
-            model_name = SUPPORTED_LLM[large_model]
-            model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(
-                device
-            )
-            model.model_name = large_model
             if args.lora:
                 # this step initialize lora parameters, which should be under control of seed
                 lora_config = LoraConfig(
@@ -100,10 +102,6 @@ def prepare_settings_underseed(args, device):
                 )
                 model = get_peft_model(model, lora_config).to(torch_dtype)
 
-            tokenizer = AutoTokenizer.from_pretrained(
-                model_name, padding_side="left", truncate_side="left"
-            )
-            template = LM_TEMPLATE_MAP[args.dataset]()
             verbalizer_id_map = template.get_verbalizer_id(tokenizer)
             criterion = get_lm_loss("last_token", verbalizer_id_map)
             optimizer = torch.optim.SGD(
@@ -114,22 +112,16 @@ def prepare_settings_underseed(args, device):
             )
             accuracy_func = get_lm_loss("accuracy", verbalizer_id_map)
         elif args.dataset in ["squad", "drop"]:
-            large_model = args.large_model
-            model_name = SUPPORTED_LLM[large_model]
-            model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(
-                device
-            )
-            model.model_name = large_model
-            template = LM_TEMPLATE_MAP[args.dataset]()
-            verbalizer_id_map = template.get_verbalizer_id(tokenizer)
-            criterion = get_lm_loss("f1", verbalizer_id_map)
+            criterion = get_lm_loss("f1", None, tokenizer)
             optimizer = torch.optim.SGD(
                 model_helpers.get_trainable_model_parameters(model),
                 lr=args.lr,
                 momentum=0,
                 weight_decay=5e-4,
             )
-            accuracy_func = get_lm_loss("f1", verbalizer_id_map)
+            accuracy_func = get_lm_loss("f1", None, tokenizer)
+        else:
+            raise ValueError(f"Dataset {args.dataset} is not supported")
     else:
         raise Exception(f"Dataset {args.dataset} is not supported")
 

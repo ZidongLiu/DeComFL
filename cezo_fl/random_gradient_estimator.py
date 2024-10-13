@@ -1,4 +1,4 @@
-from typing import Callable, Iterator, Literal, Sequence, TypeAlias
+from typing import Any, Callable, Iterator, Literal, Sequence, TypeAlias
 
 import torch
 from peft import PeftModel
@@ -54,7 +54,23 @@ class RandomGradientEstimator:
             self.set_prune_mask(prune_mask_arr)
 
     # TODO(zidong) move this func out of this class
-    def model_forward(self, batch_inputs: torch.Tensor | LLMBatchInput):
+    def model_forward(
+        self,
+        batch_inputs: torch.Tensor | LLMBatchInput,
+        generation_mode: bool = False,
+        generation_mode_kwargs: dict[str, Any] | None = None,
+    ):
+        if generation_mode:
+            if not isinstance(self.model, (OPTForCausalLM, PeftModel)):
+                raise ValueError(
+                    "The model for generation_mode must be OPTForCausalLM or peft model"
+                )
+            if generation_mode_kwargs is None:
+                generation_mode_kwargs = {}
+            return self.model.generate(
+                batch_inputs.input_ids,  # attention_mask is not needed for generation model.
+                **generation_mode_kwargs,
+            )
         if isinstance(self.model, (OPTForCausalLM, PeftModel)):
             return self.model(
                 input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask

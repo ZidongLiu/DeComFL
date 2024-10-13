@@ -15,8 +15,10 @@ from cezo_fl.util.language_utils import (
     LM_TEMPLATE_MAP,
     SUPPORTED_LLM,
     CustomLMDataset,
+    CustomLMGenerationDataset,
     LmTask,
     get_collate_fn,
+    get_collate_fn_for_gen_model,
 )
 
 
@@ -150,11 +152,24 @@ def preprocess(
             model_name, padding_side="left", truncate_side="left"
         )
         template = LM_TEMPLATE_MAP[args.dataset]()
-        encoded_train_texts = list(map(template.verbalize, raw_train_dataset))
-        encoded_test_texts = list(map(template.verbalize, raw_test_dataset))
+        if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"]:
+            encoded_train_texts = list(map(template.verbalize, raw_train_dataset))
+            encoded_test_texts = list(map(template.verbalize, raw_test_dataset))
+            train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)
+            test_dataset = CustomLMDataset(encoded_test_texts, tokenizer, max_length=max_length)
+        elif args.dataset in ["squad", "drop"]:
+            # Encode function instead of verbalize function because we don't want to encode answer.
+            encoded_train_texts = list(map(template.encode, raw_train_dataset))
+            encoded_test_texts = list(map(template.encode, raw_test_dataset))
+            train_golds = list(map(lambda d: d["answers"][0], raw_train_dataset))
+            test_golds = list(map(lambda d: d["answers"][0], raw_train_dataset))
+            train_dataset = CustomLMGenerationDataset(
+                encoded_train_texts, train_golds, tokenizer, max_length=max_length
+            )
+            test_dataset = CustomLMGenerationDataset(
+                encoded_test_texts, test_golds, tokenizer, max_length=max_length
+            )
 
-        train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)
-        test_dataset = CustomLMDataset(encoded_test_texts, tokenizer, max_length=max_length)
         test_loader = torch.utils.data.DataLoader(
             test_dataset,
             batch_size=args.test_batch_size,
@@ -195,12 +210,20 @@ def preprocess(
     splitted_train_loaders = []
     for i in range(num_clients):
         if args.dataset in LM_TEMPLATE_MAP.keys():
-            dataloader = torch.utils.data.DataLoader(
-                splitted_train_sets[i],
-                batch_size=args.train_batch_size,
-                shuffle=True,
-                collate_fn=get_collate_fn(tokenizer, max_length),
-            )
+            if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"]:
+                dataloader = torch.utils.data.DataLoader(
+                    splitted_train_sets[i],
+                    batch_size=args.train_batch_size,
+                    shuffle=True,
+                    collate_fn=get_collate_fn(tokenizer, max_length),
+                )
+            elif args.dataset in ["squad", "drop"]:
+                dataloader = torch.utils.data.DataLoader(
+                    splitted_train_sets[i],
+                    batch_size=args.train_batch_size,
+                    shuffle=True,
+                    collate_fn=get_collate_fn_for_gen_model(tokenizer, max_length),
+                )
         else:
             dataloader = torch.utils.data.DataLoader(
                 splitted_train_sets[i], batch_size=args.train_batch_size, **kwargs
