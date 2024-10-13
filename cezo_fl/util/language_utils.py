@@ -412,8 +412,12 @@ def f1_loss(
 ) -> torch.Tensor:
     assert batch_pred.shape[0] == len(golden_outputs)
     f1s = []
+    # Because we pad the inputs for the same length， the start_pos should be the max value
+    # of all inputs
+    start_pos = max(pos_and_gold[0] for pos_and_gold in golden_outputs)
+
     for pred, pos_and_gold in zip(batch_pred, golden_outputs):
-        start_pos, gold_sentence = pos_and_gold
+        _, gold_sentence = pos_and_gold
         pred_stence = tokenizer.decode(pred[start_pos:], skip_special_tokens=True).strip()
-        f1s.append(pred_stence, gold_sentence)
+        f1s.append(f1_score(pred_stence, gold_sentence))
     return -torch.tensor(np.mean(f1s), dtype=torch.float32)
