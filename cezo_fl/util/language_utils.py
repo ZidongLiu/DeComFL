@@ -315,10 +315,12 @@ def get_collate_fn_for_gen_model(tokenizer, max_length):
 
 def get_lm_loss(
     loss_type: Literal["full_sentence", "last_token", "accuracy", "f1"],
-    verbalizer_id_map: dict[int, int] | None,
+    *,
+    verbalizer_id_map: dict[int, int] | None = None,
+    tokenizer=None,
 ):
     if loss_type == "f1":
-        return f1_loss
+        return partial(f1_loss, tokenizer=tokenizer)
 
     n_candidate = len(verbalizer_id_map)
     verbalizer_id_list = [verbalizer_id_map[i] for i in range(n_candidate)]

@@ -103,23 +103,23 @@ def prepare_settings_underseed(args, device):
                 model = get_peft_model(model, lora_config).to(torch_dtype)
 
             verbalizer_id_map = template.get_verbalizer_id(tokenizer)
-            criterion = get_lm_loss("last_token", verbalizer_id_map)
+            criterion = get_lm_loss("last_token", verbalizer_id_map=verbalizer_id_map)
             optimizer = torch.optim.SGD(
                 model_helpers.get_trainable_model_parameters(model),
                 lr=args.lr,
                 momentum=0,
                 weight_decay=5e-4,
             )
-            accuracy_func = get_lm_loss("accuracy", verbalizer_id_map)
+            accuracy_func = get_lm_loss("accuracy", verbalizer_id_map=verbalizer_id_map)
         elif args.dataset in ["squad", "drop"]:
-            criterion = get_lm_loss("f1", None)
+            criterion = get_lm_loss("f1", tokenizer=tokenizer)
             optimizer = torch.optim.SGD(
                 model_helpers.get_trainable_model_parameters(model),
                 lr=args.lr,
                 momentum=0,
                 weight_decay=5e-4,
             )
-            accuracy_func = get_lm_loss("f1", None)
+            accuracy_func = get_lm_loss("f1", tokenizer=tokenizer)
         else:
             raise ValueError(f"Dataset {args.dataset} is not supported")
     else:
