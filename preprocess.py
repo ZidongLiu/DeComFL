@@ -157,6 +157,14 @@ def preprocess(
             encoded_test_texts = list(map(template.verbalize, raw_test_dataset))
             train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)
             test_dataset = CustomLMDataset(encoded_test_texts, tokenizer, max_length=max_length)
+
+            test_loader = torch.utils.data.DataLoader(
+                test_dataset,
+                batch_size=args.test_batch_size,
+                shuffle=True,
+                collate_fn=get_collate_fn(tokenizer, max_length),
+            )
+
         elif args.dataset in ["squad", "drop"]:
             dataset = load_dataset(LM_DATASET_MAP[args.dataset])
             raw_train_dataset = dataset["train"]
@@ -178,12 +186,12 @@ def preprocess(
                 encoded_test_texts, test_golds, tokenizer, max_length=max_length
             )
 
-        test_loader = torch.utils.data.DataLoader(
-            test_dataset,
-            batch_size=args.test_batch_size,
-            shuffle=True,
-            collate_fn=get_collate_fn(tokenizer, max_length),
-        )
+            test_loader = torch.utils.data.DataLoader(
+                test_dataset,
+                batch_size=args.test_batch_size,
+                shuffle=True,
+                collate_fn=get_collate_fn_for_gen_model(tokenizer, max_length),
+            )
 
     else:
         raise Exception(f"Dataset {args.dataset} is not supported")
