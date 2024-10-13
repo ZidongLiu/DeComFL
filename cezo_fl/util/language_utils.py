@@ -10,9 +10,7 @@ import numpy as np
 
 # utils for shakespeare dataset
 
-ALL_LETTERS = (
-    "\n !\"&'(),-.0123456789:;>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[]abcdefghijklmnopqrstuvwxyz}"
-)
+ALL_LETTERS = "\n !\"&'(),-.0123456789:;>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[]abcdefghijklmnopqrstuvwxyz}"
 NUM_LETTERS = len(ALL_LETTERS)
 
 
@@ -170,9 +168,7 @@ class CBTemplate(ClassificationTemplate):
     def verbalize_for_pred(self, sample):
         premise = sample["premise"]
         hypothesis = sample["hypothesis"]
-        return (
-            f'Suppose {premise} Can we infer that "{hypothesis}"? Yes, No, or Maybe?\n'
-        )
+        return f'Suppose {premise} Can we infer that "{hypothesis}"? Yes, No, or Maybe?\n'
 
 
 class WICTemplate(ClassificationTemplate):
@@ -321,7 +317,6 @@ def get_lm_loss(
     loss_type: Literal["full_sentence", "last_token", "accuracy", "f1"],
     verbalizer_id_map: dict[int, int] | None,
 ):
-
     if loss_type == "f1":
         return f1_loss
 
@@ -358,22 +353,16 @@ def last_token_cross_entropy_loss(
     batch_pred, sentence_label_tokens, verbalizer_id_map, verbalizer_id_list
 ):
     logits = batch_pred.logits
-    last_token_batch_pred = logits[:, -1, verbalizer_id_list].view(
-        -1, len(verbalizer_id_list)
-    )
+    last_token_batch_pred = logits[:, -1, verbalizer_id_list].view(-1, len(verbalizer_id_list))
     last_token_label = (sentence_label_tokens[:, -1] == verbalizer_id_map[1]).to(int)
 
     loss = torch.nn.functional.cross_entropy(last_token_batch_pred, last_token_label)
     return loss
 
 
-def last_token_accuracy(
-    batch_pred, sentence_label_tokens, verbalizer_id_map, verbalizer_id_list
-):
+def last_token_accuracy(batch_pred, sentence_label_tokens, verbalizer_id_map, verbalizer_id_list):
     logits = batch_pred.logits
-    last_token_batch_pred = logits[:, -1, verbalizer_id_list].view(
-        -1, len(verbalizer_id_list)
-    )
+    last_token_batch_pred = logits[:, -1, verbalizer_id_list].view(-1, len(verbalizer_id_list))
     last_token_label = (sentence_label_tokens[:, -1] == verbalizer_id_map[1]).to(int)
 
     pred = last_token_batch_pred.max(1, keepdim=True)[1]
@@ -423,8 +412,6 @@ def f1_loss(
     f1s = []
     for pred, pos_and_gold in zip(batch_pred, golden_outputs):
         start_pos, gold_sentence = pos_and_gold
-        pred_stence = tokenizer.decode(
-            pred[start_pos:], skip_special_tokens=True
-        ).strip()
+        pred_stence = tokenizer.decode(pred[start_pos:], skip_special_tokens=True).strip()
         f1s.append(pred_stence, gold_sentence)
     return -torch.tensor(np.mean(f1s), dtype=torch.float32)

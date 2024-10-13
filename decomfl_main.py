@@ -86,9 +86,7 @@ def prepare_settings_underseed(args, device):
     elif args.dataset in LM_TEMPLATE_MAP.keys():
         large_model = args.large_model
         model_name = SUPPORTED_LLM[large_model]
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name, torch_dtype=torch_dtype
-        ).to(device)
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(device)
         model.model_name = large_model
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, padding_side="left", truncate_side="left"
@@ -130,6 +128,26 @@ def prepare_settings_underseed(args, device):
     if args.grad_estimate_method in ["rge-central", "rge-forward"]:
         method = args.grad_estimate_method[4:]
         print(f"Using RGE {method}")
+        if args.dataset in ["squad", "drop"]:
+            generation_mode = True
+            # TODO move this setting partially to the args
+            generation_mode_kwargs = {
+                "do_sample": False,
+                "temperature": 1.0,
+                "num_beams": 1,
+                "top_p": 0.95,
+                "top_k": None,
+                "num_return_sequences": 1,
+                "max_new_tokens": 50,  # will be adjusted dynamically later
+                "max_length": 2048,
+                "eos_token_id": [
+                    tokenizer.encode("\n", add_special_tokens=False)[-1],
+                    tokenizer.eos_token_id,
+                ],
+            }
+        else:
+            generation_mode = False
+            generation_mode_kwargs = None
         grad_estimator = RGE(
             model,
             parameters=model_helpers.get_trainable_model_parameters(model),
@@ -141,11 +159,12 @@ def prepare_settings_underseed(args, device):
             # To save memory consumption, we have to use parameter-wise perturb + no_optim together.
             sgd_only_no_optim=args.no_optim,
             paramwise_perturb=args.no_optim,
+            # For generation mode, the forward style is different
+            generation_mode=generation_mode,
+            generation_mode_kwargs=generation_mode_kwargs,
         )
     else:
-        raise Exception(
-            f"Grad estimate method {args.grad_estimate_method} not supported"
-        )
+        raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
     return model, criterion, optimizer, grad_estimator, accuracy_func
 
 
@@ -220,9 +239,7 @@ def setup_server_and_clients(
         )
     elif args.byz_type == "krum":
         server.register_attack_func(
-            functools.partial(
-                byz_attack.krum_attack, num_attack=args.num_byz, lr=args.lr
-            )
+            functools.partial(byz_attack.krum_attack, num_attack=args.num_byz, lr=args.lr)
         )
     else:
         raise Exception(
@@ -248,9 +265,7 @@ def setup_server_and_clients(
 
 
 # get_warmup_lr is not used for now.
-def get_warmup_lr(
-    args, current_epoch: int, current_iter: int, iters_per_epoch: int
-) -> float:
+def get_warmup_lr(args, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
     return args.lr * current_iterations / overall_iterations
