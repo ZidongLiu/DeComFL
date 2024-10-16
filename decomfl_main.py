@@ -120,7 +120,7 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
                     momentum=0,
                     weight_decay=5e-4,
                 )
-                accuracy_func = get_lm_loss("f1", verbalizer_id_map={})
+                accuracy_func = get_lm_loss("f1", tokenizer=tokenizer)
             elif server_or_client == "client":
                 criterion = get_lm_loss("full_sentence", verbalizer_id_map={})
                 optimizer = torch.optim.SGD(
