@@ -25,7 +25,7 @@ from config import get_args_str, get_params
 from preprocess import preprocess
 
 
-def prepare_settings_underseed(args, device):
+def prepare_settings_underseed(args, device, server_or_client: str = "server"):
     torch_dtype = {
         "float32": torch.float32,
         "float16": torch.float16,
@@ -112,14 +112,29 @@ def prepare_settings_underseed(args, device):
             )
             accuracy_func = get_lm_loss("accuracy", verbalizer_id_map=verbalizer_id_map)
         elif args.dataset in ["squad", "drop"]:
-            criterion = get_lm_loss("f1", tokenizer=tokenizer)
-            optimizer = torch.optim.SGD(
-                model_helpers.get_trainable_model_parameters(model),
-                lr=args.lr,
-                momentum=0,
-                weight_decay=5e-4,
-            )
-            accuracy_func = get_lm_loss("f1", tokenizer=tokenizer)
+            if server_or_client == "server":
+                criterion = get_lm_loss("f1", tokenizer=tokenizer)
+                optimizer = torch.optim.SGD(
+                    model_helpers.get_trainable_model_parameters(model),
+                    lr=args.lr,
+                    momentum=0,
+                    weight_decay=5e-4,
+                )
+                accuracy_func = get_lm_loss("f1", verbalizer_id_map={})
+            elif server_or_client == "client":
+                criterion = get_lm_loss("full_sentence", verbalizer_id_map={})
+                optimizer = torch.optim.SGD(
+                    model_helpers.get_trainable_model_parameters(model),
+                    lr=args.lr,
+                    momentum=0,
+                    weight_decay=5e-4,
+                )
+                accuracy_func = get_lm_loss("full_sentence", verbalizer_id_map={})
+            else:
+                raise ValueError(
+                    "server_or_client must be either 'server' or 'client'. "
+                    f"But get {server_or_client}"
+                )
         else:
             raise ValueError(f"Dataset {args.dataset} is not supported")
     else:
@@ -128,7 +143,7 @@ def prepare_settings_underseed(args, device):
     if args.grad_estimate_method in ["rge-central", "rge-forward"]:
         method = args.grad_estimate_method[4:]
         print(f"Using RGE {method}")
-        if args.dataset in ["squad", "drop"]:
+        if args.dataset in ["squad", "drop"] and server_or_client == "server":
             generation_mode = True
             # TODO move this setting partially to the args
             generation_mode_kwargs = {
@@ -182,7 +197,7 @@ def setup_server_and_clients(
             client_optimizer,
             client_grad_estimator,
             client_accuracy_func,
-        ) = prepare_settings_underseed(args, client_device)
+        ) = prepare_settings_underseed(args, client_device, "client")
         client_model.to(client_device)
 
         client = ResetClient(
@@ -211,7 +226,7 @@ def setup_server_and_clients(
         server_optimizer,
         server_grad_estimator,
         server_accuracy_func,
-    ) = prepare_settings_underseed(args, server_device)
+    ) = prepare_settings_underseed(args, server_device, "server")
     server_model.to(server_device)
     server.set_server_model_and_criterion(
         server_model,

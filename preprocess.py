@@ -164,28 +164,26 @@ def preprocess(
                 shuffle=True,
                 collate_fn=get_collate_fn(tokenizer, max_length),
             )
-
         elif args.dataset in ["squad", "drop"]:
             dataset = load_dataset(LM_DATASET_MAP[args.dataset])
-            raw_train_dataset = dataset["train"]
-            raw_test_dataset = dataset["validation"]
+            raw_train_dataset = dataset["train"].shuffle(42).select(range(1000))
+            raw_test_dataset = dataset["validation"].shuffle(42).select(range(100))
             model_name = SUPPORTED_LLM[args.large_model]
             tokenizer = AutoTokenizer.from_pretrained(
                 model_name, padding_side="left", truncate_side="left"
             )
             template = LM_TEMPLATE_MAP[args.dataset]()
-            # Encode function instead of verbalize function because we don't want to encode answer.
+            # Notice the difference between train and test dataset preparation.
+            # "encode" function generates text including the answers
+            # "verbalize" function generates text without the answers
             encoded_train_texts = list(map(template.encode, raw_train_dataset))
-            encoded_test_texts = list(map(template.encode, raw_test_dataset))
-            train_golds = list(map(lambda d: d["answers"]["text"][0], raw_train_dataset))
+            encoded_test_texts = list(map(template.verbalize, raw_test_dataset))
             test_golds = list(map(lambda d: d["answers"]["text"][0], raw_test_dataset))
-            train_dataset = CustomLMGenerationDataset(
-                encoded_train_texts, train_golds, tokenizer, max_length=max_length
-            )
+
+            train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)
             test_dataset = CustomLMGenerationDataset(
                 encoded_test_texts, test_golds, tokenizer, max_length=max_length
             )
-
             test_loader = torch.utils.data.DataLoader(
                 test_dataset,
                 batch_size=args.test_batch_size,
@@ -226,20 +224,12 @@ def preprocess(
     splitted_train_loaders = []
     for i in range(num_clients):
         if args.dataset in LM_TEMPLATE_MAP.keys():
-            if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"]:
-                dataloader = torch.utils.data.DataLoader(
-                    splitted_train_sets[i],
-                    batch_size=args.train_batch_size,
-                    shuffle=True,
-                    collate_fn=get_collate_fn(tokenizer, max_length),
-                )
-            elif args.dataset in ["squad", "drop"]:
-                dataloader = torch.utils.data.DataLoader(
-                    splitted_train_sets[i],
-                    batch_size=args.train_batch_size,
-                    shuffle=True,
-                    collate_fn=get_collate_fn_for_gen_model(tokenizer, max_length),
-                )
+            dataloader = torch.utils.data.DataLoader(
+                splitted_train_sets[i],
+                batch_size=args.train_batch_size,
+                shuffle=True,
+                collate_fn=get_collate_fn(tokenizer, max_length),
+            )
         else:
             dataloader = torch.utils.data.DataLoader(
                 splitted_train_sets[i], batch_size=args.train_batch_size, **kwargs

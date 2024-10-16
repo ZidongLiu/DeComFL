@@ -319,8 +319,8 @@ def get_lm_loss(
     verbalizer_id_map: dict[int, int] | None = None,
     tokenizer=None,
 ):
-    if loss_type == "f1":
-        return partial(f1_loss, tokenizer=tokenizer)
+    if loss_type == "f1":  # notice this is not a real score
+        return partial(f1_batch_score, tokenizer=tokenizer)
 
     n_candidate = len(verbalizer_id_map)
     verbalizer_id_list = [verbalizer_id_map[i] for i in range(n_candidate)]
@@ -407,7 +407,7 @@ def f1_score(pred: str, gold: list[str]) -> float:
         return np.max(all_f1s)
 
 
-def f1_loss(
+def f1_batch_score(
     batch_pred: torch.Tensor, golden_outputs: Sequence[tuple[int, str]], tokenizer
 ) -> torch.Tensor:
     assert batch_pred.shape[0] == len(golden_outputs)
@@ -420,4 +420,4 @@ def f1_loss(
         _, gold_sentence = pos_and_gold
         pred_sentence = tokenizer.decode(pred[start_pos:], skip_special_tokens=True).strip()
         f1s.append(f1_score(pred_sentence, gold_sentence))
-    return -torch.tensor(np.mean(f1s), dtype=torch.float32)
+    return torch.tensor(np.mean(f1s), dtype=torch.float32)

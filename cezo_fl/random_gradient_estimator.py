@@ -84,6 +84,9 @@ class RandomGradientEstimator:
                 batch_inputs.input_ids,  # attention_mask is not needed for generation model.
                 **generation_mode_kwargs,
             )
+        if self.generation_mode:
+            logits, loss = self.model(input_ids=batch_inputs.input_ids, labels=batch_inputs.label)
+            return loss
         if isinstance(self.model, (OPTForCausalLM, PeftModel)):
             return self.model(
                 input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask
