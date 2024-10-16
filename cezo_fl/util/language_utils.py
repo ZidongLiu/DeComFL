@@ -205,9 +205,8 @@ class SQuADTemplate(Template):
         question = sample["question"].strip()
         title = sample["title"]
         context = sample["context"]
-        answer = sample["answers"][
-            0
-        ]  # there are multiple answers. for the prompt we only take the first one
+        # there are multiple answers. for the prompt we only take the first one
+        answer = sample["answers"]["text"][0]
 
         return f"Title: {title}\nContext: {context}\nQuestion: {question}\nAnswer: {answer}\n"
 
