@@ -147,14 +147,14 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
             generation_mode = True
             # TODO move this setting partially to the args
             generation_mode_kwargs = {
-                "do_sample": False,
+                "do_sample": True,
                 "temperature": 1.0,
                 "num_beams": 1,
                 "top_p": 0.95,
                 "top_k": None,
                 "num_return_sequences": 1,
-                "max_new_tokens": 50,  # will be adjusted dynamically later
-                "max_length": 2048,
+                "max_new_tokens": 10,  # will be adjusted dynamically later
+                "max_length": 1024,
                 "eos_token_id": [
                     tokenizer.encode("\n", add_special_tokens=False)[-1],
                     tokenizer.eos_token_id,

@@ -166,18 +166,18 @@ def preprocess(
             )
         elif args.dataset in ["squad", "drop"]:
             dataset = load_dataset(LM_DATASET_MAP[args.dataset])
-            raw_train_dataset = dataset["train"].shuffle(42).select(range(1000))
-            raw_test_dataset = dataset["validation"].shuffle(42).select(range(100))
+            raw_train_dataset = dataset["train"].shuffle(args.seed).select(range(2000))
+            raw_test_dataset = dataset["validation"].shuffle(args.seed).select(range(1000))
             model_name = SUPPORTED_LLM[args.large_model]
             tokenizer = AutoTokenizer.from_pretrained(
                 model_name, padding_side="left", truncate_side="left"
             )
             template = LM_TEMPLATE_MAP[args.dataset]()
             # Notice the difference between train and test dataset preparation.
-            # "encode" function generates text including the answers
-            # "verbalize" function generates text without the answers
-            encoded_train_texts = list(map(template.encode, raw_train_dataset))
-            encoded_test_texts = list(map(template.verbalize, raw_test_dataset))
+            # "verbalize" function generates text including the answers
+            # "encode" function generates text without the answers
+            encoded_train_texts = list(map(template.verbalize, raw_train_dataset))
+            encoded_test_texts = list(map(template.encode, raw_test_dataset))
             test_golds = list(map(lambda d: d["answers"]["text"][0], raw_test_dataset))
 
             train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)

@@ -208,7 +208,7 @@ class SQuADTemplate(Template):
         # there are multiple answers. for the prompt we only take the first one
         answer = sample["answers"]["text"][0]
 
-        return f"Title: {title}\nContext: {context}\nQuestion: {question}\nAnswer: {answer}\n"
+        return f"Title: {title}\nContext: {context}\nQuestion: {question}\nAnswer: {answer}"
 
 
 class DROPTemplate(Template):
@@ -220,11 +220,10 @@ class DROPTemplate(Template):
     def verbalize(self, sample):
         question = sample["question"].strip()
         context = sample["context"]
-        answer = sample["answers"][
-            0
-        ]  # there are multiple answers. for the prompt we only take the first one
+        # there are multiple answers. for the prompt we only take the first one
+        answer = sample["answers"]["text"][0]
 
-        return f"Passage: {context}\nQuestion: {question}\nAnswer: {answer}\n"
+        return f"Passage: {context}\nQuestion: {question}\nAnswer: {answer}"
 
 
 class LmTask(Enum):
