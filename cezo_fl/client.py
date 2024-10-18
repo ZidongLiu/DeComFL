@@ -113,8 +113,8 @@ class SyncClient(AbstractClient):
                 or self.grad_estimator.torch_dtype != torch.float32
             ):
                 batch_inputs = batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
-                # NOTE: label does not convert to dtype
-                labels = labels.to(self.device)
+                if isinstance(labels, torch.Tensor):  # In generation mode, labels are not tensor.
+                    labels = labels.to(self.device)  # NOTE: label does not convert to dtype
 
             if self.grad_estimator.sgd_only_no_optim:
                 grad_scalars = self.grad_estimator._zo_grad_estimate_paramwise(
@@ -235,8 +235,8 @@ class ResetClient(AbstractClient):
                 or self.grad_estimator.torch_dtype != torch.float32
             ):
                 batch_inputs = batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
-                # NOTE: label does not convert to dtype
-                labels = labels.to(self.device)
+                if isinstance(labels, torch.Tensor):  # In generation mode, labels are not tensor.
+                    labels = labels.to(self.device)  # NOTE: label does not convert to dtype
 
             if self.grad_estimator.sgd_only_no_optim:
                 grad_scalars = self.grad_estimator._zo_grad_estimate_paramwise(
