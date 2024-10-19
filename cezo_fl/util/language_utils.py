@@ -196,14 +196,14 @@ class WSCTemplate(ClassificationTemplate):
 class SQuADTemplate(Template):
 
     def encode(self, sample):
-        prompt = "Answer concisely in a few words: "
+        prompt = "Answer concisely in a few words:"
         question = sample["question"].strip()
         title = sample["title"]
         context = sample["context"]
         return f"Title: {title}\nContext: {context}\nQuestion: {question}\n{prompt}"
 
     def verbalize(self, sample):
-        prompt = "Answer concisely in a few words: "
+        prompt = "Answer concisely in a few words:"
         question = sample["question"].strip()
         title = sample["title"]
         context = sample["context"]
@@ -214,13 +214,13 @@ class SQuADTemplate(Template):
 
 class DROPTemplate(Template):
     def encode(self, sample):
-        prompt = "Answer concisely in a few words: "
+        prompt = "Answer concisely in a few words:"
         question = sample["question"].strip()
         passage = sample["passage"]
         return f"Passage: {passage}\nQuestion: {question}\{prompt}:"
 
     def verbalize(self, sample):
-        prompt = "Answer concisely in a few words: "
+        prompt = "Answer concisely in a few words:"
         question = sample["question"].strip()
         passage = sample["passage"]
         # There are multiple answers. for the prompt we only take the first one
