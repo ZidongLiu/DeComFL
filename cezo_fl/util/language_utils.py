@@ -194,7 +194,6 @@ class WSCTemplate(ClassificationTemplate):
 
 
 class SQuADTemplate(Template):
-
     def encode(self, sample):
         prompt = "Answer concisely in a few words:"
         question = sample["question"].strip()
@@ -407,7 +406,9 @@ def f1_score(pred: str, gold: list[str]) -> float:
         return np.max(all_f1s)
 
 
-def f1_batch_score(batch_pred: torch.Tensor, golden_outputs: Sequence[tuple[int, str]], tokenizer) -> torch.Tensor:
+def f1_batch_score(
+    batch_pred: torch.Tensor, golden_outputs: Sequence[tuple[int, str]], tokenizer
+) -> torch.Tensor:
     assert batch_pred.shape[0] == len(golden_outputs)
     f1s = []
     # Because we pad the inputs for the same length， the start_pos should be the max value

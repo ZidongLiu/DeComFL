@@ -154,7 +154,7 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
                 "max_new_tokens": 5,  # will be adjusted dynamically later
                 "max_length": 2048,
                 "length_penalty": 2,
-                "early_stopping": True, 
+                "early_stopping": True,
                 "eos_token_id": [
                     tokenizer.encode("\n", add_special_tokens=False)[-1],
                     tokenizer.eos_token_id,
