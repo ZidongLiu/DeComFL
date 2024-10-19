@@ -214,13 +214,13 @@ class SQuADTemplate(Template):
 
 class DROPTemplate(Template):
     def encode(self, sample):
-        prompt = "Answer concisely in a few words:"
+        prompt = "Answer:"
         question = sample["question"].strip()
         passage = sample["passage"]
         return f"Passage: {passage}\nQuestion: {question}\{prompt}:"
 
     def verbalize(self, sample):
-        prompt = "Answer concisely in a few words:"
+        prompt = "Answer:"
         question = sample["question"].strip()
         passage = sample["passage"]
         # There are multiple answers. for the prompt we only take the first one
