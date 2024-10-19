@@ -194,36 +194,38 @@ class WSCTemplate(ClassificationTemplate):
 
 
 class SQuADTemplate(Template):
+
     def encode(self, sample):
+        prompt = "Answer concisely in a few words: "
         question = sample["question"].strip()
         title = sample["title"]
         context = sample["context"]
-
-        return f"Title: {title}\nContext: {context}\nQuestion: {question}\nAnswer:"
+        return f"Title: {title}\nContext: {context}\nQuestion: {question}\n{prompt}"
 
     def verbalize(self, sample):
+        prompt = "Answer concisely in a few words: "
         question = sample["question"].strip()
         title = sample["title"]
         context = sample["context"]
-        # there are multiple answers. for the prompt we only take the first one
+        # There are multiple answers. For the prompt we only take the first one
         answer = sample["answers"]["text"][0]
-
-        return f"Title: {title}\nContext: {context}\nQuestion: {question}\nAnswer: {answer}"
+        return f"Title: {title}\nContext: {context}\nQuestion: {question}\n{prompt}{answer}"
 
 
 class DROPTemplate(Template):
     def encode(self, sample):
+        prompt = "Answer concisely in a few words: "
         question = sample["question"].strip()
-        context = sample["context"]
-        return f"Passage: {context}\nQuestion: {question}\nAnswer:"
+        passage = sample["passage"]
+        return f"Passage: {passage}\nQuestion: {question}\{prompt}:"
 
     def verbalize(self, sample):
+        prompt = "Answer concisely in a few words: "
         question = sample["question"].strip()
-        context = sample["context"]
-        # there are multiple answers. for the prompt we only take the first one
-        answer = sample["answers"]["text"][0]
-
-        return f"Passage: {context}\nQuestion: {question}\nAnswer: {answer}"
+        passage = sample["passage"]
+        # There are multiple answers. for the prompt we only take the first one
+        answer = sample["answers_spans"]["spans"][0]
+        return f"Passage: {passage}\nQuestion: {question}\n{prompt}{answer}"
 
 
 class LmTask(Enum):
@@ -371,14 +373,14 @@ def last_token_accuracy(batch_pred, sentence_label_tokens, verbalizer_id_map, ve
 
 def normalize_answer(s: str) -> str:
     def remove_articles(text):
-        return re.sub(r"\b(a|an|the)\b", " ", text)
+        return re.sub(r"\b(a|an|the)\b", " ", text, flags=re.IGNORECASE)
 
     def white_space_fix(text):
         return " ".join(text.split())
 
     def remove_punc(text):
-        exclude = set(string.punctuation)
-        return "".join(ch for ch in text if ch not in exclude)
+        translator = str.maketrans("", "", string.punctuation)
+        return text.translate(translator)
 
     def lower(text):
         return text.lower()
@@ -387,7 +389,7 @@ def normalize_answer(s: str) -> str:
 
 
 def f1_score(pred: str, gold: list[str]) -> float:
-    if gold[0] == "CANNOTANSWER" or gold[0] == "no answer":
+    if gold[0].lower() in ["cannotanswer", "no answer"]:
         return int(normalize_answer(gold[0]) == normalize_answer(pred))
     else:
         all_f1s = []
@@ -405,9 +407,7 @@ def f1_score(pred: str, gold: list[str]) -> float:
         return np.max(all_f1s)
 
 
-def f1_batch_score(
-    batch_pred: torch.Tensor, golden_outputs: Sequence[tuple[int, str]], tokenizer
-) -> torch.Tensor:
+def f1_batch_score(batch_pred: torch.Tensor, golden_outputs: Sequence[tuple[int, str]], tokenizer) -> torch.Tensor:
     assert batch_pred.shape[0] == len(golden_outputs)
     f1s = []
     # Because we pad the inputs for the same length， the start_pos should be the max value
@@ -417,5 +417,7 @@ def f1_batch_score(
     for pred, pos_and_gold in zip(batch_pred, golden_outputs):
         _, gold_sentence = pos_and_gold
         pred_sentence = tokenizer.decode(pred[start_pos:], skip_special_tokens=True).strip()
-        f1s.append(f1_score(pred_sentence, [gold_sentence]))
+        f1 = f1_score(pred_sentence, [gold_sentence])
+        f1s.append(f1)
+        # print(f"==============\n{f1=}\npred = {pred_sentence}\ngold = {gold_sentence}")
     return torch.tensor(np.mean(f1s), dtype=torch.float32)

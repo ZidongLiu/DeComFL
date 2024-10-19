@@ -34,7 +34,6 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
     torch.manual_seed(args.seed)
     if args.dataset == "mnist":
         model = CNN_MNIST().to(torch_dtype).to(device)
-
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
             model_helpers.get_trainable_model_parameters(model),
@@ -101,7 +100,6 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
                     target_modules=["q_proj", "v_proj"],
                 )
                 model = get_peft_model(model, lora_config).to(torch_dtype)
-
             verbalizer_id_map = template.get_verbalizer_id(tokenizer)
             criterion = get_lm_loss("last_token", verbalizer_id_map=verbalizer_id_map)
             optimizer = torch.optim.SGD(
@@ -118,7 +116,7 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
                     model_helpers.get_trainable_model_parameters(model),
                     lr=args.lr,
                     momentum=0,
-                    weight_decay=5e-4,
+                    weight_decay=0,
                 )
                 accuracy_func = get_lm_loss("f1", tokenizer=tokenizer)
             elif server_or_client == "client":
@@ -127,7 +125,7 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
                     model_helpers.get_trainable_model_parameters(model),
                     lr=args.lr,
                     momentum=0,
-                    weight_decay=5e-4,
+                    weight_decay=0,
                 )
                 accuracy_func = get_lm_loss("full_sentence", verbalizer_id_map={})
             else:
@@ -149,12 +147,13 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
             generation_mode_kwargs = {
                 "do_sample": True,
                 "temperature": 1.0,
-                "num_beams": 1,
-                "top_p": 0.95,
+                "num_beams": 2,
+                "top_p": 0.3,
                 "top_k": None,
                 "num_return_sequences": 1,
-                "max_new_tokens": 10,  # will be adjusted dynamically later
-                "max_length": 1024,
+                "max_new_tokens": 5,  # will be adjusted dynamically later
+                "max_length": 2048,
+                "length_penalty": 2,
                 "eos_token_id": [
                     tokenizer.encode("\n", add_special_tokens=False)[-1],
                     tokenizer.eos_token_id,
