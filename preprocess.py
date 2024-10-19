@@ -187,7 +187,10 @@ def preprocess(
             # "encode" function generates text without the answers
             encoded_train_texts = list(map(template.verbalize, raw_train_dataset))
             encoded_test_texts = list(map(template.encode, raw_test_dataset))
-            test_golds = list(map(lambda d: d["answers"]["text"][0], raw_test_dataset))
+            if args.dataset == "squad": 
+                test_golds = list(map(lambda d: d["answers"]["text"][0], raw_test_dataset))
+            elif args.dataset == "drop": 
+                test_golds = list(map(lambda d: d["answers_spans"]["spans"][0], raw_test_dataset))
             train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)
             test_dataset = CustomLMGenerationDataset(encoded_test_texts, test_golds, tokenizer, max_length=max_length)
             test_loader = torch.utils.data.DataLoader(
