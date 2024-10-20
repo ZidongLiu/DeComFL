@@ -227,6 +227,19 @@ class DROPTemplate(Template):
         return f"Passage: {passage}\nQuestion: {question}\n{prompt}{answer}"
 
 
+class XSUMTemplate(Template):
+    def encode(self, sample):
+        prompt = "Summarize this in one sentence:"
+        document = sample["document"]
+        return f"Document: {document}\n{prompt}:"
+
+    def verbalize(self, sample):
+        prompt = "Summarize this in one sentence:"
+        document = sample["document"]
+        summary = sample["summary"]
+        return f"Document: {document}\n{prompt}{summary}"
+
+
 class LmTask(Enum):
     sst2 = "sst2"
     rte = "rte"
@@ -237,6 +250,7 @@ class LmTask(Enum):
     boolq = "boolq"
     squad = "squad"
     drop = "drop"
+    xsum = "xsum"
 
 
 LM_DATASET_MAP = {
@@ -249,6 +263,7 @@ LM_DATASET_MAP = {
     LmTask.boolq.name: "super_glue",
     LmTask.squad.name: "squad",
     LmTask.drop.name: "drop",
+    LmTask.xsum.name: "xsum",
 }
 
 LM_TEMPLATE_MAP = {
@@ -261,6 +276,7 @@ LM_TEMPLATE_MAP = {
     LmTask.boolq.name: BoolQTemplate,
     LmTask.squad.name: SQuADTemplate,
     LmTask.drop.name: DROPTemplate,
+    LmTask.xsum.name: XSUMTemplate,
 }
 
 
@@ -294,7 +310,6 @@ def get_collate_fn(tokenizer, max_length):
     return collate_fn
 
 
-# This is used for SQuAD dataset
 def get_collate_fn_for_gen_model(tokenizer, max_length):
     def collate_fn(batch):
         inputs, golds = zip(*batch)

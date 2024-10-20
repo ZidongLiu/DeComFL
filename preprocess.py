@@ -162,7 +162,7 @@ def preprocess(
                 shuffle=True,
                 collate_fn=get_collate_fn(tokenizer, max_length),
             )
-        elif args.dataset in ["squad", "drop"]:
+        elif args.dataset in ["squad", "drop", "xsum"]:
             dataset = load_dataset(LM_DATASET_MAP[args.dataset])
             raw_train_dataset = dataset["train"].select(range(1000)).shuffle(args.seed)
             raw_test_dataset = dataset["validation"].select(range(100)).shuffle(args.seed)
@@ -180,6 +180,8 @@ def preprocess(
                 test_golds = list(map(lambda d: d["answers"]["text"][0], raw_test_dataset))
             elif args.dataset == "drop":
                 test_golds = list(map(lambda d: d["answers_spans"]["spans"][0], raw_test_dataset))
+            elif args.dataset == "xsum":
+                test_golds = list(map(lambda d: d["summary"], raw_test_dataset))
             train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)
             test_dataset = CustomLMGenerationDataset(
                 encoded_test_texts, test_golds, tokenizer, max_length=max_length

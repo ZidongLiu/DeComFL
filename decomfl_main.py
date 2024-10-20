@@ -109,7 +109,7 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
                 weight_decay=5e-4,
             )
             accuracy_func = get_lm_loss("accuracy", verbalizer_id_map=verbalizer_id_map)
-        elif args.dataset in ["squad", "drop"]:
+        elif args.dataset in ["squad", "drop", "xsum"]:
             if server_or_client == "server":
                 criterion = get_lm_loss("f1", tokenizer=tokenizer)
                 optimizer = torch.optim.SGD(
@@ -154,6 +154,24 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
                 "max_new_tokens": 5,  # will be adjusted dynamically later
                 "max_length": 2048,
                 "length_penalty": 2,
+                "early_stopping": True,
+                "eos_token_id": [
+                    tokenizer.encode("\n", add_special_tokens=False)[-1],
+                    tokenizer.eos_token_id,
+                ],
+            }
+        elif args.dataset in ["xsum"] and server_or_client == "server":
+            generation_mode = True
+            # TODO move this setting partially to the args
+            generation_mode_kwargs = {
+                "do_sample": True,
+                "temperature": 1.0,
+                "num_beams": 2,
+                "top_p": 0.95,
+                "top_k": None,
+                "num_return_sequences": 1,
+                "max_new_tokens": 500,  # will be adjusted dynamically later
+                "max_length": 2048,
                 "early_stopping": True,
                 "eos_token_id": [
                     tokenizer.encode("\n", add_special_tokens=False)[-1],
