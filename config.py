@@ -41,9 +41,6 @@ DEFAULTS = {
     "aggregation": "mean",
     "byz_type": "no_byz",
     "num_byz": 1,
-    # Pruning
-    "sparsity_file": None,
-    "mask_shuffle_interval": 5,
     # Check Points
     "checkpoint": None,
     "create_many_checkpoint": True,
@@ -97,12 +94,6 @@ def get_params():
         help="Adjust lr and perturb at 500/1000/2000 iteration",
     )
 
-    parser.add_argument("--sparsity-file", type=str, default=DEFAULTS["sparsity_file"])
-    parser.add_argument(
-        "--mask-shuffle-interval",
-        type=int,
-        default=DEFAULTS["mask_shuffle_interval"],
-    )
     # Byzantine
     parser.add_argument(
         "--aggregation", type=str, default=DEFAULTS["aggregation"], help="mean, median, trim, krum"
@@ -169,12 +160,9 @@ def get_args_str(args):
     )
     # only add to string if it's different from default
     advanced_items = []
-    for key in ["mu", "seed", "sparsity_file", "mask_shuffle_interval"]:
+    for key in ["mu", "seed"]:
         if getattr(args, key) != DEFAULTS[key]:
             v = getattr(args, key)
-            if key == "sparsity_file":
-                v = v.replace("/", ".").replace("\\", ".")
-
             advanced_items += [f"{key}-{v}"]
 
     if len(advanced_items):
@@ -225,9 +213,6 @@ class FakeArgs:
     aggregation = DEFAULTS["aggregation"]
     byz_type = DEFAULTS["byz_type"]
     num_byz = DEFAULTS["num_byz"]
-    # Pruning
-    sparsity_file = DEFAULTS["sparsity_file"]
-    mask_shuffle_interval = DEFAULTS["mask_shuffle_interval"]
     # Check Points
     checkpoint = DEFAULTS["checkpoint"]
     create_many_checkpoint = DEFAULTS["create_many_checkpoint"]

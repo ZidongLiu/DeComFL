@@ -1,4 +1,3 @@
-from asyncio.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from typing import Sequence, TypeAlias
 
@@ -59,7 +58,7 @@ def execute_sampled_clients(
 
     if parallel:
         with ThreadPoolExecutor() as executor:
-            futures: list[Future] = []
+            futures = []
             for index in sampled_client_index:
                 client = server.clients[index]
                 last_update_iter = server.client_last_updates[index]

@@ -54,7 +54,7 @@ def test_update_model_given_seed_and_grad():
 
 class FakeClient(AbstractClient):
     def __init__(self):
-        self._device = torch.device("cpu")
+        self.device = torch.device("cpu")
 
     def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
         return LocalUpdateResult(

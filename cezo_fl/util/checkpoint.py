@@ -30,7 +30,7 @@ class CheckPoint:
                                 - Last to implement, this feels not needed if we can resume training from checkpoint
     """
 
-    def __init__(self, args, model, optimizer, gradient_estimator):
+    def __init__(self, args, model, optimizer, gradient_estimator) -> None:
         self.args = args
         self.model = model
         self.optimizer = optimizer

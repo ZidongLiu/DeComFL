@@ -41,15 +41,6 @@ def test_get_estimate_indices():
     assert cge.get_estimate_indices() != range(3)
     assert cge.get_estimate_indices() == range(2)
 
-    cge.set_prune_mask(torch.tensor([0, 0], dtype=bool))
-    assert (cge.get_estimate_indices() == torch.tensor([], dtype=int)).all()
-    cge.set_prune_mask(torch.tensor([0, 1], dtype=bool))
-    assert (cge.get_estimate_indices() == torch.tensor([1], dtype=int)).all()
-    cge.set_prune_mask(torch.tensor([1, 0], dtype=bool))
-    assert (cge.get_estimate_indices() == torch.tensor([0], dtype=int)).all()
-    cge.set_prune_mask(torch.tensor([1, 1], dtype=bool))
-    assert (cge.get_estimate_indices() == torch.tensor([0, 1], dtype=int)).all()
-
 
 def test_simple_model_training():
     torch.manual_seed(1)

@@ -1,7 +1,5 @@
-import json
-from typing import Union
-
 import torch
+from torch.utils.data.dataset import Subset
 import torchvision
 import torchvision.transforms as transforms
 from datasets import load_dataset
@@ -20,7 +18,7 @@ from cezo_fl.util.language_utils import (
 )
 
 
-def use_device(args):
+def use_device(args) -> tuple[dict[str, torch.device], dict]:
     num_clients = args.num_clients
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()
@@ -51,25 +49,6 @@ def use_device(args):
         client_devices = {get_client_name(i): torch.device("cpu") for i in range(num_clients)}
 
     return server_device | client_devices, kwargs
-
-
-def use_sparsity_dict(args, model_name: str) -> Union[dict[str, float], None]:
-    if args.sparsity_file is None:
-        print("Sparsity Dict: ", None)
-        return None
-
-    with open(args.sparsity_file, "r") as file:
-        sparsity_data = json.load(file)
-
-    sparsity_data_model = sparsity_data["model_name"]
-    if sparsity_data_model != model_name:
-        raise Exception(
-            f"Sparsity file is generated using {sparsity_data_model}, "
-            + f"while current specified model is {model_name}"
-        )
-
-    print("Sparsity Dict: ", sparsity_data["sparsity_dict"])
-    return sparsity_data["sparsity_dict"]
 
 
 def preprocess(
@@ -164,6 +143,7 @@ def preprocess(
 
     # already updated at main function
     num_clients = args.num_clients
+    splitted_train_sets: list[DatasetSplit] | list[Subset]
     if args.dataset == "shakespeare":
         dict_users = train_dataset.get_client_dic()
         splitted_train_sets = [

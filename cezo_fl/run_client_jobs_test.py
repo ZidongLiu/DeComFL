@@ -27,7 +27,9 @@ def get_mnist_data_loader():
     return torch.utils.data.DataLoader(train_dataset, batch_size=8, shuffle=False)
 
 
-def set_fake_clients(num_clients=3, num_pert=4, local_update_steps=2) -> list[ResetClient]:
+def set_fake_clients(
+    num_clients: int = 3, num_pert: int = 4, local_update_steps: int = 2
+) -> list[ResetClient]:
     args = FakeArgs()
     args.dataset = "mnist"
     args.num_clients = num_clients
@@ -37,6 +39,7 @@ def set_fake_clients(num_clients=3, num_pert=4, local_update_steps=2) -> list[Re
     device_map, _, _ = preprocess(args)
     device = device_map["server"]
     fake_clients = []
+    assert isinstance(args.lr, float)
     for i in range(args.num_clients):
         torch.random.manual_seed(1234)  # Make sure all models are the same
         model = CNN_MNIST().to(device)

@@ -18,7 +18,9 @@ class LinearModel(nn.Module):
 
 @pytest.mark.parametrize("rge_method", ["forward", "central"])
 @pytest.mark.parametrize("num_pert", [2, 4, 5])
-def test_parameter_wise_equivalent_all_togther(rge_method: str, num_pert: int) -> None:
+def test_parameter_wise_equivalent_all_togther(
+    rge_method: RGE.GradEstimateMethod, num_pert: int
+) -> None:
     """
     NOTE: Do not extend this test for large model. This test only works when model is small.
     To be specific, works number of parameters <= 10.
