@@ -82,7 +82,7 @@ if __name__ == "__main__":
         writer = SummaryWriter(
             path.join(
                 "tensorboards",
-                "cezo_fl",
+                "fed_avg",
                 args.dataset,
                 args.log_to_tensorboard,
                 tensorboard_sub_folder,
@@ -94,16 +94,6 @@ if __name__ == "__main__":
             step_loss, step_accuracy = server.train_one_step()
             t.set_postfix({"Loss": step_loss, "Accuracy": step_accuracy})
             t.update(1)
-            if args.adjust_perturb:
-                if ite == 500:
-                    server.set_learning_rate(args.lr * 0.8)
-                    server.set_perturbation(args.num_pert * 2)
-                elif ite == 1000:
-                    server.set_learning_rate(args.lr * 0.5)
-                    server.set_perturbation(args.num_pert * 4)
-                elif ite == 2000:
-                    server.set_learning_rate(args.lr * 0.3)
-                    server.set_perturbation(args.num_pert * 8)
 
             if args.log_to_tensorboard:
                 writer.add_scalar("Loss/train", step_loss, ite)

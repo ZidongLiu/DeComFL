@@ -9,7 +9,7 @@ from cezo_fl.shared import CriterionType
 from cezo_fl.util.metrics import Metric
 from cezo_fl.util.model_helpers import model_forward
 
-from .client import FedAvgClient
+from fed_avg.client import FedAvgClient
 
 
 class FedAvgServer:

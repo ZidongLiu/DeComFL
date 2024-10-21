@@ -1,4 +1,4 @@
-from typing import Iterator
+from typing import Iterator, Callable
 
 import torch
 from peft import PeftModel
@@ -17,7 +17,7 @@ class FedAvgClient:
         dataloader: DataLoader,
         optimizer: torch.optim.Optimizer,
         criterion: CriterionType,
-        accuracy_func,
+        accuracy_func: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         device: torch.device | None = None,
     ):
         self.model = model
