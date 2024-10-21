@@ -10,6 +10,10 @@ from typing import Iterator
 
 import torch
 import torch.optim as optim
+from peft import PeftModel
+from transformers.models.opt.modeling_opt import OPTForCausalLM
+
+from cezo_fl.util.language_utils import LLMBatchInput
 
 
 def get_current_datetime_str():
@@ -73,3 +77,14 @@ def get_trainable_model_parameters(
     for param in model.parameters():
         if param.requires_grad:
             yield param
+
+
+def model_forward(
+    model: OPTForCausalLM | PeftModel | torch.nn.Module, batch_inputs: torch.Tensor | LLMBatchInput
+):
+    if isinstance(model, (OPTForCausalLM, PeftModel)):
+        return model(input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask)
+    elif isinstance(model, torch.nn.Module):
+        return model(batch_inputs)
+    else:
+        raise Exception("This model type is not supported")
