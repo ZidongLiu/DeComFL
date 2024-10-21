@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from enum import Enum
 from functools import partial
-from typing import Literal
-
+from typing import Literal, Sequence
+from collections import Counter
+import re
+import string
 import torch
+import numpy as np
 
 # utils for shakespeare dataset
 
@@ -64,7 +67,44 @@ class CustomLMDataset(torch.utils.data.DataLoader):
         return torch.tensor(input_ids, dtype=torch.long)
 
 
-class ClassificationTemplate:
+class CustomLMGenerationDataset(torch.utils.data.DataLoader):
+    def __init__(self, texts, golds, tokenizer, max_length):
+        assert len(texts) == len(golds)
+        self.texts = texts
+        self.golds = golds
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+
+    def __len__(self):
+        return len(self.texts)
+
+    def __getitem__(self, idx):
+        input_text = self.texts[idx]
+        input_ids = self.tokenizer.encode(input_text, add_special_tokens=True)
+        # left_truncation
+        if len(input_ids) > self.max_length:
+            input_ids = input_ids[-self.max_length :]
+        return torch.tensor(input_ids, dtype=torch.long), (
+            len(input_ids),
+            self.golds[idx],
+        )
+
+
+class Template:
+    def encode(self, sample):
+        """
+        Return prompted version of the example (without the answer/candidate)
+        """
+        raise NotImplementedError
+
+    def verbalize(self, sample):
+        """
+        Return the prompted version of the example (with the answer/candidate)
+        """
+        raise NotImplementedError
+
+
+class ClassificationTemplate(Template):
     verbalizer = {0: "0", 1: "1"}
 
     def get_verbalizer_id(self, tokenizer):
@@ -153,6 +193,53 @@ class WSCTemplate(ClassificationTemplate):
         return f'{text}\nIn the previous sentence, does the pronoun "{span2.lower()}" refer to {span1}? Yes or No?\n'
 
 
+class SQuADTemplate(Template):
+    def encode(self, sample):
+        prompt = "Answer concisely in a few words:"
+        question = sample["question"].strip()
+        title = sample["title"]
+        context = sample["context"]
+        return f"Title: {title}\nContext: {context}\nQuestion: {question}\n{prompt}"
+
+    def verbalize(self, sample):
+        prompt = "Answer concisely in a few words:"
+        question = sample["question"].strip()
+        title = sample["title"]
+        context = sample["context"]
+        # There are multiple answers. For the prompt we only take the first one
+        answer = sample["answers"]["text"][0]
+        return f"Title: {title}\nContext: {context}\nQuestion: {question}\n{prompt}{answer}"
+
+
+class DROPTemplate(Template):
+    def encode(self, sample):
+        prompt = "Answer:"
+        question = sample["question"].strip()
+        passage = sample["passage"]
+        return f"Passage: {passage}\nQuestion: {question}\{prompt}:"
+
+    def verbalize(self, sample):
+        prompt = "Answer:"
+        question = sample["question"].strip()
+        passage = sample["passage"]
+        # There are multiple answers. for the prompt we only take the first one
+        answer = sample["answers_spans"]["spans"][0]
+        return f"Passage: {passage}\nQuestion: {question}\n{prompt}{answer}"
+
+
+class XSUMTemplate(Template):
+    def encode(self, sample):
+        prompt = "Summarize this in one sentence:"
+        document = sample["document"]
+        return f"Document: {document}\n{prompt}:"
+
+    def verbalize(self, sample):
+        prompt = "Summarize this in one sentence:"
+        document = sample["document"]
+        summary = sample["summary"]
+        return f"Document: {document}\n{prompt}{summary}"
+
+
 class LmTask(Enum):
     sst2 = "sst2"
     rte = "rte"
@@ -161,6 +248,9 @@ class LmTask(Enum):
     wic = "wic"
     wsc = "wsc"
     boolq = "boolq"
+    squad = "squad"
+    drop = "drop"
+    xsum = "xsum"
 
 
 LM_DATASET_MAP = {
@@ -171,6 +261,9 @@ LM_DATASET_MAP = {
     LmTask.wic.name: "super_glue",
     LmTask.wsc.name: "super_glue",
     LmTask.boolq.name: "super_glue",
+    LmTask.squad.name: "squad",
+    LmTask.drop.name: "drop",
+    LmTask.xsum.name: "xsum",
 }
 
 LM_TEMPLATE_MAP = {
@@ -181,6 +274,9 @@ LM_TEMPLATE_MAP = {
     LmTask.wic.name: WICTemplate,
     LmTask.wsc.name: WSCTemplate,
     LmTask.boolq.name: BoolQTemplate,
+    LmTask.squad.name: SQuADTemplate,
+    LmTask.drop.name: DROPTemplate,
+    LmTask.xsum.name: XSUMTemplate,
 }
 
 
@@ -199,7 +295,10 @@ def get_collate_fn(tokenizer, max_length):
     def collate_fn(batch):
         # Pad sequences to the max length in the batch
         padded_batch = tokenizer.pad(
-            {"input_ids": batch}, padding=True, max_length=max_length, return_tensors="pt"
+            {"input_ids": batch},
+            padding=True,
+            max_length=max_length,
+            return_tensors="pt",
         )
         input_ids = padded_batch["input_ids"]
         attention_mask = padded_batch["attention_mask"]
@@ -211,12 +310,34 @@ def get_collate_fn(tokenizer, max_length):
     return collate_fn
 
 
+def get_collate_fn_for_gen_model(tokenizer, max_length):
+    def collate_fn(batch):
+        inputs, golds = zip(*batch)
+        # Pad sequences to the max length in the batch
+        padded_batch = tokenizer.pad(
+            {"input_ids": inputs},
+            padding=True,
+            max_length=max_length,
+            return_tensors="pt",
+        )
+        input_ids = padded_batch["input_ids"]
+        attention_mask = padded_batch["attention_mask"]
+        return (LLMBatchInput(input_ids, attention_mask), golds)
+
+    return collate_fn
+
+
 def get_lm_loss(
-    loss_type: Literal["full_sentence", "last_token", "accuracy"], verbalizer_id_map: dict[int, int]
+    loss_type: Literal["full_sentence", "last_token", "accuracy", "f1"],
+    *,
+    verbalizer_id_map: dict[int, int] | None = None,
+    tokenizer=None,
 ):
+    if loss_type == "f1":  # notice this is not a real score
+        return partial(f1_batch_score, tokenizer=tokenizer)
+
     n_candidate = len(verbalizer_id_map)
     verbalizer_id_list = [verbalizer_id_map[i] for i in range(n_candidate)]
-
     if loss_type == "full_sentence":
         return full_sentence_cross_entropy_loss
     elif loss_type == "last_token":
@@ -262,3 +383,57 @@ def last_token_accuracy(batch_pred, sentence_label_tokens, verbalizer_id_map, ve
 
     pred = last_token_batch_pred.max(1, keepdim=True)[1]
     return pred.eq(last_token_label.view_as(pred)).cpu().float().mean()
+
+
+def normalize_answer(s: str) -> str:
+    def remove_articles(text):
+        return re.sub(r"\b(a|an|the)\b", " ", text, flags=re.IGNORECASE)
+
+    def white_space_fix(text):
+        return " ".join(text.split())
+
+    def remove_punc(text):
+        translator = str.maketrans("", "", string.punctuation)
+        return text.translate(translator)
+
+    def lower(text):
+        return text.lower()
+
+    return white_space_fix(remove_articles(remove_punc(lower(s))))
+
+
+def f1_score(pred: str, gold: list[str]) -> float:
+    if gold[0].lower() in ["cannotanswer", "no answer"]:
+        return int(normalize_answer(gold[0]) == normalize_answer(pred))
+    else:
+        all_f1s = []
+        for ans in gold:
+            prediction_tokens = normalize_answer(pred).split()
+            ground_truth_tokens = normalize_answer(ans).split()
+            common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
+            num_same = sum(common.values())
+            if num_same == 0:
+                all_f1s.append(0)
+            else:
+                precision = 1.0 * num_same / len(prediction_tokens)
+                recall = 1.0 * num_same / len(ground_truth_tokens)
+                all_f1s.append((2 * precision * recall) / (precision + recall))
+        return np.max(all_f1s)
+
+
+def f1_batch_score(
+    batch_pred: torch.Tensor, golden_outputs: Sequence[tuple[int, str]], tokenizer
+) -> torch.Tensor:
+    assert batch_pred.shape[0] == len(golden_outputs)
+    f1s = []
+    # Because we pad the inputs for the same length， the start_pos should be the max value
+    # of all inputs
+    start_pos = max(pos_and_gold[0] for pos_and_gold in golden_outputs)
+
+    for pred, pos_and_gold in zip(batch_pred, golden_outputs):
+        _, gold_sentence = pos_and_gold
+        pred_sentence = tokenizer.decode(pred[start_pos:], skip_special_tokens=True).strip()
+        f1 = f1_score(pred_sentence, [gold_sentence])
+        f1s.append(f1)
+        # print(f"==============\n{f1=}\npred = {pred_sentence}\ngold = {gold_sentence}")
+    return torch.tensor(np.mean(f1s), dtype=torch.float32)

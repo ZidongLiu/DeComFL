@@ -1,4 +1,4 @@
-from typing import Callable, Iterator, Literal, Sequence, TypeAlias
+from typing import Any, Callable, Iterator, Literal, Sequence, TypeAlias
 
 import torch
 from peft import PeftModel
@@ -25,6 +25,8 @@ class RandomGradientEstimator:
         prune_mask_arr: torch.Tensor | None = None,
         paramwise_perturb: bool = False,
         sgd_only_no_optim: bool = False,
+        generation_mode: bool = False,
+        generation_mode_kwargs: dict[str, Any] | None = None,
     ):
         self.model = model
         if parameters is None:
@@ -53,8 +55,38 @@ class RandomGradientEstimator:
         if prune_mask_arr:
             self.set_prune_mask(prune_mask_arr)
 
+        # For the forward function used in generation mode usage
+        self.generation_mode = generation_mode
+        self.generation_mode_kwargs = generation_mode_kwargs if generation_mode_kwargs else {}
+
     # TODO(zidong) move this func out of this class
-    def model_forward(self, batch_inputs: torch.Tensor | LLMBatchInput):
+    def model_forward(
+        self,
+        batch_inputs: torch.Tensor | LLMBatchInput,
+    ):
+        if self.generation_mode:
+            if not isinstance(self.model, (OPTForCausalLM, PeftModel)):
+                raise ValueError(
+                    "The model for generation_mode must be OPTForCausalLM or peft model"
+                )
+            generation_mode_kwargs = self.generation_mode_kwargs
+            # We may need a copy for dynamic modification
+            if "max_new_tokens" in self.generation_mode_kwargs:
+                generation_mode_kwargs = self.generation_mode_kwargs.copy()
+                assert "max_length" in generation_mode_kwargs  # both should be specified.
+                # Dynamic adjust the max_new_tokens according to input length
+                generation_mode_kwargs["max_new_tokens"] = min(
+                    generation_mode_kwargs["max_new_tokens"],
+                    generation_mode_kwargs["max_length"] - batch_inputs.input_ids.size(1),
+                )
+                del generation_mode_kwargs["max_length"]
+            return self.model.generate(
+                batch_inputs.input_ids,  # attention_mask is not needed for generation model.
+                **generation_mode_kwargs,
+            )
+        if self.generation_mode:
+            logits, loss = self.model(input_ids=batch_inputs.input_ids, labels=batch_inputs.label)
+            return loss
         if isinstance(self.model, (OPTForCausalLM, PeftModel)):
             return self.model(
                 input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask
