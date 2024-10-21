@@ -8,7 +8,7 @@ def accuracy(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
 
 
 class Metric(object):
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str):
         self.name = name
         self.sum = torch.tensor(0.0)
         self.n = torch.tensor(0.0)

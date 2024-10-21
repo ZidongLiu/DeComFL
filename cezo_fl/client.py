@@ -40,9 +40,9 @@ class AbstractClient:
         return NotImplemented
 
     @abc.abstractmethod
-    def reset_model(self) -> None:  # type: ignore
+    def reset_model(self) -> None:
         """Reset the mode to the state before the local_update."""
-        return NotImplemented  # type: ignore
+        ...
 
     @abc.abstractmethod
     def pull_model(
@@ -50,7 +50,8 @@ class AbstractClient:
         seeds_list: Sequence[Sequence[int]],
         gradient_scalar: Sequence[Sequence[torch.Tensor]],
     ) -> None:
-        return NotImplemented  # type: ignore
+        """Pull model from server side using seed and grad"""
+        ...
 
     @abc.abstractmethod
     def random_gradient_estimator(self) -> RGE:
