@@ -20,24 +20,30 @@ def inf_loader(dl):
 
 inf_test_loader = inf_loader(test_loader)
 
-# large_model = args.large_model
-# model_name = SUPPORTED_LLM[large_model]
-# tokenizer = AutoTokenizer.from_pretrained(
-#     model_name, padding_side="left", truncate_side="left"
-# )
+if args.dataset in ["squad", "drop", "xsum"]:
+    generation_mode_kwargs = {
+        "do_sample": True,
+        "temperature": 1.0,
+        "num_beams": 2,
+        "top_p": 0.3,
+        "top_k": None,
+        "num_return_sequences": 1,
+        "max_new_tokens": 5,  # will be adjusted dynamically later
+        "length_penalty": 2,
+        "early_stopping": True,
+    }
 
-# template = RTETemplate()
-# template = LM_TEMPLATE_MAP[args.dataset]()
-# test_sample = next(inf_test_loader)
-# print(test_sample[1][:, -1])
-# template.get_verbalizer_id(tokenizer)
-# server = setup_server_and_clients(args, device, train_loaders)
-
-# args_str = get_args_str(args) + "-" + server.server_model.model_name
-
-model, criterion, optimizer, grad_estimator, accuracy_func = (
-    decomfl_main.prepare_settings_underseed(args, device)
+# A hacky way to get diff train and eval if necessary
+model, criterion, optimizer, _, accuracy_func = decomfl_main.prepare_settings_underseed(
+    args, device, server_or_client="client"
 )
+if args.dataset in ["squad", "drop", "xsum"]:
+    _, eval_criterion, _, _, eval_accuracy_func = decomfl_main.prepare_settings_underseed(
+        args, device, server_or_client="server"
+    )
+else:
+    eval_criterion, eval_accuracy_func = criterion, accuracy_func
+
 model.to(device)
 
 acc = Metric("accuracy")
@@ -45,14 +51,19 @@ model.eval()
 with torch.no_grad():
     for batch_input_dict, batch_output_tensor in test_loader:
         batch_input_dict = batch_input_dict.to("cuda")
-        batch_output_tensor = batch_output_tensor.to("cuda")
+        if args.dataset in ["squad", "drop", "xsum"]:
+            outputs = model.generate(
+                input_ids=batch_input_dict.input_ids,
+                **generation_mode_kwargs,
+            )
+        else:
+            batch_output_tensor = batch_output_tensor.to("cuda")
+            # Forward pass to get logits
+            outputs = model(
+                input_ids=batch_input_dict.input_ids, attention_mask=batch_input_dict.attention_mask
+            )
 
-        # Forward pass to get logits
-        outputs = model(
-            input_ids=batch_input_dict.input_ids, attention_mask=batch_input_dict.attention_mask
-        )
-
-        batch_acc = accuracy_func(outputs, batch_output_tensor)
+        batch_acc = eval_accuracy_func(outputs, batch_output_tensor)
         acc.update(batch_acc)
         del batch_input_dict, batch_output_tensor, outputs, batch_acc
         torch.cuda.empty_cache()
@@ -98,15 +109,20 @@ for i in tqdm(range(10000)):
         with torch.no_grad():
             for batch_input_dict, batch_output_tensor in test_loader:
                 batch_input_dict = batch_input_dict.to("cuda")
-                batch_output_tensor = batch_output_tensor.to("cuda")
+                if args.dataset in ["squad", "drop", "xsum"]:
+                    outputs = model.generate(
+                        input_ids=batch_input_dict.input_ids,
+                        **generation_mode_kwargs,
+                    )
+                else:
+                    batch_output_tensor = batch_output_tensor.to("cuda")
+                    # Forward pass to get logits
+                    outputs = model(
+                        input_ids=batch_input_dict.input_ids,
+                        attention_mask=batch_input_dict.attention_mask,
+                    )
 
-                # Forward pass to get logits
-                outputs = model(
-                    input_ids=batch_input_dict.input_ids,
-                    attention_mask=batch_input_dict.attention_mask,
-                )
-
-                batch_acc = accuracy_func(outputs, batch_output_tensor)
+                batch_acc = eval_accuracy_func(outputs, batch_output_tensor)
                 acc.update(batch_acc)
                 del batch_input_dict, batch_output_tensor, outputs, batch_acc
                 torch.cuda.empty_cache()
