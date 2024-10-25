@@ -91,7 +91,7 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
             model_name, padding_side="left", truncate_side="left"
         )
         template = LM_TEMPLATE_MAP[args.dataset]()
-        if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"]:
+        if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq", "gen"]:
             if args.lora:
                 # this step initialize lora parameters, which should be under control of seed
                 lora_config = LoraConfig(

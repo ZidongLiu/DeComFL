@@ -87,7 +87,7 @@ def prepare_settings(args, device):
             model_name, padding_side="left", truncate_side="left"
         )
         template = LM_TEMPLATE_MAP[args.dataset]()
-        if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"]:
+        if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq", "gen"]:
             if args.lora:
                 # this step initialize lora parameters, which should be under control of seed
                 lora_config = LoraConfig(
@@ -194,7 +194,7 @@ def train_model(ite: int) -> tuple[float, float]:
     images, labels = next(inf_train_loader)
     if device != torch.device("cpu"):
         images, labels = images.to(device), labels.to(device)
-
+    grad_estimator.generation_mode = False
     # update models
     if args.no_optim:
         with torch.no_grad():
@@ -221,10 +221,15 @@ def eval_model(ite: int) -> tuple[float, float]:
     model.eval()
     eval_loss = Metric("Eval loss")
     eval_accuracy = Metric("Eval accuracy")
+    if args.dataset in ["squad", "drop", "xsum"]:
+        grad_estimator.generation_mode = True
+
     with torch.no_grad():
         for _, (images, labels) in enumerate(test_loader):
             if device != torch.device("cpu"):
-                images, labels = images.to(device), labels.to(device)
+                images = images.to(device)
+                if isinstance(labels, torch.Tensor):
+                    labels = labels.to(device)
             pred = grad_estimator.model_forward(images)
 
             if args.dataset not in ["squad", "drop", "xsum"]:

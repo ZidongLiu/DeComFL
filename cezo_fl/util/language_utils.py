@@ -119,6 +119,18 @@ class ClassificationTemplate(Template):
         return f"{self.verbalize_for_pred(sample)}{self.verbalizer[label]}"
 
 
+class GenTemplate(ClassificationTemplate):
+    verbalizer = {0: " bad", 1: " good"}
+
+    def verbalize_for_pred(self, sample):
+        text = sample["sentence"].strip()
+        return f"{text} It was"
+
+    def verbalize(self, sample):
+        label = sample["value"]
+        return f"{self.verbalize_for_pred(sample)}{self.verbalizer[label]}"
+
+
 class SST2Template(ClassificationTemplate):
     verbalizer = {0: " bad", 1: " good"}
 
@@ -255,6 +267,7 @@ class LmTask(Enum):
     squad = "squad"
     drop = "drop"
     xsum = "xsum"
+    gen = "gen"
 
 
 LM_DATASET_MAP = {
@@ -281,6 +294,7 @@ LM_TEMPLATE_MAP = {
     LmTask.squad.name: SQuADTemplate,
     LmTask.drop.name: DROPTemplate,
     LmTask.xsum.name: XSUMTemplate,
+    LmTask.gen.name: GenTemplate,
 }
 
 

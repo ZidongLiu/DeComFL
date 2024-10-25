@@ -1,6 +1,7 @@
 import json
 from typing import Union
-
+from datasets import Dataset
+import pandas as pd
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -138,13 +139,22 @@ def preprocess(
             test_dataset, batch_size=args.test_batch_size, **kwargs
         )
     elif args.dataset in LM_TEMPLATE_MAP.keys():
-        if args.dataset == LmTask.sst2.name:
+        if args.dataset == LmTask.sst2.name or args.dataset in ["gen"]:
             max_length = 32
         else:
             max_length = 2048
 
-        if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"]:
-            dataset = load_dataset(LM_DATASET_MAP[args.dataset], args.dataset)
+        if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq", "gen"]:
+            if args.dataset in ["gen"]:
+                train_df = pd.read_csv("data/gen/train/train.tsv", sep="\t")
+                validation_df = pd.read_csv("data/gen/validation/validation.tsv", sep="\t")
+                # train_df = pd.read_csv("data/gen_small/train/Argo.tsv", sep='\t')
+                # validation_df = pd.read_csv("data/gen_small/validation/Autozone.tsv", sep='\t')
+                train_dataset = Dataset.from_pandas(train_df)
+                validation_dataset = Dataset.from_pandas(validation_df)
+                dataset = {"train": train_dataset, "validation": validation_dataset}
+            else:
+                dataset = load_dataset(LM_DATASET_MAP[args.dataset], args.dataset)
             raw_train_dataset = dataset["train"]
             raw_test_dataset = dataset["validation"]
             model_name = SUPPORTED_LLM[args.large_model]
