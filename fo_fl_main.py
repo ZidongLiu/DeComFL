@@ -5,9 +5,8 @@ from tensorboardX import SummaryWriter
 from tqdm import tqdm
 
 from cezo_fl.fl_helpers import get_client_name
-from cezo_fl.util import model_helpers
+from cezo_fl.util import model_helpers, prepare_settings
 from config import get_args_str, get_params
-from decomfl_main import prepare_settings_underseed
 from fed_avg.client import FedAvgClient
 from fed_avg.server import FedAvgServer
 from preprocess import preprocess
@@ -27,7 +26,7 @@ def setup_server_and_clients(
             client_optimizer,
             _,
             client_accuracy_func,
-        ) = prepare_settings_underseed(args, client_device)
+        ) = prepare_settings.prepare_settings_underseed(args, client_device)
         client_model.to(client_device)
 
         client = FedAvgClient(
@@ -47,7 +46,7 @@ def setup_server_and_clients(
         _,
         _,
         server_accuracy_func,
-    ) = prepare_settings_underseed(args, server_device)
+    ) = prepare_settings.prepare_settings_underseed(args, server_device)
     server_model.to(server_device)
     server = FedAvgServer(
         clients,

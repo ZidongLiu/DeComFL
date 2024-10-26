@@ -1,8 +1,9 @@
 import torch
 from tqdm import tqdm
 
-import decomfl_main
+
 from cezo_fl.util.metrics import Metric
+from cezo_fl.util import prepare_settings
 from config import get_params
 from preprocess import preprocess
 
@@ -36,7 +37,7 @@ inf_test_loader = inf_loader(test_loader)
 # args_str = get_args_str(args) + "-" + server.server_model.model_name
 
 model, criterion, optimizer, grad_estimator, accuracy_func = (
-    decomfl_main.prepare_settings_underseed(args, device)
+    prepare_settings.prepare_settings_underseed(args, device)
 )
 model.to(device)
 
