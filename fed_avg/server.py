@@ -47,9 +47,15 @@ class FedAvgServer:
             for p in self.optim.param_groups:
                 p["lr"] = lr
 
-    def update_server_model(self, running_sum: Sequence[torch.Tensor]) -> None:
+    def aggregate_client_models(self, client_indices: list[int]) -> None:
         self.server_model.train()
         with torch.no_grad():
+            running_sum: Sequence[torch.Tensor] = [0 for _ in self.server_model.parameters()]
+            for client_index in client_indices:
+                client = self.clients[client_index]
+                for i, p in enumerate(client.model.parameters()):
+                    running_sum[i] += p.to(self.device)
+
             for p, to_set_p in zip(self.server_model.parameters(), running_sum):
                 p.set_(to_set_p.div_(self.num_sample_clients))
 
@@ -58,7 +64,6 @@ class FedAvgServer:
         sampled_client_indices: list[int] = self.get_sampled_client_index()
 
         # Step 1 & 2: pull model and local update
-        running_sum = [0 for _ in self.server_model.parameters()]
         step_train_loss = Metric("train_loss")
         step_train_accuracy = Metric("train_loss")
         for index in sampled_client_indices:
@@ -67,10 +72,8 @@ class FedAvgServer:
             client_loss, client_accuracy = client.local_update(self.local_update_steps)
             step_train_loss.update(client_loss)
             step_train_accuracy.update(client_accuracy)
-            for i, p in enumerate(client.model.parameters()):
-                running_sum[i] += p.to(self.device)
 
-        self.update_server_model(running_sum)
+        self.aggregate_client_models(sampled_client_indices)
 
         return step_train_loss.avg, step_train_accuracy.avg
 
