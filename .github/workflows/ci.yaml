@@ -23,13 +23,14 @@ jobs:
       - name: Install dependencies
         run: |
           conda env update --file environment.yml --name base
+          pip install -r ./dev_tools/dev-requirements.txt
 
       - name: Lint check
         run: ruff check
 
       - name: Format check
         run: ruff format --check
-  
+
   typing:
     name: Static Type Checking
     runs-on: ubuntu-20.04
@@ -50,6 +51,7 @@ jobs:
       - name: Install dependencies
         run: |
           conda env update --file environment.yml --name base
+          pip install -r ./dev_tools/dev-requirements.txt
 
       - name: Mypy
         run: mypy .
@@ -74,6 +76,7 @@ jobs:
       - name: Install dependencies
         run: |
           conda env update --file environment.yml --name base
-      
+          pip install -r ./dev_tools/dev-requirements.txt
+
       - name: Test with pytest
         run: pytest
