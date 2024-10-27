@@ -113,8 +113,8 @@ class SyncClient(AbstractClient):
                 or self.grad_estimator.torch_dtype != torch.float32
             ):
                 batch_inputs = batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
-                # NOTE: label does not convert to dtype
-                labels = labels.to(self.device)
+                if isinstance(labels, torch.Tensor):  # In generation mode, labels are not tensor.
+                    labels = labels.to(self.device)  # NOTE: label does not convert to dtype
 
             # declare grad_scalars before assigning it to avoid no-redef type check
             grad_scalars: torch.Tensor
@@ -237,8 +237,8 @@ class ResetClient(AbstractClient):
                 or self.grad_estimator.torch_dtype != torch.float32
             ):
                 batch_inputs = batch_inputs.to(self.device, self.grad_estimator.torch_dtype)
-                # NOTE: label does not convert to dtype
-                labels = labels.to(self.device)
+                if isinstance(labels, torch.Tensor):  # In generation mode, labels are not tensor.
+                    labels = labels.to(self.device)  # NOTE: label does not convert to dtype
 
             # declare grad_scalars before assigning it to avoid no-redef type check
             grad_scalars: torch.Tensor
