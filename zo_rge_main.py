@@ -16,7 +16,7 @@ from cezo_fl.util import model_helpers
 from cezo_fl.util.checkpoint import CheckPoint
 from cezo_fl.util.metrics import Metric, accuracy
 from config import get_args_str, get_params
-from preprocess import preprocess, use_sparsity_dict
+from preprocess import preprocess
 
 
 def prepare_settings(args, device):
@@ -85,6 +85,7 @@ def prepare_settings(args, device):
 
 
 def get_warmup_lr(args: Any, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
+    assert isinstance(args.lr, float) and isinstance(args.warmup_epochs, int)
     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
     return args.lr * current_iterations / overall_iterations
@@ -163,11 +164,7 @@ if __name__ == "__main__":
             )
         )
 
-    sparsity_dict = use_sparsity_dict(args, model.model_name)
     for epoch in range(args.epoch):
-        if sparsity_dict is not None and epoch % args.mask_shuffle_interval == 0:
-            raise NotImplementedError("We no longer support pruning mask.")
-
         train_loss, train_accuracy = train_model(epoch)
         if args.log_to_tensorboard:
             writer.add_scalar("Loss/train", train_loss, epoch)

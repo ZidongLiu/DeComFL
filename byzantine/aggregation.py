@@ -47,6 +47,6 @@ def krum(local_grad_scalar_list: list[list[torch.Tensor]], f: int = 1) -> list[t
     for each_local_step_update in zip(*local_grad_scalar_list):
         v = torch.stack(each_local_step_update, dim=1)
         scores = torch.tensor([score(grad, v, f) for grad in v.t()])
-        min_idx = torch.argmin(scores).item()
+        min_idx = int(torch.argmin(scores).item())
         grad_scalar.append(v[:, min_idx])
     return grad_scalar

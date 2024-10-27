@@ -1,12 +1,18 @@
 # Code Style
 
-We use `Ruff==0.6` for both lint and format which should be installed in the created conda virtual env together with other non-dev dependencies.
+We use `Ruff==0.6` for both lint and format and `mypy==1.11.2`.
 
-We will use `pyright` for static type checking, which is on the way.
+In root folder, install development required package in `dev_tools.dev-requirements.txt`.
+
+```
+pip install -r ./dev_tools/dev-requirements.txt
+```
 
 If using VScode, see more in [VScode](#vscode).
 
 ## Command Line
+
+### Ruff
 
 If not here are some helpful CLI command for code formatting and linting. See more usage in [Ruff](https://docs.astral.sh/ruff/)
 
@@ -20,14 +26,25 @@ ruff format path/to/code/     # Format all files in `path/to/code` (and any subd
 ruff format path/to/file.py   # Format a single file.
 ```
 
+### Ruff
+
+See more in [Mypy](https://mypy.readthedocs.io/en/stable/config_file.html#disallow-dynamic-typing)
+
+```
+mypy .                        # check all files in this repo
+```
+
 ## VScode
 
 ### Recommended VScode plugins
 
 1. `Python` from Microsoft
 2. `Ruff` from Astral Software
+3. `Mypy` from Matan Gover
 
 ### Recommended settings for VScode
+
+Use the created conda env for this repo in VScode. This is needed for mypy to function.
 
 This is the recommended VScode configuration according to our code style, repo structure, and tools.
 Please add `settings.json` file to `.vscode/` folder. We use this to ensure the local python and ruff version is the same as github CI's ruff version.
