@@ -272,7 +272,7 @@ def setup_server_and_clients(
         )
     elif args.byz_type == "krum":
         server.register_attack_func(
-            functools.partial(byz_attack.krum_attack, num_attack=args.num_byz, lr=args.lr)
+            functools.partial(byz_attack.krum_attack, f=args.num_byz, lr=args.lr)
         )
     else:
         raise Exception(
