@@ -336,6 +336,7 @@ def get_lm_loss(
     if loss_type == "f1":  # notice this is not a real score
         return partial(f1_batch_score, tokenizer=tokenizer)
 
+    assert verbalizer_id_map
     n_candidate = len(verbalizer_id_map)
     verbalizer_id_list = [verbalizer_id_map[i] for i in range(n_candidate)]
     if loss_type == "full_sentence":
@@ -386,17 +387,17 @@ def last_token_accuracy(batch_pred, sentence_label_tokens, verbalizer_id_map, ve
 
 
 def normalize_answer(s: str) -> str:
-    def remove_articles(text):
+    def remove_articles(text: str) -> str:
         return re.sub(r"\b(a|an|the)\b", " ", text, flags=re.IGNORECASE)
 
-    def white_space_fix(text):
+    def white_space_fix(text: str) -> str:
         return " ".join(text.split())
 
-    def remove_punc(text):
+    def remove_punc(text: str) -> str:
         translator = str.maketrans("", "", string.punctuation)
         return text.translate(translator)
 
-    def lower(text):
+    def lower(text: str) -> str:
         return text.lower()
 
     return white_space_fix(remove_articles(remove_punc(lower(s))))
@@ -406,19 +407,19 @@ def f1_score(pred: str, gold: list[str]) -> float:
     if gold[0].lower() in ["cannotanswer", "no answer"]:
         return int(normalize_answer(gold[0]) == normalize_answer(pred))
     else:
-        all_f1s = []
+        all_f1s: list[float] = []
         for ans in gold:
             prediction_tokens = normalize_answer(pred).split()
             ground_truth_tokens = normalize_answer(ans).split()
             common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
             num_same = sum(common.values())
             if num_same == 0:
-                all_f1s.append(0)
+                all_f1s.append(0.0)
             else:
                 precision = 1.0 * num_same / len(prediction_tokens)
                 recall = 1.0 * num_same / len(ground_truth_tokens)
                 all_f1s.append((2 * precision * recall) / (precision + recall))
-        return np.max(all_f1s)
+        return float(np.max(all_f1s))
 
 
 def f1_batch_score(

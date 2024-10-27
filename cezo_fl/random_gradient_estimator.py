@@ -64,6 +64,7 @@ class RandomGradientEstimator:
                 raise ValueError(
                     "The model for generation_mode must be OPTForCausalLM or peft model"
                 )
+            assert isinstance(batch_inputs, LLMBatchInput)
             generation_mode_kwargs = self.generation_mode_kwargs
             # We may need a copy for dynamic modification
             if "max_new_tokens" in self.generation_mode_kwargs:
