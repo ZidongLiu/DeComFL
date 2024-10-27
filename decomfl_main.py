@@ -19,7 +19,12 @@ from cezo_fl.models.lstm import CharLSTM
 from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
 from cezo_fl.server import CeZO_Server
 from cezo_fl.util import model_helpers
-from cezo_fl.util.language_utils import LM_TEMPLATE_MAP, SUPPORTED_LLM, get_lm_loss
+from cezo_fl.util.language_utils import (
+    LM_TEMPLATE_MAP,
+    SUPPORTED_LLM,
+    get_lm_loss,
+    ClassificationTemplate,
+)
 from cezo_fl.util.metrics import accuracy
 from config import get_args_str, get_params
 from preprocess import preprocess
@@ -32,6 +37,7 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
         "bfloat16": torch.bfloat16,
     }[args.model_dtype]
     torch.manual_seed(args.seed)
+    model: CNN_MNIST | LeNet | CNN_FMNIST | CharLSTM | AutoModelForCausalLM
     if args.dataset == "mnist":
         model = CNN_MNIST().to(torch_dtype).to(device)
         criterion = nn.CrossEntropyLoss()
@@ -91,7 +97,9 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
             model_name, padding_side="left", truncate_side="left"
         )
         template = LM_TEMPLATE_MAP[args.dataset]()
-        if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"]:
+        if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"] and isinstance(
+            template, ClassificationTemplate
+        ):
             if args.lora:
                 # this step initialize lora parameters, which should be under control of seed
                 lora_config = LoraConfig(
@@ -100,6 +108,7 @@ def prepare_settings_underseed(args, device, server_or_client: str = "server"):
                     target_modules=["q_proj", "v_proj"],
                 )
                 model = get_peft_model(model, lora_config).to(torch_dtype)
+
             verbalizer_id_map = template.get_verbalizer_id(tokenizer)
             criterion = get_lm_loss("last_token", verbalizer_id_map=verbalizer_id_map)
             optimizer = torch.optim.SGD(
@@ -299,6 +308,7 @@ def setup_server_and_clients(
 
 # get_warmup_lr is not used for now.
 def get_warmup_lr(args, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
+    assert isinstance(args.lr, float) and isinstance(args.warmup_epochs, int)
     overall_iterations = args.warmup_epochs * iters_per_epoch + 1
     current_iterations = current_epoch * iters_per_epoch + current_iter + 1
     return args.lr * current_iterations / overall_iterations
@@ -318,6 +328,7 @@ if __name__ == "__main__":
     server = setup_server_and_clients(args, device_map, train_loaders)
 
     if args.log_to_tensorboard:
+        assert server.server_model
         tensorboard_sub_folder = "-".join(
             [
                 get_args_str(args),

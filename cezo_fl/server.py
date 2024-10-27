@@ -35,7 +35,7 @@ def fed_avg(
 
 
 class SeedAndGradientRecords:
-    def __init__(self):
+    def __init__(self) -> None:
         # For seed_records/grad_records, each entry stores info related to 1 iteration
         # seed_records[i]: length = number of local updates K
         # seed_records[i][k]: seed_k
@@ -80,8 +80,6 @@ class SeedAndGradientRecords:
         ]
 
 
-# TODO Make sure all client model intialized with same weight.
-# TODO Support Gradient Pruning
 class CeZO_Server:
     def __init__(
         self,
@@ -104,8 +102,8 @@ class CeZO_Server:
         self.optim: torch.optim.Optimizer | None = None
         self.random_gradient_estimator: RGE | None = None
 
-        self._aggregation_func = fed_avg
-        self._attack_func = lambda x: x  # No attach
+        self._aggregation_func: AggregationFunc = fed_avg
+        self._attack_func: AttackFunc = lambda x: x  # No attach
 
     def set_server_model_and_criterion(
         self,
@@ -134,7 +132,7 @@ class CeZO_Server:
             for p in client.optimizer.param_groups:
                 p["lr"] = lr
         # Server
-        if self.server_model:
+        if self.server_model and self.optim:
             for p in self.optim.param_groups:
                 p["lr"] = lr
 
@@ -193,8 +191,13 @@ class CeZO_Server:
         return step_train_loss.avg, step_train_accuracy.avg
 
     def eval_model(self, test_loader: Iterable[Any]) -> tuple[float, float]:
-        if self.server_model is None:
-            raise RuntimeError("set_server_model_and_criterion for server first.")
+        assert (
+            self.server_model
+            and self.random_gradient_estimator
+            and self.server_criterion
+            and self.server_accuracy_func
+        )
+
         self.server_model.eval()
         eval_loss = Metric("Eval loss")
         eval_accuracy = Metric("Eval accuracy")
