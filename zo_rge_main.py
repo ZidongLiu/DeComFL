@@ -1,7 +1,6 @@
 from os import path
 import torch
 import torch.nn as nn
-from cezo_fl.coordinate_gradient_estimator import CoordinateGradientEstimator as CGE
 from cezo_fl.models.cnn_fashion import CNN_FMNIST
 from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.models.lenet import LeNet
