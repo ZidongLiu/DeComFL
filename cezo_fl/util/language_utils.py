@@ -44,8 +44,12 @@ def word_to_indices(word):
 
 # LLM
 SUPPORTED_LLM = {
-    "opt-1.3b": "facebook/opt-1.3b",
     "opt-125m": "facebook/opt-125m",
+    "opt-1.3b": "facebook/opt-1.3b",
+    "opt-2.7b": "facebook/opt-2.7b",
+    "opt-6.7b": "facebook/opt-6.7b",
+    "opt-13b": "facebook/opt-13b",
+    "opt-30b": "facebook/opt-30b",
 }
 
 
