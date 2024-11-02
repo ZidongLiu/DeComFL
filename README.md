@@ -15,9 +15,9 @@ From Tables 1 and 2, we observe the DeComFL's effectiveness in communication cos
       <th style="text-align: center;">Model</th>
       <th style="text-align: center;">Dataset</th>
       <th style="text-align: center;">MeZO</th>
-      <th style="text-align: center;">FedZO (P=5)</th>
-      <th style="text-align: center;">DeComFL (P=5)</th>
-      <th style="text-align: center;">DeComFL (P=10)</th>
+      <th style="text-align: center;">FedZO(P=5)</th>
+      <th style="text-align: center;">DeComFL(P=5)</th>
+      <th style="text-align: center;">DeComFL(P=10)</th>
     </tr>
   </thead>
   <tbody>
@@ -118,9 +118,9 @@ From Tables 1 and 2, we observe the DeComFL's effectiveness in communication cos
       <th style="text-align: center;">Model</th>
       <th style="text-align: center;">Dataset</th>
       <th style="text-align: center;">MeZO</th>
-      <th style="text-align: center;">FedZO (P=5)</th>
-      <th style="text-align: center;">DeComFL (P=5)</th>
-      <th style="text-align: center;">DeComFL (P=10)</th>
+      <th style="text-align: center;">FedZO(P=5)</th>
+      <th style="text-align: center;">DeComFL(P=5)</th>
+      <th style="text-align: center;">DeComFL(P=10)</th>
     </tr>
   </thead>
   <tbody>
