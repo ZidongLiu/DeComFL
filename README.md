@@ -25,9 +25,9 @@ From Tables 1 and 2, we observe the DeComFL's effectiveness in communication cos
       <td rowspan="6" style="text-align: center;">OPT-125M</td>
       <td style="text-align: center;">SST-2</td>
       <td style="text-align: center;">84.0%</td>
-      <td style="text-align: center;">84.1% (0.27 TB)</td>
-      <td style="text-align: center;">84.0% (0.18 MB)</td>
-      <td style="text-align: center;">85.1% (0.36 MB)</td>
+      <td style="text-align: center;">84.1%(0.27 TB)</td>
+      <td style="text-align: center;">84.0%(0.18 MB)</td>
+      <td style="text-align: center;">85.1%(0.36 MB)</td>
     </tr>
     <tr>
       <td style="text-align: center;">CB</td>
