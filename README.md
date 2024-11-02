@@ -119,7 +119,7 @@ From Table 1 and 2, we observe the DeComFL's effectiveness in communication cost
       <th style="text-align: center;">Dataset / Task</th>
       <th style="text-align: center;">MeZO</th>
       <th style="text-align: center;">FedZO (P=5)</th>
-      <th style="text-align: center;">DeComFL(P=5)</th>
+      <th style="text-align: center;">DeComFL (P=5)</th>
       <th style="text-align: center;">DeComFL (P=10)</th>
     </tr>
   </thead>
