@@ -32,80 +32,80 @@ From Tables 1 and 2, we observe the DeComFL's effectiveness in communication cos
     <tr>
       <td style="text-align: center;">CB</td>
       <td style="text-align: center;">72.5%</td>
-      <td style="text-align: center;">74.0% (0.09 TB)</td>
-      <td style="text-align: center;">74.3% (0.06 MB)</td>
-      <td style="text-align: center;">75.0% (0.12 MB)</td>
+      <td style="text-align: center;">74.0%(0.09 TB)</td>
+      <td style="text-align: center;">74.3%(0.06 MB)</td>
+      <td style="text-align: center;">75.0%(0.12 MB)</td>
     </tr>
     <tr>
       <td style="text-align: center;">WSC</td>
       <td style="text-align: center;">55.2%</td>
-      <td style="text-align: center;">59.4% (0.27 TB)</td>
-      <td style="text-align: center;">59.1% (0.18 MB)</td>
-      <td style="text-align: center;">59.6% (0.36 MB)</td>
+      <td style="text-align: center;">59.4%(0.27 TB)</td>
+      <td style="text-align: center;">59.1%(0.18 MB)</td>
+      <td style="text-align: center;">59.6%(0.36 MB)</td>
     </tr>
     <tr>
       <td style="text-align: center;">WIC</td>
       <td style="text-align: center;">53.3%</td>
-      <td style="text-align: center;">53.3% (0.27 TB)</td>
-      <td style="text-align: center;">53.3% (0.18 MB)</td>
-      <td style="text-align: center;">53.4% (0.36 MB)</td>
+      <td style="text-align: center;">53.3%(0.27 TB)</td>
+      <td style="text-align: center;">53.3%(0.18 MB)</td>
+      <td style="text-align: center;">53.4%(0.36 MB)</td>
     </tr>
     <tr>
       <td style="text-align: center;">RTE</td>
       <td style="text-align: center;">52.9%</td>
-      <td style="text-align: center;">53.4% (0.18 TB)</td>
-      <td style="text-align: center;">54.3% (0.12 MB)</td>
-      <td style="text-align: center;">57.1% (0.24 MB)</td>
+      <td style="text-align: center;">53.4%(0.18 TB)</td>
+      <td style="text-align: center;">54.3%(0.12 MB)</td>
+      <td style="text-align: center;">57.1%(0.24 MB)</td>
     </tr>
     <tr>
       <td style="text-align: center;">BoolQ</td>
       <td style="text-align: center;">61.5%</td>
-      <td style="text-align: center;">61.2% (0.18 TB)</td>
-      <td style="text-align: center;">61.4% (0.12 MB)</td>
-      <td style="text-align: center;">61.6% (0.24 MB)</td>
+      <td style="text-align: center;">61.2%(0.18 TB)</td>
+      <td style="text-align: center;">61.4%(0.12 MB)</td>
+      <td style="text-align: center;">61.6%(0.24 MB)</td>
     </tr>
     <tr>
       <td rowspan="6" style="text-align: center;">OPT-1.3B</td>
       <td style="text-align: center;">SST-2</td>
       <td style="text-align: center;">90.2%</td>
-      <td style="text-align: center;">90.2% (1937.15 TB)</td>
-      <td style="text-align: center;">90.0% (0.12 MB)</td>
-      <td style="text-align: center;">90.8% (0.24 MB)</td>
+      <td style="text-align: center;">90.2%(1937.2 TB)</td>
+      <td style="text-align: center;">90.0%(0.12 MB)</td>
+      <td style="text-align: center;">90.8%(0.24 MB)</td>
     </tr>
     <tr>
       <td style="text-align: center;">CB</td>
       <td style="text-align: center;">74.0%</td>
-      <td style="text-align: center;">74.4% (2905.73 TB)</td>
-      <td style="text-align: center;">74.4% (0.18 MB)</td>
-      <td style="text-align: center;">75.7% (0.36 MB)</td>
+      <td style="text-align: center;">74.4%(2905.7 TB)</td>
+      <td style="text-align: center;">74.4%(0.18 MB)</td>
+      <td style="text-align: center;">75.7%(0.36 MB)</td>
     </tr>
     <tr>
       <td style="text-align: center;">WSC</td>
       <td style="text-align: center;">58.2%</td>
-      <td style="text-align: center;">60.0% (2905.73 TB)</td>
-      <td style="text-align: center;">60.4% (0.18 MB)</td>
-      <td style="text-align: center;">64.2% (0.36 MB)</td>
+      <td style="text-align: center;">60.0%(2905.7 TB)</td>
+      <td style="text-align: center;">60.4%(0.18 MB)</td>
+      <td style="text-align: center;">64.2%(0.36 MB)</td>
     </tr>
     <tr>
       <td style="text-align: center;">WIC</td>
       <td style="text-align: center;">56.0%</td>
-      <td style="text-align: center;">56.1% (1937.15 TB)</td>
-      <td style="text-align: center;">56.0% (0.12 MB)</td>
-      <td style="text-align: center;">56.1% (0.24 MB)</td>
+      <td style="text-align: center;">56.1%(1937.2 TB)</td>
+      <td style="text-align: center;">56.0%(0.12 MB)</td>
+      <td style="text-align: center;">56.1%(0.24 MB)</td>
     </tr>
     <tr>
       <td style="text-align: center;">RTE</td>
       <td style="text-align: center;">57.6%</td>
-      <td style="text-align: center;">58.9% (1452.86 TB)</td>
-      <td style="text-align: center;">59.4% (0.90 MB)</td>
-      <td style="text-align: center;">60.9% (1.80 MB)</td>
+      <td style="text-align: center;">58.9%(1452.9 TB)</td>
+      <td style="text-align: center;">59.4%(0.90 MB)</td>
+      <td style="text-align: center;">60.9%(1.80 MB)</td>
     </tr>
     <tr>
       <td style="text-align: center;">BoolQ</td>
       <td style="text-align: center;">62.0%</td>
-      <td style="text-align: center;">62.0% (1452.86 TB)</td>
-      <td style="text-align: center;">62.2% (0.90 MB)</td>
-      <td style="text-align: center;">62.5% (1.80 MB)</td>
+      <td style="text-align: center;">62.0%(1452.9 TB)</td>
+      <td style="text-align: center;">62.2%(0.90 MB)</td>
+      <td style="text-align: center;">62.5%(1.80 MB)</td>
     </tr>
   </tbody>
 </table>
