@@ -9,6 +9,8 @@ from cezo_fl.util.language_utils import LLMBatchInput
 
 GradEstimateMethod: TypeAlias = Literal["forward", "central"]
 
+BatchInput: TypeAlias = torch.Tensor | LLMBatchInput
+
 
 # TODO: split this class into abstract class and several subcalsses.
 class RandomGradientEstimator:
@@ -57,7 +59,7 @@ class RandomGradientEstimator:
     # TODO(zidong) move this func out of this class
     def model_forward(
         self,
-        batch_inputs: torch.Tensor | LLMBatchInput,
+        batch_inputs: BatchInput,
     ):
         if self.generation_mode:
             if not isinstance(self.model, (OPTForCausalLM, PeftModel)):
@@ -136,7 +138,14 @@ class RandomGradientEstimator:
         assert update_grad is not None
         self.put_grad(update_grad)
 
-    def compute_grad(self, batch_inputs, labels, criterion, seed: int) -> torch.Tensor:
+    def compute_grad(
+        self,
+        batch_inputs: BatchInput,
+        labels: torch.Tensor,
+        criterion: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        seed: int | None,
+    ) -> torch.Tensor:
+        """When seed is None, it means we are just using random gradient estimator to estimate grad, we do not need to reconstruct each perturbation"""
         if not self.paramwise_perturb:
             # We generate the perturbation vector all together. It should be faster but consume
             # more memory
@@ -145,6 +154,7 @@ class RandomGradientEstimator:
             )
             self.put_grad(grad)
         else:
+            assert isinstance(seed, int)
             perturbation_dir_grads = self._zo_grad_estimate_paramwise(
                 batch_inputs, labels, criterion, seed
             )
@@ -166,10 +176,10 @@ class RandomGradientEstimator:
 
     def _zo_grad_estimate(
         self,
-        batch_inputs: torch.Tensor,
+        batch_inputs: BatchInput,
         labels: torch.Tensor,
         criterion: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
-        seed: int,
+        seed: int | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate the zeroth-order gradient estimate.
 
@@ -188,7 +198,7 @@ class RandomGradientEstimator:
             pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
 
         for i in range(self.num_pert):
-            rng = self.get_rng(seed, i)
+            rng: torch.Generator | None = self.get_rng(seed, i) if isinstance(seed, int) else None
             pb_norm = self.generate_perturbation_norm(rng)
 
             self.perturb_model(pb_norm, alpha=self.mu)
@@ -236,7 +246,7 @@ class RandomGradientEstimator:
 
     def _zo_grad_estimate_paramwise(
         self,
-        batch_inputs: torch.Tensor,
+        batch_inputs: BatchInput,
         labels: torch.Tensor,
         criterion: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         seed: int,

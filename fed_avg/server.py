@@ -10,12 +10,13 @@ from cezo_fl.util.metrics import Metric
 from cezo_fl.util.model_helpers import model_forward
 
 from fed_avg.client import FedAvgClient
+from fed_avg.fed_zo_client import FedZOClient
 
 
 class FedAvgServer:
     def __init__(
         self,
-        clients: Sequence[FedAvgClient],
+        clients: Sequence[FedAvgClient | FedZOClient],
         device: torch.device,
         server_model: torch.nn.Module,
         server_criterion: CriterionType,
