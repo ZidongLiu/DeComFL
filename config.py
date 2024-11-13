@@ -57,7 +57,7 @@ def get_params():
         "--large-model",
         type=str,
         default=DEFAULTS["large_model"],
-        choices=["opt-125m", "opt-1.3b", "opt-2.7b", "opt-6.7b", "opt-13b", "opt-30b"],
+        choices=["opt-125m", "opt-350m", "opt-1.3b", "opt-2.7b", "opt-6.7b", "opt-13b", "opt-30b"],
     )
     parser.add_argument("--lora", action="store_true", default=DEFAULTS["lora"])
     parser.add_argument("--lora-r", type=int, default=DEFAULTS["lora_r"])
