@@ -146,7 +146,7 @@ if __name__ == "__main__":
         writer = SummaryWriter(
             path.join(
                 "tensorboards",
-                "cezo_fl",
+                "decomfl",
                 args.dataset,
                 args.log_to_tensorboard,
                 tensorboard_sub_folder,
