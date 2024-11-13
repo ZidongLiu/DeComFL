@@ -6,7 +6,7 @@ DeComFL is a library designed for training/fine-tuning deep learning models in t
 
 ## Performance
 
-From Tables 1 and 2, we observe the DeComFL's effectiveness in communication cost reduction. We evaluate its performance with five and ten perturbations. Its performance matches or even outperforms MeZO and FedZO in all datasets. Surprisingly, DeComFL can just require about **1MB communication cost** to converge, which is a significant saving compared with other algorithms. 
+From Tables 1 and 2, we observe the DeComFL's effectiveness in communication cost reduction. We evaluate its performance with five and ten perturbations. Its performance matches or even outperforms MeZO and FedZO in all datasets. Surprisingly, DeComFL can just require about **1MB communication cost** to converge, which is a significant saving compared with other algorithms.
 
 <table>
   <caption style="caption-side: top; text-align: center; font-weight: bold;">Table 1: Test accuracy and communication cost on fine-tuning tasks</caption>
@@ -110,7 +110,6 @@ From Tables 1 and 2, we observe the DeComFL's effectiveness in communication cos
   </tbody>
 </table>
 
-
 <table>
   <caption style="caption-side: top; text-align: center; font-weight: bold;">Table 2: Test accuracy on fine-tuning tasks (LoRA)</caption>
   <thead>
@@ -170,8 +169,6 @@ From Tables 1 and 2, we observe the DeComFL's effectiveness in communication cos
   </tbody>
 </table>
 
-
-
 ## Environment Setup
 
 We use [conda](https://docs.conda.io/projects/conda/en/stable/) as our cross-platform environment management tool. However, due to macOS' lacking support for cuda, we have to make 2 different environment setup files:
@@ -197,7 +194,6 @@ For READMD.md, we will use `environment.yml` whenever an environment file is nee
 - **Run DeComFL:** Follow FL routine, split data into chunks and train on different clients.
   Usage example: `python decomfl_main.py --large-model=opt-125m --dataset=sst2 --iterations=1000 --train-batch-size=32 --test-batch-size=200 --eval-iterations=25 --num-clients=3 --num-sample-clients=2 --local-update-steps=1 --num-pert=5 --lr=1e-5 --mu=1e-3 --grad-estimate-method=rge-forward`
 
-
 ## Citation
 
 ```
@@ -210,7 +206,8 @@ For READMD.md, we will use `environment.yml` whenever an environment file is nee
 ```
 
 ## Contributors
-DeComFL is currently contributed and maintained by <a href="https://zidongliu.github.io/" style="text-decoration: none;">**Zidong Liu**</a> (ComboCurve), <a href="https://scholar.google.com/citations?user=LuF6KX4AAAAJ&hl=en&oi=ao" style="text-decoration: none;">**Bicheng Ying**</a> (Google) and <a href="https://rogerrogerusc.github.io/" style="text-decoration: none;">**Zhe Li**</a> (RIT), and advised by Prof. <a href="https://haibo-yang-osu.github.io/homepage/" style="text-decoration: none;">**Haibo Yang**</a> (RIT). 
+
+DeComFL is currently contributed and maintained by <a href="https://zidongliu.github.io/" style="text-decoration: none;">**Zidong Liu**</a> (ComboCurve), <a href="https://scholar.google.com/citations?user=LuF6KX4AAAAJ&hl=en&oi=ao" style="text-decoration: none;">**Bicheng Ying**</a> (Google) and <a href="https://rogerrogerusc.github.io/" style="text-decoration: none;">**Zhe Li**</a> (RIT), and advised by Prof. <a href="https://haibo-yang-osu.github.io/homepage/" style="text-decoration: none;">**Haibo Yang**</a> (RIT).
 
 <div style="display: flex; justify-content: space-between;">
     <img src="https://github.com/user-attachments/assets/b3982917-e302-42c3-b396-e33bb9f52c90" alt="Image 1" style="width: 80%;" />
