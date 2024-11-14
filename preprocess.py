@@ -1,7 +1,5 @@
-import json
-from typing import Union
-
 import torch
+from torch.utils.data.dataset import Subset
 import torchvision
 import torchvision.transforms as transforms
 from datasets import load_dataset
@@ -15,14 +13,15 @@ from cezo_fl.util.language_utils import (
     LM_TEMPLATE_MAP,
     SUPPORTED_LLM,
     CustomLMDataset,
+    CustomLMGenerationDataset,
     LmTask,
     get_collate_fn,
+    get_collate_fn_for_gen_model,
 )
 
 
-def use_device(args):
+def use_device(args) -> tuple[dict[str, torch.device], dict]:
     num_clients = args.num_clients
-
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     use_mps = not args.no_mps and torch.backends.mps.is_available()
     if use_cuda:
@@ -53,28 +52,13 @@ def use_device(args):
     return server_device | client_devices, kwargs
 
 
-def use_sparsity_dict(args, model_name: str) -> Union[dict[str, float], None]:
-    if args.sparsity_file is None:
-        print("Sparsity Dict: ", None)
-        return None
-
-    with open(args.sparsity_file, "r") as file:
-        sparsity_data = json.load(file)
-
-    sparsity_data_model = sparsity_data["model_name"]
-    if sparsity_data_model != model_name:
-        raise Exception(
-            f"Sparsity file is generated using {sparsity_data_model}, "
-            + f"while current specified model is {model_name}"
-        )
-
-    print("Sparsity Dict: ", sparsity_data["sparsity_dict"])
-    return sparsity_data["sparsity_dict"]
-
-
 def preprocess(
     args,
-) -> tuple[dict[str, torch.device], list[torch.utils.data.DataLoader], torch.utils.data.DataLoader]:
+) -> tuple[
+    dict[str, torch.device],
+    list[torch.utils.data.DataLoader],
+    torch.utils.data.DataLoader,
+]:
     device_map, kwargs = use_device(args)
     if args.dataset == "mnist":
         transform = transforms.Compose(
@@ -138,32 +122,61 @@ def preprocess(
         else:
             max_length = 2048
 
-        dataset = load_dataset(LM_DATASET_MAP[args.dataset], args.dataset)
-        raw_train_dataset = dataset["train"]
-        raw_test_dataset = dataset["validation"]
-
-        model_name = SUPPORTED_LLM[args.large_model]
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_name, padding_side="left", truncate_side="left"
-        )
-        template = LM_TEMPLATE_MAP[args.dataset]()
-        encoded_train_texts = list(map(template.verbalize, raw_train_dataset))
-        encoded_test_texts = list(map(template.verbalize, raw_test_dataset))
-
-        train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)
-        test_dataset = CustomLMDataset(encoded_test_texts, tokenizer, max_length=max_length)
-        test_loader = torch.utils.data.DataLoader(
-            test_dataset,
-            batch_size=args.test_batch_size,
-            shuffle=True,
-            collate_fn=get_collate_fn(tokenizer, max_length),
-        )
-
+        if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"]:
+            dataset = load_dataset(LM_DATASET_MAP[args.dataset], args.dataset)
+            raw_train_dataset = dataset["train"]
+            raw_test_dataset = dataset["validation"]
+            model_name = SUPPORTED_LLM[args.large_model]
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_name, padding_side="left", truncate_side="left"
+            )
+            template = LM_TEMPLATE_MAP[args.dataset]()
+            encoded_train_texts = list(map(template.verbalize, raw_train_dataset))
+            encoded_test_texts = list(map(template.verbalize, raw_test_dataset))
+            train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)
+            test_dataset = CustomLMDataset(encoded_test_texts, tokenizer, max_length=max_length)
+            test_loader = torch.utils.data.DataLoader(
+                test_dataset,
+                batch_size=args.test_batch_size,
+                shuffle=True,
+                collate_fn=get_collate_fn(tokenizer, max_length),
+            )
+        elif args.dataset in ["squad", "drop", "xsum"]:
+            dataset = load_dataset(LM_DATASET_MAP[args.dataset])
+            raw_train_dataset = dataset["train"].select(range(1000)).shuffle(args.seed)
+            raw_test_dataset = dataset["validation"].select(range(100)).shuffle(args.seed)
+            model_name = SUPPORTED_LLM[args.large_model]
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_name, padding_side="left", truncate_side="left"
+            )
+            template = LM_TEMPLATE_MAP[args.dataset]()
+            # Notice the difference between train and test dataset preparation.
+            # "verbalize" function generates text including the answers
+            # "encode" function generates text without the answers
+            encoded_train_texts = list(map(template.verbalize, raw_train_dataset))
+            encoded_test_texts = list(map(template.encode, raw_test_dataset))
+            if args.dataset == "squad":
+                test_golds = list(map(lambda d: d["answers"]["text"][0], raw_test_dataset))
+            elif args.dataset == "drop":
+                test_golds = list(map(lambda d: d["answers_spans"]["spans"][0], raw_test_dataset))
+            elif args.dataset == "xsum":
+                test_golds = list(map(lambda d: d["summary"], raw_test_dataset))
+            train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)
+            test_dataset = CustomLMGenerationDataset(
+                encoded_test_texts, test_golds, tokenizer, max_length=max_length
+            )
+            test_loader = torch.utils.data.DataLoader(
+                test_dataset,
+                batch_size=args.test_batch_size,
+                shuffle=True,
+                collate_fn=get_collate_fn_for_gen_model(tokenizer, max_length),
+            )
     else:
         raise Exception(f"Dataset {args.dataset} is not supported")
 
     # already updated at main function
     num_clients = args.num_clients
+    splitted_train_sets: list[DatasetSplit] | list[Subset]
     if args.dataset == "shakespeare":
         dict_users = train_dataset.get_client_dic()
         splitted_train_sets = [
@@ -222,9 +235,7 @@ class DatasetSplit(torch.utils.data.Dataset):
 def get_random_split_chunk_length(total_length: int, num_split: int) -> list[int]:
     int_len = total_length // num_split
     rem = total_length % num_split
-
     ret_base = [int_len] * num_split
     for i in range(rem):
         ret_base[i] += 1
-
     return ret_base

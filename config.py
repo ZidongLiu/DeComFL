@@ -3,20 +3,20 @@ from dataclasses import dataclass
 
 DEFAULTS = {
     # large model
-    "large_model": "opt-1.3b",
+    "large_model": "opt-125m",
     "model_dtype": "float32",
     # LoRA
     "lora": False,
     "lora_r": 8,
     "lora_alpha": 16,
     # general
-    "train_batch_size": 256,
-    "test_batch_size": 1000,
+    "train_batch_size": 8,
+    "test_batch_size": 8,
     "lr": 1e-4,
     "epoch": 500,
     "compressor": "quant",
     "dataset": "mnist",
-    "momentum": 0.9,
+    "momentum": 0,
     "warmup_epochs": 5,
     "seed": 365,
     "num_workers": 2,
@@ -25,15 +25,15 @@ DEFAULTS = {
     "no_mps": False,
     "no_optim": False,
     # ZO grad estimator
-    "mu": 1e-4,
+    "mu": 1e-3,
     "num_pert": 1,
     "adjust_perturb": False,
     "grad_estimate_method": "rge-central",
     # FedDisco
     "iterations": 100,
     "eval_iterations": 20,
-    "num_clients": 5,
-    "num_sample_clients": 3,
+    "num_clients": 8,
+    "num_sample_clients": 2,
     "local_update_steps": 1,
     "iid": True,
     "dirichlet_alpha": 1,
@@ -41,9 +41,6 @@ DEFAULTS = {
     "aggregation": "mean",
     "byz_type": "no_byz",
     "num_byz": 1,
-    # Pruning
-    "sparsity_file": None,
-    "mask_shuffle_interval": 5,
     # Check Points
     "checkpoint": None,
     "create_many_checkpoint": True,
@@ -57,13 +54,16 @@ def get_params():
 
     # large model parameters
     parser.add_argument(
-        "--large-model", type=str, default=DEFAULTS["large_model"], choices=["opt-1.3b", "opt-125m"]
+        "--large-model",
+        type=str,
+        default=DEFAULTS["large_model"],
+        choices=["opt-125m", "opt-350m", "opt-1.3b", "opt-2.7b", "opt-6.7b", "opt-13b", "opt-30b"],
     )
     parser.add_argument("--lora", action="store_true", default=DEFAULTS["lora"])
     parser.add_argument("--lora-r", type=int, default=DEFAULTS["lora_r"])
     parser.add_argument("--lora-alpha", type=int, default=DEFAULTS["lora_alpha"])
 
-    # cezo-fl
+    # decomfl
     parser.add_argument("--iterations", type=int, default=DEFAULTS["iterations"])
     parser.add_argument("--eval-iterations", type=int, default=DEFAULTS["eval_iterations"])
     parser.add_argument("--num-clients", type=int, default=DEFAULTS["num_clients"])
@@ -97,12 +97,6 @@ def get_params():
         help="Adjust lr and perturb at 500/1000/2000 iteration",
     )
 
-    parser.add_argument("--sparsity-file", type=str, default=DEFAULTS["sparsity_file"])
-    parser.add_argument(
-        "--mask-shuffle-interval",
-        type=int,
-        default=DEFAULTS["mask_shuffle_interval"],
-    )
     # Byzantine
     parser.add_argument(
         "--aggregation", type=str, default=DEFAULTS["aggregation"], help="mean, median, trim, krum"
@@ -169,12 +163,9 @@ def get_args_str(args):
     )
     # only add to string if it's different from default
     advanced_items = []
-    for key in ["mu", "seed", "sparsity_file", "mask_shuffle_interval"]:
+    for key in ["mu", "seed"]:
         if getattr(args, key) != DEFAULTS[key]:
             v = getattr(args, key)
-            if key == "sparsity_file":
-                v = v.replace("/", ".").replace("\\", ".")
-
             advanced_items += [f"{key}-{v}"]
 
     if len(advanced_items):
@@ -225,9 +216,6 @@ class FakeArgs:
     aggregation = DEFAULTS["aggregation"]
     byz_type = DEFAULTS["byz_type"]
     num_byz = DEFAULTS["num_byz"]
-    # Pruning
-    sparsity_file = DEFAULTS["sparsity_file"]
-    mask_shuffle_interval = DEFAULTS["mask_shuffle_interval"]
     # Check Points
     checkpoint = DEFAULTS["checkpoint"]
     create_many_checkpoint = DEFAULTS["create_many_checkpoint"]
