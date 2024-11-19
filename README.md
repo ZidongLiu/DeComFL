@@ -6,6 +6,7 @@ DeComFL is a library designed for training/fine-tuning deep learning models in t
 
 ## Performance
 
+<!-- 
 From Tables 1 and 2, we observe the DeComFL's effectiveness in communication cost reduction. We evaluate its performance with five and ten perturbations. Its performance matches or even outperforms MeZO and FedZO in all datasets. Surprisingly, DeComFL can just require about **1MB communication cost** to converge, which is a significant saving compared with other algorithms. 
 
 <table>
@@ -169,6 +170,7 @@ From Tables 1 and 2, we observe the DeComFL's effectiveness in communication cos
     </tr>
   </tbody>
 </table>
+-->
 
 
 
