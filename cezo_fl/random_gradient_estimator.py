@@ -95,6 +95,9 @@ class RandomGradientEstimator:
             seed * (perturb_index + 17) + perturb_index
         )
 
+    def generate_mutiple_perturbation_norm(self, rng: torch.Generator):
+        return [self.generate_perturbation_norm(rng) for i in range(self.num_pert)]
+
     def generate_perturbation_norm(self, rng: torch.Generator | None = None) -> torch.Tensor:
         p = torch.randn(
             self.total_dimensions, device=self.device, dtype=self.torch_dtype, generator=rng
