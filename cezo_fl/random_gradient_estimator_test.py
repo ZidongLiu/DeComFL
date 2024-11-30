@@ -16,7 +16,7 @@ class LinearModel(nn.Module):
         return self.linear2(x)
 
 
-@pytest.mark.parametrize("rge_method", ["forward", "central"])
+@pytest.mark.parametrize("rge_method", ["rge-forward", "rge-central"])
 @pytest.mark.parametrize("num_pert", [2, 4, 5])
 def test_parameter_wise_equivalent_all_togther(
     rge_method: RGE.GradEstimateMethod, num_pert: int

@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Iterator, Sequence
+from typing import Iterator, Sequence, Callable
 
 import torch
 from torch.utils.data import DataLoader
@@ -62,6 +62,7 @@ class SyncClient(AbstractClient):
     def __init__(
         self,
         model: torch.nn.Module,
+        model_inference: Callable,
         dataloader: DataLoader,
         grad_estimator: RGE,
         optimizer: torch.optim.Optimizer,
@@ -70,6 +71,7 @@ class SyncClient(AbstractClient):
         device: torch.device,
     ):
         self.model = model
+        self.model_inference = model_inference
         self.dataloader = dataloader
 
         self.device = device
@@ -89,6 +91,9 @@ class SyncClient(AbstractClient):
         while True:
             for v in self.dataloader:
                 yield v
+
+    def _loss_fn(self, batch_inputs, batch_labels):
+        return self.criterion(self.model_inference(batch_inputs), batch_labels)
 
     def random_gradient_estimator(self) -> RGE:
         return self.grad_estimator
@@ -120,7 +125,7 @@ class SyncClient(AbstractClient):
             grad_scalars: torch.Tensor
             if self.grad_estimator.sgd_only_no_optim:
                 grad_scalars = self.grad_estimator._zo_grad_estimate_paramwise(
-                    batch_inputs, labels, self.criterion, seed
+                    batch_inputs, labels, self._loss_fn, seed
                 )
                 self.grad_estimator.update_model_given_seed_and_grad(
                     self.optimizer, [seed], [grad_scalars]
@@ -129,13 +134,13 @@ class SyncClient(AbstractClient):
                 # generate grads and update model's gradient
                 # The length of grad_scalars is number of perturbations
                 grad_scalars = self.grad_estimator.compute_grad(
-                    batch_inputs, labels, self.criterion, seed
+                    batch_inputs, labels, self._loss_fn, seed
                 )
                 self.optimizer.step()
             iteration_local_update_grad_vectors.append(grad_scalars)
 
             # get_train_info
-            pred = self.grad_estimator.model_forward(batch_inputs)
+            pred = self.model_inference(batch_inputs)
             train_loss.update(self.criterion(pred, labels))
             train_accuracy.update(self.accuracy_func(pred, labels))
 
@@ -188,6 +193,7 @@ class ResetClient(AbstractClient):
     def __init__(
         self,
         model: torch.nn.Module,
+        model_inference: Callable,
         dataloader: DataLoader,
         grad_estimator: RGE,
         optimizer: torch.optim.Optimizer,
@@ -196,6 +202,7 @@ class ResetClient(AbstractClient):
         device: torch.device,
     ):
         self.model = model
+        self.model_inference = model_inference
         self.dataloader = dataloader
 
         self.device = device
@@ -216,6 +223,9 @@ class ResetClient(AbstractClient):
         while True:
             for v in self.dataloader:
                 yield v
+
+    def _loss_fn(self, batch_inputs, batch_labels):
+        return self.criterion(self.model_inference(batch_inputs), batch_labels)
 
     def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
         """Returns a sequence of gradient scalar tensors for each local update.
@@ -244,7 +254,7 @@ class ResetClient(AbstractClient):
             grad_scalars: torch.Tensor
             if self.grad_estimator.sgd_only_no_optim:
                 grad_scalars = self.grad_estimator._zo_grad_estimate_paramwise(
-                    batch_inputs, labels, self.criterion, seed
+                    batch_inputs, labels, self._loss_fn, seed
                 )
                 self.grad_estimator.update_model_given_seed_and_grad(
                     self.optimizer, [seed], [grad_scalars]
@@ -253,13 +263,13 @@ class ResetClient(AbstractClient):
                 # generate grads and update model's gradient
                 # The length of grad_scalars is number of perturbations
                 grad_scalars = self.grad_estimator.compute_grad(
-                    batch_inputs, labels, self.criterion, seed
+                    batch_inputs, labels, self._loss_fn, seed
                 )
                 self.optimizer.step()
             iteration_local_update_grad_vectors.append(grad_scalars)
 
             # get_train_info
-            pred = self.grad_estimator.model_forward(batch_inputs)
+            pred = self.model_inference(batch_inputs)
             train_loss.update(self.criterion(pred, labels))
             train_accuracy.update(self.accuracy_func(pred, labels))
 

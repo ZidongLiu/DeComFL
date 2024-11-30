@@ -20,40 +20,34 @@ def setup_server_and_clients(
     for i in range(args.num_clients):
         client_name = get_client_name(i)
         client_device = device_map[client_name]
-        (
-            client_model,
-            client_criterion,
-            client_optimizer,
-            _,
-            client_accuracy_func,
-        ) = prepare_settings.prepare_settings_underseed(args, client_device)
+        (client_model, client_model_inference, client_optimizer, client_metric_packs, _) = (
+            prepare_settings.prepare_settings_underseed(args, client_device)
+        )
         client_model.to(client_device)
 
         client = FedAvgClient(
             client_model,
+            client_model_inference,
             train_loaders[i],
             client_optimizer,
-            client_criterion,
-            client_accuracy_func,
+            client_metric_packs.train_loss,
+            client_metric_packs.train_acc,
             client_device,
         )
         clients.append(client)
 
     server_device = device_map["server"]
-    (
-        server_model,
-        server_criterion,
-        _,
-        _,
-        server_accuracy_func,
-    ) = prepare_settings.prepare_settings_underseed(args, server_device)
+    (server_model, server_model_inference, server_optimizer, server_metric_packs, _) = (
+        prepare_settings.prepare_settings_underseed(args, server_device)
+    )
     server_model.to(server_device)
     server = FedAvgServer(
         clients,
         server_device,
         server_model=server_model,
-        server_criterion=server_criterion,
-        server_accuracy_func=server_accuracy_func,
+        server_model_inference=server_model_inference,
+        server_criterion=server_metric_packs.test_loss,
+        server_accuracy_func=server_metric_packs.test_acc,
         num_sample_clients=args.num_sample_clients,
         local_update_steps=args.local_update_steps,
     )

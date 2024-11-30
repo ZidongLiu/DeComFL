@@ -36,9 +36,13 @@ inf_test_loader = inf_loader(test_loader)
 
 # args_str = get_args_str(args) + "-" + server.server_model.model_name
 
-model, criterion, optimizer, grad_estimator, accuracy_func = (
-    prepare_settings.prepare_settings_underseed(args, device)
-)
+(
+    model,
+    model_inference,
+    optimizer,
+    metric_packs,
+    grad_estimator,
+) = prepare_settings.prepare_settings_underseed(args, device)
 model.to(device)
 
 acc = Metric("accuracy")
@@ -53,7 +57,7 @@ with torch.no_grad():
             input_ids=batch_input_dict.input_ids, attention_mask=batch_input_dict.attention_mask
         )
 
-        batch_acc = accuracy_func(outputs, batch_output_tensor)
+        batch_acc = metric_packs.test_acc(outputs, batch_output_tensor)
         acc.update(batch_acc)
         del batch_input_dict, batch_output_tensor, outputs, batch_acc
         torch.cuda.empty_cache()
@@ -79,7 +83,7 @@ for i in tqdm(range(10000)):
     )
 
     # Calculate the loss
-    loss = criterion(outputs, batch_output_tensor)
+    loss = metric_packs.train_loss(outputs, batch_output_tensor)
     total_loss += loss.item()
     if (i + 1) % 50 == 0:
         print(f"Iteration: {i}, Loss: {(total_loss/50):.6f}")
@@ -107,7 +111,7 @@ for i in tqdm(range(10000)):
                     attention_mask=batch_input_dict.attention_mask,
                 )
 
-                batch_acc = accuracy_func(outputs, batch_output_tensor)
+                batch_acc = metric_packs.test_acc(outputs, batch_output_tensor)
                 acc.update(batch_acc)
                 del batch_input_dict, batch_output_tensor, outputs, batch_acc
                 torch.cuda.empty_cache()

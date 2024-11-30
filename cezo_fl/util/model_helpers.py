@@ -83,8 +83,28 @@ def model_forward(
     model: OPTForCausalLM | PeftModel | torch.nn.Module, batch_inputs: torch.Tensor | LLMBatchInput
 ):
     if isinstance(model, (OPTForCausalLM, PeftModel)):
+        assert isinstance(batch_inputs, LLMBatchInput)
         return model(input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask)
     elif isinstance(model, torch.nn.Module):
+        assert isinstance(batch_inputs, torch.Tensor)
         return model(batch_inputs)
     else:
         raise Exception("This model type is not supported")
+
+
+def model_generate(
+    model: OPTForCausalLM | PeftModel, batch_inputs: LLMBatchInput, generation_kwargs: dict = {}
+):
+    if "max_new_tokens" in generation_kwargs:
+        generation_kwargs = generation_kwargs.copy()
+        assert "max_length" in generation_kwargs  # both should be specified.
+        # Dynamic adjust the max_new_tokens according to input length
+        generation_kwargs["max_new_tokens"] = min(
+            generation_kwargs["max_new_tokens"],
+            generation_kwargs["max_length"] - batch_inputs.input_ids.size(1),
+        )
+        del generation_kwargs["max_length"]
+    return model.generate(
+        batch_inputs.input_ids,  # attention_mask is not needed for generation model.
+        **generation_kwargs,
+    )

@@ -7,7 +7,6 @@ import torch
 
 from cezo_fl.shared import CriterionType
 from cezo_fl.util.metrics import Metric
-from cezo_fl.util.model_helpers import model_forward
 
 from fed_avg.client import FedAvgClient
 
@@ -18,6 +17,7 @@ class FedAvgServer:
         clients: Sequence[FedAvgClient],
         device: torch.device,
         server_model: torch.nn.Module,
+        server_model_inference: Callable,
         server_criterion: CriterionType,
         server_accuracy_func: Callable,
         num_sample_clients: int = 10,
@@ -29,6 +29,7 @@ class FedAvgServer:
         self.local_update_steps = local_update_steps
 
         self.server_model = server_model
+        self.server_model_inference = server_model_inference
         self.server_criterion = server_criterion
         self.server_accuracy_func = server_accuracy_func
 
@@ -87,7 +88,7 @@ class FedAvgServer:
                     batch_inputs = batch_inputs.to(self.device, self.dtype)
                     # NOTE: label does not convert to dtype
                     batch_labels = batch_labels.to(self.device)
-                pred = model_forward(self.server_model, batch_inputs)
+                pred = self.server_model_inference(self.server_model, batch_inputs)
                 eval_loss.update(self.server_criterion(pred, batch_labels))
                 eval_accuracy.update(self.server_accuracy_func(pred, batch_labels))
         print(

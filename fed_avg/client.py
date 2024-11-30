@@ -7,13 +7,13 @@ from transformers.models.opt.modeling_opt import OPTForCausalLM
 
 from cezo_fl.shared import CriterionType
 from cezo_fl.util.metrics import Metric
-from cezo_fl.util.model_helpers import model_forward
 
 
 class FedAvgClient:
     def __init__(
         self,
         model: torch.nn.Module,
+        model_inference: Callable,
         dataloader: DataLoader,
         optimizer: torch.optim.Optimizer,
         criterion: CriterionType,
@@ -21,6 +21,7 @@ class FedAvgClient:
         device: torch.device | None = None,
     ):
         self.model = model
+        self.model_inference = model_inference
         self.dataloader = dataloader
 
         self._device = device
@@ -55,7 +56,7 @@ class FedAvgClient:
                 # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
-            pred = model_forward(self.model, batch_inputs)
+            pred = self.model_inference(batch_inputs)
             loss = self.criterion(pred, labels)
             loss.backward()
             self.optimizer.step()
