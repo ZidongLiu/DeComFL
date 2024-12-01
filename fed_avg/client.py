@@ -18,7 +18,7 @@ class FedAvgClient:
         optimizer: torch.optim.Optimizer,
         criterion: CriterionType,
         accuracy_func: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
-        device: torch.device | None = None,
+        device: torch.device,
     ):
         self.model = model
         self.model_inference = model_inference

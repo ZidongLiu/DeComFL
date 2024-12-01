@@ -38,27 +38,18 @@ class FedAvgServer:
     def get_sampled_client_index(self) -> list[int]:
         return random.sample(range(len(self.clients)), self.num_sample_clients)
 
-    def set_learning_rate(self, lr: float) -> None:
-        # Client
-        for client in self.clients:
-            for p in client.optimizer.param_groups:
-                p["lr"] = lr
-        # Server
-        if self.server_model:
-            for p in self.optim.param_groups:
-                p["lr"] = lr
-
     def aggregate_client_models(self, client_indices: list[int]) -> None:
         self.server_model.train()
         with torch.no_grad():
-            running_sum: Sequence[torch.Tensor] = [0 for _ in self.server_model.parameters()]
+            running_sum: Sequence[torch.Tensor] = [0.0 for _ in self.server_model.parameters()]  # type: ignore[misc, use 0 to start calculcation for tensor]
             for client_index in client_indices:
                 client = self.clients[client_index]
                 for i, p in enumerate(client.model.parameters()):
                     running_sum[i] += p.to(self.device)
 
-            for p, to_set_p in zip(self.server_model.parameters(), running_sum):
-                p.set_(to_set_p.div_(self.num_sample_clients))
+            for model_p, to_set_p in zip(self.server_model.parameters(), running_sum):
+                temp = to_set_p.div_(self.num_sample_clients)
+                model_p.set_(temp)  # type: ignore[call-overload, this method takes Tensor as input but not allowed here, pytorch typing is off]
 
     def train_one_step(self) -> tuple[float, float]:
         # Step 0: initiate something
