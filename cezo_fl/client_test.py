@@ -36,7 +36,7 @@ def test_sync_client_reset():
 
     sync_client = SyncClient(
         model=model,
-        model_inference=model,
+        model_inference=lambda m, x: m(x),
         dataloader=train_loader,
         grad_estimator=grad_estimator,
         optimizer=optimizer,

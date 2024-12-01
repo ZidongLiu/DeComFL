@@ -56,7 +56,7 @@ def set_fake_clients(
         fake_clients.append(
             ResetClient(
                 model=model,
-                model_inference=model,
+                model_inference=lambda m, x: m(x),
                 dataloader=train_loader,
                 grad_estimator=grad_estimator,
                 optimizer=optimizer,
