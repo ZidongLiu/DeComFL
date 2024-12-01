@@ -15,39 +15,42 @@ from preprocess import preprocess
 def setup_server_and_clients(
     args, device_map: dict[str, torch.device], train_loaders
 ) -> FedAvgServer:
+    model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
+        args.dataset, prepare_settings.SUPPORTED_LLM.get(args.large_model)
+    )
     clients = []
 
     for i in range(args.num_clients):
         client_name = get_client_name(i)
         client_device = device_map[client_name]
-        (client_model, client_model_inferences, client_optimizer, client_metric_packs, _) = (
-            prepare_settings.prepare_settings_underseed(args, client_device)
+        (client_model, client_optimizer, _) = prepare_settings.prepare_settings_underseed(
+            args, client_device
         )
         client_model.to(client_device)
 
         client = FedAvgClient(
             client_model,
-            client_model_inferences.train_inference,
+            model_inferences.train_inference,
             train_loaders[i],
             client_optimizer,
-            client_metric_packs.train_loss,
-            client_metric_packs.train_acc,
+            metrics.train_loss,
+            metrics.train_acc,
             client_device,
         )
         clients.append(client)
 
     server_device = device_map["server"]
-    (server_model, server_model_inferences, server_optimizer, server_metric_packs, _) = (
-        prepare_settings.prepare_settings_underseed(args, server_device)
+    (server_model, server_optimizer, _) = prepare_settings.prepare_settings_underseed(
+        args, server_device
     )
     server_model.to(server_device)
     server = FedAvgServer(
         clients,
         server_device,
         server_model=server_model,
-        server_model_inference=server_model_inferences.test_inference,
-        server_criterion=server_metric_packs.test_loss,
-        server_accuracy_func=server_metric_packs.test_acc,
+        server_model_inference=model_inferences.test_inference,
+        server_criterion=metrics.test_loss,
+        server_accuracy_func=metrics.test_acc,
         num_sample_clients=args.num_sample_clients,
         local_update_steps=args.local_update_steps,
     )

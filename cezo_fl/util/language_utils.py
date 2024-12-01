@@ -8,6 +8,9 @@ import string
 import torch
 import numpy as np
 
+from transformers import AutoTokenizer
+
+
 # utils for shakespeare dataset
 
 ALL_LETTERS = "\n !\"&'(),-.0123456789:;>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[]abcdefghijklmnopqrstuvwxyz}"
@@ -52,6 +55,10 @@ SUPPORTED_LLM = {
     "opt-13b": "facebook/opt-13b",
     "opt-30b": "facebook/opt-30b",
 }
+
+
+def get_hf_tokenizer(hf_model_name):
+    return AutoTokenizer.from_pretrained(hf_model_name, padding_side="left", truncate_side="left")
 
 
 class CustomLMDataset(torch.utils.data.DataLoader):

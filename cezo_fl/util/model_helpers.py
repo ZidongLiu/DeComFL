@@ -6,7 +6,7 @@ Created on Wed Mar 27 20:58:19 2024
 """
 
 from os import path
-from typing import Iterator
+from typing import Iterator, TypeAlias
 
 import torch
 import torch.optim as optim
@@ -14,6 +14,9 @@ from peft import PeftModel
 from transformers.models.opt.modeling_opt import OPTForCausalLM
 
 from cezo_fl.util.language_utils import LLMBatchInput
+
+LanguageModel: TypeAlias = OPTForCausalLM | PeftModel
+AllModel: TypeAlias = torch.nn.Module | LanguageModel
 
 
 def get_current_datetime_str():
@@ -79,9 +82,7 @@ def get_trainable_model_parameters(
             yield param
 
 
-def model_forward(
-    model: OPTForCausalLM | PeftModel | torch.nn.Module, batch_inputs: torch.Tensor | LLMBatchInput
-):
+def model_forward(model: AllModel, batch_inputs: torch.Tensor | LLMBatchInput):
     if isinstance(model, (OPTForCausalLM, PeftModel)):
         assert isinstance(batch_inputs, LLMBatchInput)
         return model(input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask)
@@ -92,9 +93,7 @@ def model_forward(
         raise Exception("This model type is not supported")
 
 
-def model_generate(
-    model: OPTForCausalLM | PeftModel, batch_inputs: LLMBatchInput, generation_kwargs: dict = {}
-):
+def model_generate(model: LanguageModel, batch_inputs: LLMBatchInput, generation_kwargs: dict = {}):
     if "max_new_tokens" in generation_kwargs:
         generation_kwargs = generation_kwargs.copy()
         assert "max_length" in generation_kwargs  # both should be specified.
