@@ -70,8 +70,6 @@ def get_model_and_optimizer(
             weight_decay=1e-5,
             momentum=momentum,
         )
-        train_criterion = test_criterion = nn.CrossEntropyLoss()
-        train_accuracy_func = test_accuracy_func = accuracy
 
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     elif dataset == "cifar10":
@@ -82,8 +80,6 @@ def get_model_and_optimizer(
             weight_decay=5e-4,
             momentum=momentum,
         )
-        train_criterion = test_criterion = nn.CrossEntropyLoss()
-        train_accuracy_func = test_accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
         #     optimizer, milestones=[200], gamma=0.1
         # )
@@ -95,8 +91,6 @@ def get_model_and_optimizer(
             weight_decay=1e-5,
             momentum=momentum,
         )
-        train_criterion = test_criterion = nn.CrossEntropyLoss()
-        train_accuracy_func = test_accuracy_func = accuracy
         # scheduler = torch.optim.lr_scheduler.MultiStepLR(
         #     optimizer, milestones=[200], gamma=0.1
         # )
@@ -117,7 +111,6 @@ def get_model_and_optimizer(
         hf_model_name = SUPPORTED_LLM[large_model]
         model = AutoModelForCausalLM.from_pretrained(hf_model_name, torch_dtype=torch_dtype)
         model.model_name = large_model
-        tokenizer = get_hf_tokenizer(hf_model_name)
         if lora:
             # this step initialize lora parameters, which should be under control of seed
             lora_config = LoraConfig(
