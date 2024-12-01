@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Iterator, Sequence, Callable
+from typing import Iterator, Sequence, Callable, Any
 
 import torch
 from torch.utils.data import DataLoader
@@ -62,7 +62,7 @@ class SyncClient(AbstractClient):
     def __init__(
         self,
         model: torch.nn.Module,
-        model_inference: Callable,
+        model_inference: Callable[[torch.nn.Module, Any], torch.Tensor],
         dataloader: DataLoader,
         grad_estimator: RGE,
         optimizer: torch.optim.Optimizer,
@@ -93,7 +93,7 @@ class SyncClient(AbstractClient):
                 yield v
 
     def _loss_fn(self, batch_inputs, batch_labels):
-        return self.criterion(self.model_inference(batch_inputs), batch_labels)
+        return self.criterion(self.model_inference(self.model, batch_inputs), batch_labels)
 
     def random_gradient_estimator(self) -> RGE:
         return self.grad_estimator
@@ -140,7 +140,7 @@ class SyncClient(AbstractClient):
             iteration_local_update_grad_vectors.append(grad_scalars)
 
             # get_train_info
-            pred = self.model_inference(batch_inputs)
+            pred = self.model_inference(self.model, batch_inputs)
             train_loss.update(self.criterion(pred, labels))
             train_accuracy.update(self.accuracy_func(pred, labels))
 
@@ -193,7 +193,7 @@ class ResetClient(AbstractClient):
     def __init__(
         self,
         model: torch.nn.Module,
-        model_inference: Callable,
+        model_inference: Callable[[torch.nn.Module, Any], torch.Tensor],
         dataloader: DataLoader,
         grad_estimator: RGE,
         optimizer: torch.optim.Optimizer,
@@ -225,7 +225,7 @@ class ResetClient(AbstractClient):
                 yield v
 
     def _loss_fn(self, batch_inputs, batch_labels):
-        return self.criterion(self.model_inference(batch_inputs), batch_labels)
+        return self.criterion(self.model_inference(self.model, batch_inputs), batch_labels)
 
     def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
         """Returns a sequence of gradient scalar tensors for each local update.
@@ -269,7 +269,7 @@ class ResetClient(AbstractClient):
             iteration_local_update_grad_vectors.append(grad_scalars)
 
             # get_train_info
-            pred = self.model_inference(batch_inputs)
+            pred = self.model_inference(self.model, batch_inputs)
             train_loss.update(self.criterion(pred, labels))
             train_accuracy.update(self.accuracy_func(pred, labels))
 

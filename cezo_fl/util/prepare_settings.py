@@ -165,7 +165,7 @@ def get_model_inferences_and_metrics(
     if dataset not in LM_TEMPLATE_MAP.keys():
         return ModelInferences(
             model_helpers.model_forward, model_helpers.model_forward
-        ), MetricPacks(nn.CrossEntropyLoss(), nn.CrossEntropyLoss(), accuracy, accuracy)
+        ), MetricPacks(nn.CrossEntropyLoss(), accuracy, nn.CrossEntropyLoss(), accuracy)
 
     assert hf_model_name
     tokenizer = get_hf_tokenizer(hf_model_name)

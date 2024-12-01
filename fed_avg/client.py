@@ -1,4 +1,4 @@
-from typing import Iterator, Callable
+from typing import Iterator, Callable, Any
 
 import torch
 from peft import PeftModel
@@ -13,7 +13,7 @@ class FedAvgClient:
     def __init__(
         self,
         model: torch.nn.Module,
-        model_inference: Callable,
+        model_inference: Callable[[torch.nn.Module, Any], torch.Tensor],
         dataloader: DataLoader,
         optimizer: torch.optim.Optimizer,
         criterion: CriterionType,
@@ -56,7 +56,7 @@ class FedAvgClient:
                 # NOTE: label does not convert to dtype
                 labels = labels.to(self.device)
 
-            pred = self.model_inference(batch_inputs)
+            pred = self.model_inference(self.model, batch_inputs)
             loss = self.criterion(pred, labels)
             loss.backward()
             self.optimizer.step()
