@@ -38,7 +38,7 @@ inf_test_loader = inf_loader(test_loader)
 
 (
     model,
-    model_inference,
+    _,
     optimizer,
     metric_packs,
     grad_estimator,

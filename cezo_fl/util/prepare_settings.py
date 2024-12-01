@@ -27,6 +27,12 @@ class MetricPacks:
     test_acc: Callable
 
 
+@dataclass
+class ModelInferences:
+    train_inference: Callable
+    test_inference: Callable
+
+
 BASE_GENERATION_KWARGS = {
     "do_sample": True,
     "temperature": 1.0,
@@ -84,7 +90,9 @@ def get_model_and_optimizer(args, device):
     torch_dtype = get_torch_dtype(args.model_dtype)
     if args.dataset == "mnist":
         model = CNN_MNIST().to(torch_dtype).to(device)
-        model_inference = partial(model_helpers.model_forward, model=model)
+        train_model_inference = test_model_inference = partial(
+            model_helpers.model_forward, model=model
+        )
         model_helpers.model_forward()
         optimizer = torch.optim.SGD(
             model_helpers.get_trainable_model_parameters(model),
@@ -98,7 +106,9 @@ def get_model_and_optimizer(args, device):
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     elif args.dataset == "cifar10":
         model = LeNet().to(torch_dtype).to(device)
-        model_inference = partial(model_helpers.model_forward, model=model)
+        train_model_inference = test_model_inference = partial(
+            model_helpers.model_forward, model=model
+        )
         model_helpers.model_forward()
         optimizer = torch.optim.SGD(
             model_helpers.get_trainable_model_parameters(model),
@@ -113,7 +123,9 @@ def get_model_and_optimizer(args, device):
         # )
     elif args.dataset == "fashion":
         model = CNN_FMNIST().to(torch_dtype).to(device)
-        model_inference = partial(model_helpers.model_forward, model=model)
+        train_model_inference = test_model_inference = partial(
+            model_helpers.model_forward, model=model
+        )
         model_helpers.model_forward()
         optimizer = torch.optim.SGD(
             model_helpers.get_trainable_model_parameters(model),
@@ -128,7 +140,9 @@ def get_model_and_optimizer(args, device):
         # )
     elif args.dataset == "shakespeare":
         model = CharLSTM().to(torch_dtype).to(device)
-        model_inference = partial(model_helpers.model_forward, model=model)
+        train_model_inference = test_model_inference = partial(
+            model_helpers.model_forward, model=model
+        )
         model_helpers.model_forward()
         optimizer = torch.optim.SGD(
             model_helpers.get_trainable_model_parameters(model),
@@ -160,7 +174,9 @@ def get_model_and_optimizer(args, device):
             model = get_peft_model(model, lora_config).to(torch_dtype)
 
         if args.dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"]:
-            model_inference = partial(model_helpers.model_forward, model=model)
+            train_model_inference = test_model_inference = partial(
+                model_helpers.model_forward, model=model
+            )
             optimizer = torch.optim.SGD(
                 model_helpers.get_trainable_model_parameters(model),
                 lr=args.lr,
@@ -198,7 +214,8 @@ def get_model_and_optimizer(args, device):
             else:
                 generation_kwargs = {}
 
-            model_inference = partial(
+            train_model_inference = partial(model_helpers.model_forward, model=model)
+            test_model_inference = partial(
                 model_helpers.model_generate, model=model, generation_kwargs=generation_kwargs
             )
             optimizer = torch.optim.SGD(
@@ -219,7 +236,7 @@ def get_model_and_optimizer(args, device):
 
     return (
         model,
-        model_inference,
+        ModelInferences(train_model_inference, test_model_inference),
         optimizer,
         MetricPacks(train_criterion, train_accuracy_func, test_criterion, test_accuracy_func),
     )
@@ -227,8 +244,8 @@ def get_model_and_optimizer(args, device):
 
 def prepare_settings_underseed(
     args, device
-) -> tuple[nn.Module, Callable, torch.optim.SGD, MetricPacks, RGE]:
+) -> tuple[nn.Module, ModelInferences, torch.optim.SGD, MetricPacks, RGE]:
     torch.manual_seed(args.seed)
-    model, model_inference, optimizer, metric_packs = get_model_and_optimizer(args, device)
+    model, model_inferences, optimizer, metric_packs = get_model_and_optimizer(args, device)
     grad_estimator = get_random_gradient_estimator(args, model, device)
-    return model, model_inference, optimizer, metric_packs, grad_estimator
+    return model, model_inferences, optimizer, metric_packs, grad_estimator

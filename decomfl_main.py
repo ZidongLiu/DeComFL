@@ -27,7 +27,7 @@ def setup_server_and_clients(
         client_device = device_map[client_name]
         (
             client_model,
-            client_model_inference,
+            client_model_inferences,
             client_optimizer,
             client_metric_packs,
             client_grad_estimator,
@@ -36,7 +36,7 @@ def setup_server_and_clients(
 
         client = ResetClient(
             client_model,
-            client_model_inference,
+            client_model_inferences.train_inference,
             train_loaders[i],
             client_grad_estimator,
             client_optimizer,
@@ -57,7 +57,7 @@ def setup_server_and_clients(
     # set server tools
     (
         server_model,
-        server_model_inference,
+        server_model_inferences,
         server_optimizer,
         server_metric_packs,
         server_grad_estimator,
@@ -66,7 +66,7 @@ def setup_server_and_clients(
     server_model.to(server_device)
     server.set_server_model_and_criterion(
         server_model,
-        server_model_inference,
+        server_model_inferences.test_inference,
         server_metric_packs.test_loss,
         server_metric_packs.test_acc,
         server_optimizer,
