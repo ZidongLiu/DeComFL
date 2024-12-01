@@ -36,7 +36,7 @@ def test_update_model_given_seed_and_grad():
         optim = torch.optim.SGD(fake_model.parameters(), lr=1e-3)
         update_model_given_seed_and_grad(
             optim,
-            RGE(fake_model, num_pert=2),
+            RGE(fake_model.parameters(), num_pert=2),
             iteration_seeds=[1, 2, 3],
             iteration_grad_scalar=[  # two perturbations
                 torch.tensor([0.1, 0.2]),

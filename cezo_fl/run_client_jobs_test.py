@@ -45,10 +45,10 @@ def set_fake_clients(
         model = CNN_MNIST().to(device)
         train_loader = get_mnist_data_loader()
         grad_estimator = RGE(
-            model,
+            model.parameters(),
             mu=1e-3,
             num_pert=2,
-            grad_estimate_method="forward",
+            grad_estimate_method="rge-forward",
             device=device,
         )
         optimizer = SGD(model.parameters(), lr=args.lr, weight_decay=0)
@@ -56,6 +56,7 @@ def set_fake_clients(
         fake_clients.append(
             ResetClient(
                 model=model,
+                model_inference=model,
                 dataloader=train_loader,
                 grad_estimator=grad_estimator,
                 optimizer=optimizer,

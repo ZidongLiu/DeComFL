@@ -28,6 +28,7 @@ class RandomGradientEstimator:
         self.num_pert = num_pert
         self.device = device
         self.torch_dtype = torch_dtype
+        assert grad_estimate_method in ["rge-forward", "rge-central"]
         self.grad_estimate_method: GradEstimateMethod = grad_estimate_method
 
         self.paramwise_perturb = paramwise_perturb

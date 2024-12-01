@@ -24,10 +24,10 @@ def test_sync_client_reset():
 
     train_loader = train_loaders[0]
     grad_estimator = RGE(
-        model,
+        model.parameters(),
         mu=1e-3,
         num_pert=2,
-        grad_estimate_method="forward",
+        grad_estimate_method="rge-forward",
         device=device,
     )
     optimizer = SGD(model.parameters(), lr=args.lr, weight_decay=0)
@@ -36,6 +36,7 @@ def test_sync_client_reset():
 
     sync_client = SyncClient(
         model=model,
+        model_inference=model,
         dataloader=train_loader,
         grad_estimator=grad_estimator,
         optimizer=optimizer,

@@ -32,24 +32,28 @@ def test_parameter_wise_equivalent_all_togther(
     torch.random.manual_seed(123)  # Make sure all models are generated as the same.
     model1 = LinearModel()
     rge1 = RGE.RandomGradientEstimator(
-        model1,
+        model1.parameters(),
         num_pert=num_pert,
         grad_estimate_method=rge_method,
         paramwise_perturb=False,
     )
     with torch.no_grad():
-        dir_grads1 = rge1.compute_grad(fake_input, fake_label, criterion, seed=54321)
+        dir_grads1 = rge1.compute_grad(
+            fake_input, fake_label, lambda x, y: criterion(model1(x), y), seed=54321
+        )
 
     torch.random.manual_seed(123)  # Make sure all models are generated as the same.
     model2 = LinearModel()
     rge2 = RGE.RandomGradientEstimator(
-        model2,
+        model2.parameters(),
         num_pert=num_pert,
         grad_estimate_method=rge_method,
         paramwise_perturb=True,
     )
     with torch.no_grad():
-        dir_grads2 = rge2.compute_grad(fake_input, fake_label, criterion, seed=54321)
+        dir_grads2 = rge2.compute_grad(
+            fake_input, fake_label, lambda x, y: criterion(model2(x), y), seed=54321
+        )
 
     torch.testing.assert_close(dir_grads1, dir_grads2)
     for p1, p2 in zip(model1.parameters(), model2.parameters()):
