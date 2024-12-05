@@ -33,23 +33,6 @@ def get_torch_dtype(args_model_dtype: Literal["float32", "float16", "bfloat16"])
     }[args_model_dtype]
 
 
-def get_random_gradient_estimator(args, model, device):
-    if args.grad_estimate_method in ["rge-central", "rge-forward"]:
-        return RGE(
-            parameters=model_helpers.get_trainable_model_parameters(model),
-            mu=args.mu,
-            num_pert=args.num_pert,
-            grad_estimate_method=args.grad_estimate_method,
-            device=device,
-            torch_dtype=get_torch_dtype(args.model_dtype),
-            # To save memory consumption, we have to use parameter-wise perturb + no_optim together.
-            sgd_only_no_optim=args.no_optim,
-            paramwise_perturb=args.no_optim,
-        )
-    else:
-        raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
-
-
 def get_model_and_optimizer(
     dataset: str,
     model_dtype: Literal["float32", "float16", "bfloat16"],
@@ -59,7 +42,7 @@ def get_model_and_optimizer(
     lora: bool = False,
     lora_alpha: int = 16,
     lora_r: int = 8,
-):
+) -> tuple[AllModel, torch.optim.SGD]:
     torch_dtype = get_torch_dtype(model_dtype)
     model: AllModel
     if dataset == "mnist":
@@ -70,8 +53,6 @@ def get_model_and_optimizer(
             weight_decay=1e-5,
             momentum=momentum,
         )
-
-        # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     elif dataset == "cifar10":
         model = LeNet().to(torch_dtype)
         optimizer = torch.optim.SGD(
@@ -80,9 +61,6 @@ def get_model_and_optimizer(
             weight_decay=5e-4,
             momentum=momentum,
         )
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        #     optimizer, milestones=[200], gamma=0.1
-        # )
     elif dataset == "fashion":
         model = CNN_FMNIST().to(torch_dtype)
         optimizer = torch.optim.SGD(
@@ -91,9 +69,6 @@ def get_model_and_optimizer(
             weight_decay=1e-5,
             momentum=momentum,
         )
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        #     optimizer, milestones=[200], gamma=0.1
-        # )
     elif dataset == "shakespeare":
         model = CharLSTM().to(torch_dtype)
         optimizer = torch.optim.SGD(
@@ -102,10 +77,6 @@ def get_model_and_optimizer(
             momentum=0.9,
             weight_decay=5e-4,
         )
-
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        #     optimizer, milestones=[200], gamma=0.1
-        # )
     elif dataset in LM_TEMPLATE_MAP.keys():
         assert large_model in SUPPORTED_LLM
         hf_model_name = SUPPORTED_LLM[large_model]
@@ -139,10 +110,7 @@ def get_model_and_optimizer(
     else:
         raise Exception(f"Dataset {dataset} is not supported")
 
-    return (
-        model,
-        optimizer,
-    )
+    return model, optimizer
 
 
 @dataclass
@@ -209,10 +177,9 @@ def get_model_inferences_and_metrics(
         train_accuracy_func = test_accuracy_func = get_lm_loss(
             "accuracy", verbalizer_id_map=verbalizer_id_map
         )
-        return (
-            ModelInferences(model_helpers.model_forward, model_helpers.model_forward),
-            MetricPacks(train_criterion, train_accuracy_func, test_criterion, test_accuracy_func),
-        )
+        return ModelInferences(
+            model_helpers.model_forward, model_helpers.model_forward
+        ), MetricPacks(train_criterion, train_accuracy_func, test_criterion, test_accuracy_func)
 
 
 def prepare_settings_underseed(
@@ -230,5 +197,15 @@ def prepare_settings_underseed(
         lora_alpha=args.lora_alpha,
         lora_r=args.lora_r,
     )
-    grad_estimator = get_random_gradient_estimator(args, model, device)
+    grad_estimator = RGE(
+        parameters=model_helpers.get_trainable_model_parameters(model),
+        mu=args.mu,
+        num_pert=args.num_pert,
+        grad_estimate_method=args.grad_estimate_method,
+        device=device,
+        torch_dtype=get_torch_dtype(args.model_dtype),
+        # To save memory consumption, we have to use parameter-wise perturb + no_optim together.
+        sgd_only_no_optim=args.no_optim,
+        paramwise_perturb=args.no_optim,
+    )
     return model, optimizer, grad_estimator
