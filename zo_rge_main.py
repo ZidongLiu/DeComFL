@@ -13,7 +13,6 @@ from cezo_fl.models.lenet import LeNet
 from cezo_fl.models.lstm import CharLSTM
 from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
 from cezo_fl.util import model_helpers
-from cezo_fl.util.checkpoint import CheckPoint
 from cezo_fl.util.metrics import Metric, accuracy
 from config import get_args_str, get_params
 from preprocess import preprocess
@@ -150,8 +149,6 @@ if __name__ == "__main__":
 
     model, criterion, optimizer, scheduler, grad_estimator = prepare_settings(args, device)
 
-    checkpoint = CheckPoint(args, model, optimizer, grad_estimator)
-
     args_str = get_args_str(args) + "-" + model.model_name
     if args.log_to_tensorboard:
         tensorboard_sub_folder = args_str + "-" + model_helpers.get_current_datetime_str()
@@ -173,13 +170,6 @@ if __name__ == "__main__":
         if args.log_to_tensorboard:
             writer.add_scalar("Loss/test", eval_loss, epoch)
             writer.add_scalar("Accuracy/test", eval_accuracy, epoch)
-
-        if checkpoint.should_update(eval_loss, eval_accuracy, epoch):
-            checkpoint.save(
-                args_str + "-" + model_helpers.get_current_datetime_str(),
-                epoch,
-                subfolder=args.log_to_tensorboard,
-            )
 
     if args.log_to_tensorboard:
         writer.close()

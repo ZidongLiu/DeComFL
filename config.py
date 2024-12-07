@@ -41,10 +41,6 @@ DEFAULTS = {
     "aggregation": "mean",
     "byz_type": "no_byz",
     "num_byz": 1,
-    # Check Points
-    "checkpoint": None,
-    "create_many_checkpoint": True,
-    "checkpoint_update_plan": "every10",
 }
 
 
@@ -116,20 +112,6 @@ def get_params():
     parser.add_argument("--seed", type=int, default=DEFAULTS["seed"], help="random seed")
     parser.add_argument("--num-workers", type=int, default=DEFAULTS["num_workers"])
     parser.add_argument("--log-to-tensorboard", type=str, default=DEFAULTS["log_to_tensorboard"])
-
-    # checkpoints
-    parser.add_argument("--checkpoint", type=str, default=DEFAULTS["checkpoint"])
-    parser.add_argument(
-        "--create-many-checkpoint",
-        default=DEFAULTS["create_many_checkpoint"],
-        action=argparse.BooleanOptionalAction,
-    )
-    parser.add_argument(
-        "--checkpoint-update-plan",
-        type=str,
-        default=DEFAULTS["checkpoint_update_plan"],
-        choices=["never", "every5", "every10", "best_loss", "best_acc"],
-    )
 
     # No need to change
     parser.add_argument(
@@ -216,7 +198,3 @@ class FakeArgs:
     aggregation = DEFAULTS["aggregation"]
     byz_type = DEFAULTS["byz_type"]
     num_byz = DEFAULTS["num_byz"]
-    # Check Points
-    checkpoint = DEFAULTS["checkpoint"]
-    create_many_checkpoint = DEFAULTS["create_many_checkpoint"]
-    checkpoint_update_plan = DEFAULTS["checkpoint_update_plan"]
