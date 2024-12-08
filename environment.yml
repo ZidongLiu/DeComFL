@@ -11,6 +11,7 @@ dependencies:
   - conda-forge::peft=0.12
   - conda-forge::transformers=4.41
   - conda-forge::pydantic=2.10.3
+  - conda-forge::pydantic-settings=2.6.1
 
   - pytorch::pytorch=2.3
   - pytorch::torchvision=0.18
