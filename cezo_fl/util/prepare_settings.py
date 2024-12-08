@@ -133,7 +133,12 @@ def get_model_inferences_and_metrics(
     if dataset not in LM_TEMPLATE_MAP.keys():
         return ModelInferences(
             model_helpers.model_forward, model_helpers.model_forward
-        ), MetricPacks(nn.CrossEntropyLoss(), accuracy, nn.CrossEntropyLoss(), accuracy)
+        ), MetricPacks(
+            train_loss=nn.CrossEntropyLoss(),
+            train_acc=accuracy,
+            test_loss=nn.CrossEntropyLoss(),
+            test_acc=accuracy,
+        )
 
     assert hf_model_name
     tokenizer = get_hf_tokenizer(hf_model_name)
@@ -156,9 +161,7 @@ def get_model_inferences_and_metrics(
         }
         # write in separate lines to differentiate from above cases, here acc=criterion
         train_criterion = get_lm_loss("full_sentence", verbalizer_id_map={})
-        train_accuracy_func = train_criterion
-        test_criterion = get_lm_loss("f1", tokenizer=tokenizer)
-        test_accuracy_func = test_criterion
+        test_accuracy_func = get_lm_loss("f1", tokenizer=tokenizer)
         return (
             ModelInferences(
                 train_inference=model_helpers.model_forward,
@@ -166,7 +169,12 @@ def get_model_inferences_and_metrics(
                     model_helpers.model_generate, generation_kwargs=generation_kwargs
                 ),
             ),
-            MetricPacks(train_criterion, train_accuracy_func, test_criterion, test_accuracy_func),
+            MetricPacks(
+                train_loss=train_criterion,
+                train_acc=lambda pred, true: torch.Tensor(0.0),  # noop training acc step here
+                test_loss=lambda pred, true: torch.Tensor(0.0),  # noop test loss step here
+                test_acc=test_accuracy_func,
+            ),
         )
     else:
         template = LM_TEMPLATE_MAP[dataset]()
@@ -179,7 +187,12 @@ def get_model_inferences_and_metrics(
         )
         return ModelInferences(
             model_helpers.model_forward, model_helpers.model_forward
-        ), MetricPacks(train_criterion, train_accuracy_func, test_criterion, test_accuracy_func)
+        ), MetricPacks(
+            train_loss=train_criterion,
+            train_acc=train_accuracy_func,
+            test_loss=test_criterion,
+            test_acc=test_accuracy_func,
+        )
 
 
 def prepare_settings_underseed(

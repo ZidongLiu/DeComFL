@@ -93,7 +93,7 @@ def model_forward(model: AllModel, batch_inputs: torch.Tensor | LLMBatchInput):
         raise Exception("This model type is not supported")
 
 
-def model_generate(model: LanguageModel, batch_inputs: LLMBatchInput, generation_kwargs: dict = {}):
+def model_generate(model: LanguageModel, batch_inputs: LLMBatchInput, generation_kwargs: dict):
     if "max_new_tokens" in generation_kwargs:
         generation_kwargs = generation_kwargs.copy()
         assert "max_length" in generation_kwargs  # both should be specified.
