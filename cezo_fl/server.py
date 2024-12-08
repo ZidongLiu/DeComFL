@@ -97,6 +97,7 @@ class CeZO_Server:
         self.client_last_updates = [0 for _ in range(len(self.clients))]
 
         self.server_model: torch.nn.Module | None = None
+        self.server_model_inference: Callable[[torch.nn.Module, Any], torch.Tensor] | None = None
         self.server_criterion: CriterionType | None = None
         self.server_accuracy_func = None
         self.optim: torch.optim.Optimizer | None = None
@@ -108,12 +109,14 @@ class CeZO_Server:
     def set_server_model_and_criterion(
         self,
         model: torch.nn.Module,
+        model_inference: Callable[[torch.nn.Module, Any], torch.Tensor],
         criterion: CriterionType,
         accuracy_func,
         optimizer: torch.optim.Optimizer,
         random_gradient_estimator: RGE,
     ) -> None:
         self.server_model = model
+        self.server_model_inference = model_inference
         self.server_criterion = criterion
         self.server_accuracy_func = accuracy_func
         self.optim = optimizer
@@ -196,6 +199,7 @@ class CeZO_Server:
             and self.random_gradient_estimator
             and self.server_criterion
             and self.server_accuracy_func
+            and self.server_model_inference
         )
 
         self.server_model.eval()
@@ -213,7 +217,7 @@ class CeZO_Server:
                     # In generation mode, labels are not tensor.
                     if isinstance(batch_labels, torch.Tensor):
                         batch_labels = batch_labels.to(self.device)
-                pred = self.random_gradient_estimator.model_forward(batch_inputs)
+                pred = self.server_model_inference(self.server_model, batch_inputs)
                 eval_loss.update(self.server_criterion(pred, batch_labels))
                 eval_accuracy.update(self.server_accuracy_func(pred, batch_labels))
         print(

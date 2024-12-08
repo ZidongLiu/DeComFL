@@ -1,35 +1,25 @@
-from typing import Any, Callable, Iterator, Literal, Sequence, TypeAlias
+from typing import Callable, Iterator, Literal, Sequence, TypeAlias
 
 import torch
-from peft import PeftModel
 from torch.nn import Parameter
-from transformers.models.opt.modeling_opt import OPTForCausalLM
 
-from cezo_fl.util.language_utils import LLMBatchInput
-
-GradEstimateMethod: TypeAlias = Literal["forward", "central"]
+GradEstimateMethod: TypeAlias = Literal["rge-forward", "rge-central"]
 
 
 # TODO: split this class into abstract class and several subcalsses.
 class RandomGradientEstimator:
     def __init__(
         self,
-        model: torch.nn.Module | OPTForCausalLM | PeftModel,
-        parameters: Iterator[Parameter] | None = None,
+        parameters: Iterator[Parameter],
         mu=1e-3,
         num_pert=1,
-        grad_estimate_method: GradEstimateMethod = "central",
+        grad_estimate_method: GradEstimateMethod = "rge-central",
         normalize_perturbation: bool = False,
         device: str | torch.device | None = None,
         torch_dtype: torch.dtype = torch.float32,
         paramwise_perturb: bool = False,
         sgd_only_no_optim: bool = False,
-        generation_mode: bool = False,
-        generation_mode_kwargs: dict[str, Any] | None = None,
     ):
-        self.model = model
-        if parameters is None:
-            parameters = model.parameters()
         self.parameters_list: list[Parameter] = [p for p in parameters if p.requires_grad]
         self.total_dimensions = sum([p.numel() for p in self.parameters_list])
         print(f"trainable model size: {self.total_dimensions}")
@@ -38,6 +28,7 @@ class RandomGradientEstimator:
         self.num_pert = num_pert
         self.device = device
         self.torch_dtype = torch_dtype
+        assert grad_estimate_method in ["rge-forward", "rge-central"]
         self.grad_estimate_method: GradEstimateMethod = grad_estimate_method
 
         self.paramwise_perturb = paramwise_perturb
@@ -49,46 +40,6 @@ class RandomGradientEstimator:
             assert self.paramwise_perturb
 
         self.normalize_perturbation = normalize_perturbation
-
-        # For the forward function used in generation mode usage
-        self.generation_mode = generation_mode
-        self.generation_mode_kwargs = generation_mode_kwargs if generation_mode_kwargs else {}
-
-    # TODO(zidong) move this func out of this class
-    def model_forward(
-        self,
-        batch_inputs: torch.Tensor | LLMBatchInput,
-    ):
-        if self.generation_mode:
-            if not isinstance(self.model, (OPTForCausalLM, PeftModel)):
-                raise ValueError(
-                    "The model for generation_mode must be OPTForCausalLM or peft model"
-                )
-            assert isinstance(batch_inputs, LLMBatchInput)
-            generation_mode_kwargs = self.generation_mode_kwargs
-            # We may need a copy for dynamic modification
-            if "max_new_tokens" in self.generation_mode_kwargs:
-                generation_mode_kwargs = self.generation_mode_kwargs.copy()
-                assert "max_length" in generation_mode_kwargs  # both should be specified.
-                # Dynamic adjust the max_new_tokens according to input length
-                generation_mode_kwargs["max_new_tokens"] = min(
-                    generation_mode_kwargs["max_new_tokens"],
-                    generation_mode_kwargs["max_length"] - batch_inputs.input_ids.size(1),
-                )
-                del generation_mode_kwargs["max_length"]
-            return self.model.generate(
-                batch_inputs.input_ids,  # attention_mask is not needed for generation model.
-                **generation_mode_kwargs,
-            )
-        if isinstance(self.model, (OPTForCausalLM, PeftModel)):
-            assert isinstance(batch_inputs, LLMBatchInput)
-            return self.model(
-                input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask
-            )
-        elif isinstance(self.model, torch.nn.Module):
-            return self.model(batch_inputs)
-        else:
-            raise Exception("This model type is not supported")
 
     def get_rng(self, seed: int, perturb_index: int) -> torch.Generator:
         return torch.Generator(device=self.device).manual_seed(
@@ -136,17 +87,17 @@ class RandomGradientEstimator:
         assert update_grad is not None
         self.put_grad(update_grad)
 
-    def compute_grad(self, batch_inputs, labels, criterion, seed: int) -> torch.Tensor:
+    def compute_grad(self, batch_inputs, labels, loss_fn, seed: int) -> torch.Tensor:
         if not self.paramwise_perturb:
             # We generate the perturbation vector all together. It should be faster but consume
             # more memory
             grad, perturbation_dir_grads = self._zo_grad_estimate(
-                batch_inputs, labels, criterion, seed
+                batch_inputs, labels, loss_fn, seed
             )
             self.put_grad(grad)
         else:
             perturbation_dir_grads = self._zo_grad_estimate_paramwise(
-                batch_inputs, labels, criterion, seed
+                batch_inputs, labels, loss_fn, seed
             )
             self.generate_then_put_grad_paramwise(seed, perturbation_dir_grads)
 
@@ -168,7 +119,7 @@ class RandomGradientEstimator:
         self,
         batch_inputs: torch.Tensor,
         labels: torch.Tensor,
-        criterion: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         seed: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate the zeroth-order gradient estimate.
@@ -183,21 +134,21 @@ class RandomGradientEstimator:
         """
         grad: torch.Tensor | None = None
         dir_grads = []
-        denominator_factor = 2 if self.grad_estimate_method == "central" else 1
-        if self.grad_estimate_method == "forward":
-            pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
+        denominator_factor = 2 if self.grad_estimate_method == "rge-central" else 1
+        if self.grad_estimate_method == "rge-forward":
+            pert_minus_loss = loss_fn(batch_inputs, labels)
 
         for i in range(self.num_pert):
             rng = self.get_rng(seed, i)
             pb_norm = self.generate_perturbation_norm(rng)
 
             self.perturb_model(pb_norm, alpha=self.mu)
-            pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)
-            if self.grad_estimate_method == "central":
+            pert_plus_loss = loss_fn(batch_inputs, labels)
+            if self.grad_estimate_method == "rge-central":
                 self.perturb_model(pb_norm, alpha=-2 * self.mu)
-                pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
+                pert_minus_loss = loss_fn(batch_inputs, labels)
                 self.perturb_model(pb_norm, alpha=self.mu)  # Restore model
-            elif self.grad_estimate_method == "forward":
+            elif self.grad_estimate_method == "rge-forward":
                 self.perturb_model(pb_norm, alpha=-self.mu)  # Restore model
 
             dir_grad = (pert_plus_loss - pert_minus_loss) / (self.mu * denominator_factor)
@@ -238,25 +189,25 @@ class RandomGradientEstimator:
         self,
         batch_inputs: torch.Tensor,
         labels: torch.Tensor,
-        criterion: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         seed: int,
     ) -> torch.Tensor:
         dir_grads = []
-        denominator_factor = 2 if self.grad_estimate_method == "central" else 1
-        if self.grad_estimate_method == "forward":
-            pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
+        denominator_factor = 2 if self.grad_estimate_method == "rge-central" else 1
+        if self.grad_estimate_method == "rge-forward":
+            pert_minus_loss = loss_fn(batch_inputs, labels)
 
         for i in range(self.num_pert):
             rng = self.get_rng(seed, i)
             self.perturb_model_paramwise(rng, alpha=self.mu)
-            pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)
-            if self.grad_estimate_method == "central":
+            pert_plus_loss = loss_fn(batch_inputs, labels)
+            if self.grad_estimate_method == "rge-central":
                 rng = self.get_rng(seed, i)
                 self.perturb_model_paramwise(rng, alpha=-2 * self.mu)
-                pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
+                pert_minus_loss = loss_fn(batch_inputs, labels)
                 rng = self.get_rng(seed, i)
                 self.perturb_model_paramwise(rng, alpha=self.mu)  # Restore model
-            elif self.grad_estimate_method == "forward":
+            elif self.grad_estimate_method == "rge-forward":
                 rng = self.get_rng(seed, i)
                 self.perturb_model_paramwise(rng, alpha=-self.mu)  # Restore model
             dir_grad = (pert_plus_loss - pert_minus_loss) / (self.mu * denominator_factor)

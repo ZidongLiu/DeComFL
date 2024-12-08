@@ -1,8 +1,9 @@
 import torch
 from tqdm import tqdm
 
-import decomfl_main
+
 from cezo_fl.util.metrics import Metric
+from cezo_fl.util import prepare_settings
 from config import get_params
 from preprocess import preprocess
 
@@ -20,24 +21,11 @@ def inf_loader(dl):
 
 inf_test_loader = inf_loader(test_loader)
 
-# large_model = args.large_model
-# model_name = SUPPORTED_LLM[large_model]
-# tokenizer = AutoTokenizer.from_pretrained(
-#     model_name, padding_side="left", truncate_side="left"
-# )
-
-# template = RTETemplate()
-# template = LM_TEMPLATE_MAP[args.dataset]()
-# test_sample = next(inf_test_loader)
-# print(test_sample[1][:, -1])
-# template.get_verbalizer_id(tokenizer)
-# server = setup_server_and_clients(args, device, train_loaders)
-
-# args_str = get_args_str(args) + "-" + server.server_model.model_name
-
-model, criterion, optimizer, grad_estimator, accuracy_func = (
-    decomfl_main.prepare_settings_underseed(args, device)
+(_, metrics) = prepare_settings.get_model_inferences_and_metrics(
+    args.dataset, prepare_settings.SUPPORTED_LLM.get(args.large_model)
 )
+
+model, optimizer, _ = prepare_settings.prepare_settings_underseed(args, device)  # type: ignore[assignment]
 model.to(device)
 
 acc = Metric("accuracy")
@@ -52,7 +40,7 @@ with torch.no_grad():
             input_ids=batch_input_dict.input_ids, attention_mask=batch_input_dict.attention_mask
         )
 
-        batch_acc = accuracy_func(outputs, batch_output_tensor)
+        batch_acc = metrics.test_acc(outputs, batch_output_tensor)
         acc.update(batch_acc)
         del batch_input_dict, batch_output_tensor, outputs, batch_acc
         torch.cuda.empty_cache()
@@ -78,7 +66,7 @@ for i in tqdm(range(10000)):
     )
 
     # Calculate the loss
-    loss = criterion(outputs, batch_output_tensor)
+    loss = metrics.train_loss(outputs, batch_output_tensor)
     total_loss += loss.item()
     if (i + 1) % 50 == 0:
         print(f"Iteration: {i}, Loss: {(total_loss/50):.6f}")
@@ -106,7 +94,7 @@ for i in tqdm(range(10000)):
                     attention_mask=batch_input_dict.attention_mask,
                 )
 
-                batch_acc = accuracy_func(outputs, batch_output_tensor)
+                batch_acc = metrics.test_acc(outputs, batch_output_tensor)
                 acc.update(batch_acc)
                 del batch_input_dict, batch_output_tensor, outputs, batch_acc
                 torch.cuda.empty_cache()

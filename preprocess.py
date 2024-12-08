@@ -3,7 +3,6 @@ from torch.utils.data.dataset import Subset
 import torchvision
 import torchvision.transforms as transforms
 from datasets import load_dataset
-from transformers import AutoTokenizer
 
 from cezo_fl.fl_helpers import get_client_name
 from cezo_fl.util.data_split import dirichlet_split
@@ -17,6 +16,7 @@ from cezo_fl.util.language_utils import (
     LmTask,
     get_collate_fn,
     get_collate_fn_for_gen_model,
+    get_hf_tokenizer,
 )
 
 
@@ -126,10 +126,8 @@ def preprocess(
             dataset = load_dataset(LM_DATASET_MAP[args.dataset], args.dataset)
             raw_train_dataset = dataset["train"]
             raw_test_dataset = dataset["validation"]
-            model_name = SUPPORTED_LLM[args.large_model]
-            tokenizer = AutoTokenizer.from_pretrained(
-                model_name, padding_side="left", truncate_side="left"
-            )
+            hf_model_name = SUPPORTED_LLM[args.large_model]
+            tokenizer = get_hf_tokenizer(hf_model_name)
             template = LM_TEMPLATE_MAP[args.dataset]()
             encoded_train_texts = list(map(template.verbalize, raw_train_dataset))
             encoded_test_texts = list(map(template.verbalize, raw_test_dataset))
@@ -145,10 +143,8 @@ def preprocess(
             dataset = load_dataset(LM_DATASET_MAP[args.dataset])
             raw_train_dataset = dataset["train"].select(range(1000)).shuffle(args.seed)
             raw_test_dataset = dataset["validation"].select(range(100)).shuffle(args.seed)
-            model_name = SUPPORTED_LLM[args.large_model]
-            tokenizer = AutoTokenizer.from_pretrained(
-                model_name, padding_side="left", truncate_side="left"
-            )
+            hf_model_name = SUPPORTED_LLM[args.large_model]
+            tokenizer = get_hf_tokenizer(hf_model_name)
             template = LM_TEMPLATE_MAP[args.dataset]()
             # Notice the difference between train and test dataset preparation.
             # "verbalize" function generates text including the answers
