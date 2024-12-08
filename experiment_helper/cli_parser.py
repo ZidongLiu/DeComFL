@@ -30,28 +30,14 @@ class DataSetting(BaseSettings, cli_parse_args=True):
 
 class ModelSetting(BaseSettings, cli_parse_args=True):
     """
-    Following warning will show up, it does not affect the functionality as for pydantic 2.10.3.
+    This warning will go away once we upgraded pydantic-setting to 2.6.2 hopefully.
+    See https://github.com/pydantic/pydantic-settings/issues/482
 
     Warning```
     UserWarning: Field "model_dtype" in Settings has conflict with protected namespace "model_".
     You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ('settings_',)`.
     ```
-
-    To get rid of this warning, inherit this class as the last one, since it's using a protected namespace by pydantic.
-    The Config will be overitten if it's not placed as the last inheritance.
-
-    Example:
-    >>> class Settings(RGESetting, ModelSetting):
-    >>>     pass
-    Will not have warning
-
-    >>> class Settings(ModelSetting, RGESetting):
-    >>>     pass
-    Will have warning
     """
-
-    class Config:
-        protected_namespaces = ()
 
     # model
     large_model: LargeModel = Field(

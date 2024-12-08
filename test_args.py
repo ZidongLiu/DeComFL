@@ -17,8 +17,8 @@ class Settings(
     OptimizerSetting,
     DeviceSetting,
     RGESetting,
-    FederatedLearningSetting,
     ModelSetting,
+    FederatedLearningSetting,
 ):
     pass
 
