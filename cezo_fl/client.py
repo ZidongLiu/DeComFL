@@ -8,7 +8,7 @@ from typing import Iterator, Sequence, Callable, Any
 import torch
 from torch.utils.data import DataLoader
 
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.shared import CriterionType
 from cezo_fl.util.metrics import Metric
 
@@ -54,7 +54,7 @@ class AbstractClient:
         ...
 
     @abc.abstractmethod
-    def random_gradient_estimator(self) -> RGE:
+    def random_gradient_estimator(self) -> RandomGradientEstimator:
         return NotImplemented
 
 
@@ -64,7 +64,7 @@ class SyncClient(AbstractClient):
         model: torch.nn.Module,
         model_inference: Callable[[torch.nn.Module, Any], torch.Tensor],
         dataloader: DataLoader,
-        grad_estimator: RGE,
+        grad_estimator: RandomGradientEstimator,
         optimizer: torch.optim.Optimizer,
         criterion: CriterionType,
         accuracy_func,
@@ -95,7 +95,7 @@ class SyncClient(AbstractClient):
     def _loss_fn(self, batch_inputs, batch_labels):
         return self.criterion(self.model_inference(self.model, batch_inputs), batch_labels)
 
-    def random_gradient_estimator(self) -> RGE:
+    def random_gradient_estimator(self) -> RandomGradientEstimator:
         return self.grad_estimator
 
     def local_update(self, seeds: Sequence[int]) -> LocalUpdateResult:
@@ -195,7 +195,7 @@ class ResetClient(AbstractClient):
         model: torch.nn.Module,
         model_inference: Callable[[torch.nn.Module, Any], torch.Tensor],
         dataloader: DataLoader,
-        grad_estimator: RGE,
+        grad_estimator: RandomGradientEstimator,
         optimizer: torch.optim.Optimizer,
         criterion: CriterionType,
         accuracy_func,
@@ -215,7 +215,7 @@ class ResetClient(AbstractClient):
         self.data_iterator = self._get_train_batch_iterator()
         self.last_pull_state_dict: dict | None = self.screenshot()
 
-    def random_gradient_estimator(self) -> RGE:
+    def random_gradient_estimator(self) -> RandomGradientEstimator:
         return self.grad_estimator
 
     def _get_train_batch_iterator(self) -> Iterator:

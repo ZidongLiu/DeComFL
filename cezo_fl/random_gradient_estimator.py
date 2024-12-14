@@ -1,9 +1,14 @@
-from typing import Callable, Iterator, Literal, Sequence, TypeAlias
+from enum import Enum
+from typing import Callable, Iterator, Sequence
+
 
 import torch
 from torch.nn import Parameter
 
-GradEstimateMethod: TypeAlias = Literal["rge-forward", "rge-central"]
+
+class RandomGradEstimateMethod(Enum):
+    rge_central = "rge-central"
+    rge_forward = "rge-forward"
 
 
 # TODO: split this class into abstract class and several subcalsses.
@@ -13,7 +18,7 @@ class RandomGradientEstimator:
         parameters: Iterator[Parameter],
         mu=1e-3,
         num_pert=1,
-        grad_estimate_method: GradEstimateMethod = "rge-central",
+        grad_estimate_method: RandomGradEstimateMethod = RandomGradEstimateMethod.rge_central,
         normalize_perturbation: bool = False,
         device: str | torch.device | None = None,
         torch_dtype: torch.dtype = torch.float32,
@@ -28,8 +33,8 @@ class RandomGradientEstimator:
         self.num_pert = num_pert
         self.device = device
         self.torch_dtype = torch_dtype
-        assert grad_estimate_method in ["rge-forward", "rge-central"]
-        self.grad_estimate_method: GradEstimateMethod = grad_estimate_method
+        assert isinstance(grad_estimate_method, RandomGradEstimateMethod)
+        self.grad_estimate_method: RandomGradEstimateMethod = grad_estimate_method
 
         self.paramwise_perturb = paramwise_perturb
         if paramwise_perturb:
@@ -134,8 +139,10 @@ class RandomGradientEstimator:
         """
         grad: torch.Tensor | None = None
         dir_grads = []
-        denominator_factor = 2 if self.grad_estimate_method == "rge-central" else 1
-        if self.grad_estimate_method == "rge-forward":
+        denominator_factor = (
+            2 if self.grad_estimate_method == RandomGradEstimateMethod.rge_central else 1
+        )
+        if self.grad_estimate_method == RandomGradEstimateMethod.rge_forward:
             pert_minus_loss = loss_fn(batch_inputs, labels)
 
         for i in range(self.num_pert):
@@ -144,11 +151,11 @@ class RandomGradientEstimator:
 
             self.perturb_model(pb_norm, alpha=self.mu)
             pert_plus_loss = loss_fn(batch_inputs, labels)
-            if self.grad_estimate_method == "rge-central":
+            if self.grad_estimate_method == RandomGradEstimateMethod.rge_central:
                 self.perturb_model(pb_norm, alpha=-2 * self.mu)
                 pert_minus_loss = loss_fn(batch_inputs, labels)
                 self.perturb_model(pb_norm, alpha=self.mu)  # Restore model
-            elif self.grad_estimate_method == "rge-forward":
+            elif self.grad_estimate_method == RandomGradEstimateMethod.rge_forward:
                 self.perturb_model(pb_norm, alpha=-self.mu)  # Restore model
 
             dir_grad = (pert_plus_loss - pert_minus_loss) / (self.mu * denominator_factor)
@@ -193,21 +200,23 @@ class RandomGradientEstimator:
         seed: int,
     ) -> torch.Tensor:
         dir_grads = []
-        denominator_factor = 2 if self.grad_estimate_method == "rge-central" else 1
-        if self.grad_estimate_method == "rge-forward":
+        denominator_factor = (
+            2 if self.grad_estimate_method == RandomGradEstimateMethod.rge_central else 1
+        )
+        if self.grad_estimate_method == RandomGradEstimateMethod.rge_forward:
             pert_minus_loss = loss_fn(batch_inputs, labels)
 
         for i in range(self.num_pert):
             rng = self.get_rng(seed, i)
             self.perturb_model_paramwise(rng, alpha=self.mu)
             pert_plus_loss = loss_fn(batch_inputs, labels)
-            if self.grad_estimate_method == "rge-central":
+            if self.grad_estimate_method == RandomGradEstimateMethod.rge_central:
                 rng = self.get_rng(seed, i)
                 self.perturb_model_paramwise(rng, alpha=-2 * self.mu)
                 pert_minus_loss = loss_fn(batch_inputs, labels)
                 rng = self.get_rng(seed, i)
                 self.perturb_model_paramwise(rng, alpha=self.mu)  # Restore model
-            elif self.grad_estimate_method == "rge-forward":
+            elif self.grad_estimate_method == RandomGradEstimateMethod.rge_forward:
                 rng = self.get_rng(seed, i)
                 self.perturb_model_paramwise(rng, alpha=-self.mu)  # Restore model
             dir_grad = (pert_plus_loss - pert_minus_loss) / (self.mu * denominator_factor)

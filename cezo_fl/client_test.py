@@ -5,7 +5,7 @@ from torch.optim import SGD
 
 from cezo_fl.client import SyncClient
 from cezo_fl.models.cnn_mnist import CNN_MNIST
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.util.metrics import accuracy
 from config import FakeArgs
 from preprocess import preprocess
@@ -23,7 +23,7 @@ def test_sync_client_reset():
     model = CNN_MNIST().to(device)
 
     train_loader = train_loaders[0]
-    grad_estimator = RGE(
+    grad_estimator = RandomGradientEstimator(
         model.parameters(),
         mu=1e-3,
         num_pert=2,

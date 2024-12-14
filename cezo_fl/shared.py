@@ -2,12 +2,14 @@ from typing import Callable, Sequence, TypeAlias
 
 import torch
 
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator
 
 CriterionType: TypeAlias = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
-def get_update_grad_for_1_seed(grad_estimator: RGE, perturb_grad_vector: torch.Tensor, seed: int):
+def get_update_grad_for_1_seed(
+    grad_estimator: RandomGradientEstimator, perturb_grad_vector: torch.Tensor, seed: int
+):
     # 1 seed is in charge all perturbs
     rng = torch.Generator(device=grad_estimator.device).manual_seed(seed)
     update_grad = None
@@ -26,7 +28,7 @@ def get_update_grad_for_1_seed(grad_estimator: RGE, perturb_grad_vector: torch.T
 
 def update_model_given_seed_and_grad(
     optimizer: torch.optim.Optimizer,
-    grad_estimator: RGE,
+    grad_estimator: RandomGradientEstimator,
     iteration_seeds: Sequence[int],
     iteration_grad_scalar: Sequence[torch.Tensor],
 ) -> None:
@@ -44,7 +46,7 @@ def update_model_given_seed_and_grad(
 
 def revert_SGD_given_seed_and_grad(
     optimizer: torch.optim.SGD,
-    grad_estimator: RGE,
+    grad_estimator: RandomGradientEstimator,
     iteration_seeds: Sequence[int],
     iteration_grad_scalar: Sequence[torch.Tensor],  # this should be stored in each client
 ) -> None:
