@@ -11,7 +11,7 @@ from cezo_fl.models.cnn_fashion import CNN_FMNIST
 from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.models.lenet import LeNet
 from cezo_fl.models.lstm import CharLSTM
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.util import model_helpers
 from cezo_fl.util.metrics import Metric, accuracy
 from config import get_args_str, get_params
@@ -63,7 +63,7 @@ def prepare_settings(args, device):
     if args.grad_estimate_method in ["rge-central", "rge-forward"]:
         method = args.grad_estimate_method[4:]
         print(f"Using RGE {method}")
-        grad_estimator = RGE(
+        grad_estimator = RandomGradientEstimator(
             model,
             parameters=model_helpers.get_trainable_model_parameters(model),
             mu=args.mu,

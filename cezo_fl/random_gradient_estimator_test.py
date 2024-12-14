@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch import nn
 
-import cezo_fl.random_gradient_estimator as RGE
+from cezo_fl import random_gradient_estimator
 
 
 class LinearModel(nn.Module):
@@ -16,10 +16,16 @@ class LinearModel(nn.Module):
         return self.linear2(x)
 
 
-@pytest.mark.parametrize("rge_method", ["rge-forward", "rge-central"])
+@pytest.mark.parametrize(
+    "rge_method",
+    [
+        random_gradient_estimator.RandomGradEstimateMethod.rge_forward,
+        random_gradient_estimator.RandomGradEstimateMethod.rge_central,
+    ],
+)
 @pytest.mark.parametrize("num_pert", [2, 4, 5])
 def test_parameter_wise_equivalent_all_togther(
-    rge_method: RGE.GradEstimateMethod, num_pert: int
+    rge_method: random_gradient_estimator.RandomGradEstimateMethod, num_pert: int
 ) -> None:
     """
     NOTE: Do not extend this test for large model. This test only works when model is small.
@@ -31,7 +37,7 @@ def test_parameter_wise_equivalent_all_togther(
 
     torch.random.manual_seed(123)  # Make sure all models are generated as the same.
     model1 = LinearModel()
-    rge1 = RGE.RandomGradientEstimator(
+    rge1 = random_gradient_estimator.RandomGradientEstimator(
         model1.parameters(),
         num_pert=num_pert,
         grad_estimate_method=rge_method,
@@ -44,7 +50,7 @@ def test_parameter_wise_equivalent_all_togther(
 
     torch.random.manual_seed(123)  # Make sure all models are generated as the same.
     model2 = LinearModel()
-    rge2 = RGE.RandomGradientEstimator(
+    rge2 = random_gradient_estimator.RandomGradientEstimator(
         model2.parameters(),
         num_pert=num_pert,
         grad_estimate_method=rge_method,

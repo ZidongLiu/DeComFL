@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import torch
 
 from cezo_fl.client import AbstractClient, LocalUpdateResult
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.server import CeZO_Server, SeedAndGradientRecords
 from cezo_fl.shared import update_model_given_seed_and_grad
 
@@ -36,7 +36,7 @@ def test_update_model_given_seed_and_grad():
         optim = torch.optim.SGD(fake_model.parameters(), lr=1e-3)
         update_model_given_seed_and_grad(
             optim,
-            RGE(fake_model.parameters(), num_pert=2),
+            RandomGradientEstimator(fake_model.parameters(), num_pert=2),
             iteration_seeds=[1, 2, 3],
             iteration_grad_scalar=[  # two perturbations
                 torch.tensor([0.1, 0.2]),

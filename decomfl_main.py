@@ -11,17 +11,38 @@ from byzantine import attack as byz_attack
 from cezo_fl.client import ResetClient
 from cezo_fl.fl_helpers import get_client_name
 from cezo_fl.server import CeZO_Server
-from cezo_fl.util import model_helpers, prepare_settings
-
-from config import get_args_str, get_params
+from cezo_fl.util import model_helpers
+from experiment_helper import prepare_settings
+from experiment_helper.cli_parser import (
+    GeneralSetting,
+    DeviceSetting,
+    DataSetting,
+    ModelSetting,
+    OptimizerSetting,
+    FederatedLearningSetting,
+    RGESetting,
+)
+from config import get_args_str
 from preprocess import preprocess
 
 
+class CliSetting(
+    GeneralSetting,
+    DeviceSetting,
+    DataSetting,
+    ModelSetting,
+    OptimizerSetting,
+    FederatedLearningSetting,
+    RGESetting,
+):
+    pass
+
+
 def setup_server_and_clients(
-    args, device_map: dict[str, torch.device], train_loaders
+    args: CliSetting, device_map: dict[str, torch.device], train_loaders
 ) -> CeZO_Server:
     model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
-        args.dataset, prepare_settings.SUPPORTED_LLM.get(args.large_model)
+        args.dataset, args
     )
     clients = []
 
@@ -32,7 +53,7 @@ def setup_server_and_clients(
             client_model,
             client_optimizer,
             client_grad_estimator,
-        ) = prepare_settings.prepare_settings_underseed(args, client_device)
+        ) = prepare_settings.prepare(args, client_device)
         client_model.to(client_device)
 
         client = ResetClient(
@@ -60,7 +81,7 @@ def setup_server_and_clients(
         server_model,
         server_optimizer,
         server_grad_estimator,
-    ) = prepare_settings.prepare_settings_underseed(args, server_device)
+    ) = prepare_settings.prepare(args, server_device)
 
     server_model.to(server_device)
     server.set_server_model_and_criterion(
@@ -115,20 +136,8 @@ def setup_server_and_clients(
     return server
 
 
-# get_warmup_lr is not used for now.
-def get_warmup_lr(args, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
-    assert isinstance(args.lr, float) and isinstance(args.warmup_epochs, int)
-    overall_iterations = args.warmup_epochs * iters_per_epoch + 1
-    current_iterations = current_epoch * iters_per_epoch + current_iter + 1
-    return args.lr * current_iterations / overall_iterations
-
-
-def get_size_of_model(model):
-    return sum(p.numel() * p.element_size() for p in model.parameters())
-
-
 if __name__ == "__main__":
-    args = get_params().parse_args()
+    args = CliSetting()
     if args.dataset == "shakespeare":
         args.num_clients = 139
     print(args)
@@ -149,7 +158,7 @@ if __name__ == "__main__":
             path.join(
                 "tensorboards",
                 "decomfl",
-                args.dataset,
+                args.dataset.value,
                 args.log_to_tensorboard,
                 tensorboard_sub_folder,
             )

@@ -1,4 +1,4 @@
-from typing import Literal, Callable
+from typing import Callable
 import torch
 import torch.nn as nn
 
@@ -13,7 +13,7 @@ from cezo_fl.models.cnn_fashion import CNN_FMNIST
 from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.models.lenet import LeNet
 from cezo_fl.models.lstm import CharLSTM
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.util.language_utils import (
     LM_TEMPLATE_MAP,
     SUPPORTED_LLM,
@@ -22,95 +22,115 @@ from cezo_fl.util.language_utils import (
 )
 from cezo_fl.util.metrics import accuracy
 
+from experiment_helper.cli_parser import (
+    ModelSetting,
+    OptimizerSetting,
+    RGESetting,
+)
+from experiment_helper.experiment_typing import Dataset
+
 from dataclasses import dataclass
 
 
-def get_torch_dtype(args_model_dtype: Literal["float32", "float16", "bfloat16"]) -> torch.dtype:
-    return {
-        "float32": torch.float32,
-        "float16": torch.float16,
-        "bfloat16": torch.bfloat16,
-    }[args_model_dtype]
+def get_hf_model_name(model_setting: ModelSetting) -> str:
+    return SUPPORTED_LLM[model_setting.large_model.value]
 
 
-def get_model_and_optimizer(
-    dataset: str,
-    model_dtype: Literal["float32", "float16", "bfloat16"],
-    lr: float,
-    momentum: float,
-    large_model: str | None,
-    lora: bool = False,
-    lora_alpha: int = 16,
-    lora_r: int = 8,
-) -> tuple[AllModel, torch.optim.SGD]:
-    torch_dtype = get_torch_dtype(model_dtype)
+def get_model(
+    dataset: Dataset,
+    model_setting: ModelSetting,
+    seed: int | None = None,
+) -> AllModel:
+    torch_dtype = model_setting.get_torch_dtype()
     model: AllModel
+    if seed:
+        torch.manual_seed(seed)
     if dataset == "mnist":
         model = CNN_MNIST().to(torch_dtype)
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=lr,
-            weight_decay=1e-5,
-            momentum=momentum,
-        )
     elif dataset == "cifar10":
         model = LeNet().to(torch_dtype)
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=lr,
-            weight_decay=5e-4,
-            momentum=momentum,
-        )
     elif dataset == "fashion":
         model = CNN_FMNIST().to(torch_dtype)
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=lr,
-            weight_decay=1e-5,
-            momentum=momentum,
-        )
     elif dataset == "shakespeare":
         model = CharLSTM().to(torch_dtype)
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=lr,
-            momentum=0.9,
-            weight_decay=5e-4,
-        )
     elif dataset in LM_TEMPLATE_MAP.keys():
-        assert large_model in SUPPORTED_LLM
-        hf_model_name = SUPPORTED_LLM[large_model]
+        assert model_setting.large_model in SUPPORTED_LLM
+        hf_model_name = get_hf_model_name(model_setting)
         model = AutoModelForCausalLM.from_pretrained(hf_model_name, torch_dtype=torch_dtype)
-        model.model_name = large_model
-        if lora:
+        model.model_name = model_setting.large_model
+        if model_setting and model_setting.lora:
             # this step initialize lora parameters, which should be under control of seed
             lora_config = LoraConfig(
-                r=lora_r,
-                lora_alpha=lora_alpha,
+                r=model_setting.lora_r,
+                lora_alpha=model_setting.lora_alpha,
                 target_modules=["q_proj", "v_proj"],
             )
             model = get_peft_model(model, lora_config).to(torch_dtype)
-
-        if dataset in ["sst2", "cb", "wsc", "wic", "multirc", "rte", "boolq"]:
-            optimizer = torch.optim.SGD(
-                model_helpers.get_trainable_model_parameters(model),
-                lr=lr,
-                momentum=0,
-                weight_decay=5e-4,
-            )
-        elif dataset in ["squad", "drop", "xsum"]:
-            optimizer = torch.optim.SGD(
-                model_helpers.get_trainable_model_parameters(model),
-                lr=lr,
-                momentum=0,
-                weight_decay=0,
-            )
-        else:
-            raise ValueError(f"Dataset {dataset} is not supported")
+        return model
     else:
         raise Exception(f"Dataset {dataset} is not supported")
 
-    return model, optimizer
+
+def get_optimizer(
+    model: AllModel, dataset: Dataset, optimizer_setting: OptimizerSetting
+) -> torch.optim.SGD:
+    trainable_model_parameters = model_helpers.get_trainable_model_parameters(model)
+    if dataset == Dataset.mnist:
+        return torch.optim.SGD(
+            trainable_model_parameters,
+            lr=optimizer_setting.lr,
+            weight_decay=1e-5,
+            momentum=optimizer_setting.momentum,
+        )
+    elif dataset == Dataset.cifar10:
+        return torch.optim.SGD(
+            trainable_model_parameters,
+            lr=optimizer_setting.lr,
+            weight_decay=5e-4,
+            momentum=optimizer_setting.momentum,
+        )
+    elif dataset == Dataset.fashion:
+        return torch.optim.SGD(
+            trainable_model_parameters,
+            lr=optimizer_setting.lr,
+            weight_decay=1e-5,
+            momentum=optimizer_setting.momentum,
+        )
+    elif dataset == Dataset.shakespeare:
+        return torch.optim.SGD(
+            trainable_model_parameters,
+            lr=optimizer_setting.lr,
+            momentum=0.9,
+            weight_decay=5e-4,
+        )
+    elif dataset in [
+        Dataset.sst2,
+        Dataset.cb,
+        Dataset.wsc,
+        Dataset.wic,
+        Dataset.multirc,
+        Dataset.rte,
+        Dataset.boolq,
+    ]:
+        return torch.optim.SGD(
+            trainable_model_parameters,
+            lr=optimizer_setting.lr,
+            momentum=0,
+            weight_decay=5e-4,
+        )
+    elif dataset in [
+        Dataset.squad,
+        Dataset.drop,
+        Dataset.xsum,
+    ]:
+        return torch.optim.SGD(
+            trainable_model_parameters,
+            lr=optimizer_setting.lr,
+            momentum=0,
+            weight_decay=0,
+        )
+    else:
+        raise Exception(f"dataset {dataset.value} not supported")
 
 
 @dataclass
@@ -128,9 +148,9 @@ class MetricPacks:
 
 
 def get_model_inferences_and_metrics(
-    dataset: str, hf_model_name: str | None = None
+    dataset: Dataset, model_setting: ModelSetting
 ) -> tuple[ModelInferences, MetricPacks]:
-    if dataset not in LM_TEMPLATE_MAP.keys():
+    if dataset.value not in LM_TEMPLATE_MAP.keys():
         return ModelInferences(
             model_helpers.model_forward, model_helpers.model_forward
         ), MetricPacks(
@@ -140,9 +160,9 @@ def get_model_inferences_and_metrics(
             test_acc=accuracy,
         )
 
-    assert hf_model_name
+    hf_model_name = get_hf_model_name(model_setting)
     tokenizer = get_hf_tokenizer(hf_model_name)
-    if dataset in ["squad", "drop", "xsum"]:
+    if dataset in [Dataset.squad, Dataset.drop, Dataset.xsum]:
         generation_kwargs = {
             "do_sample": True,
             "temperature": 1.0,
@@ -177,7 +197,7 @@ def get_model_inferences_and_metrics(
             ),
         )
     else:
-        template = LM_TEMPLATE_MAP[dataset]()
+        template = LM_TEMPLATE_MAP[dataset.value]()
         verbalizer_id_map = template.get_verbalizer_id(tokenizer)  # type: ignore[attr-defined]
         train_criterion = test_criterion = get_lm_loss(
             "last_token", verbalizer_id_map=verbalizer_id_map
@@ -195,30 +215,28 @@ def get_model_inferences_and_metrics(
         )
 
 
-def prepare_settings_underseed(
-    args, device: torch.device
-) -> tuple[nn.Module, torch.optim.SGD, RGE]:
-    torch.manual_seed(args.seed)
-
-    model, optimizer = get_model_and_optimizer(
-        dataset=args.dataset,
-        model_dtype=args.model_dtype,
-        lr=args.lr,
-        momentum=args.momentum,
-        large_model=args.large_model,
-        lora=args.lora,
-        lora_alpha=args.lora_alpha,
-        lora_r=args.lora_r,
-    )
-    grad_estimator = RGE(
+def get_random_gradient_estimator(
+    model: AllModel, device: torch.device, rge_setting: RGESetting, model_setting: ModelSetting
+):
+    return RandomGradientEstimator(
         parameters=model_helpers.get_trainable_model_parameters(model),
-        mu=args.mu,
-        num_pert=args.num_pert,
-        grad_estimate_method=args.grad_estimate_method,
+        mu=rge_setting.mu,
+        num_pert=rge_setting.num_pert,
+        grad_estimate_method=rge_setting.grad_estimate_method,
         device=device,
-        torch_dtype=get_torch_dtype(args.model_dtype),
+        torch_dtype=model_setting.get_torch_dtype(),
         # To save memory consumption, we have to use parameter-wise perturb + no_optim together.
-        sgd_only_no_optim=args.no_optim,
-        paramwise_perturb=args.no_optim,
+        sgd_only_no_optim=rge_setting.no_optim,
+        paramwise_perturb=rge_setting.no_optim,
     )
-    return model, optimizer, grad_estimator
+
+
+def prepare(
+    args, device: torch.device
+) -> tuple[nn.Module, torch.optim.SGD, RandomGradientEstimator]:
+    model = get_model(dataset=args.dataset, model_setting=args, seed=args.seed)
+    client_optimizer = get_optimizer(model=model, dataset=args.dataset, optimizer_setting=args)
+    client_grad_estimator = get_random_gradient_estimator(
+        model=model, device=device, rge_setting=args, model_setting=args
+    )
+    return model, client_optimizer, client_grad_estimator

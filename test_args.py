@@ -1,24 +1,24 @@
 from experiment_helper.cli_parser import (
     GeneralSetting,
     DataSetting,
-    LoraSetting,
     ModelSetting,
     OptimizerSetting,
     DeviceSetting,
     RGESetting,
     FederatedLearningSetting,
+    NormalTrainingLoopSetting,
 )
 
 
 class Settings(
     GeneralSetting,
     DataSetting,
-    LoraSetting,
     OptimizerSetting,
     DeviceSetting,
     RGESetting,
     ModelSetting,
     FederatedLearningSetting,
+    NormalTrainingLoopSetting,
 ):
     pass
 

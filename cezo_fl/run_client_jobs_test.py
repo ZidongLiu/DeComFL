@@ -9,7 +9,7 @@ from torch.optim import SGD
 
 from cezo_fl.client import ResetClient
 from cezo_fl.models.cnn_mnist import CNN_MNIST
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.random_gradient_estimator import RandomGradEstimateMethod, RandomGradientEstimator
 from cezo_fl.run_client_jobs import execute_sampled_clients, parallalizable_client_job
 from cezo_fl.util.metrics import accuracy
 from config import FakeArgs
@@ -44,11 +44,11 @@ def set_fake_clients(
         torch.random.manual_seed(1234)  # Make sure all models are the same
         model = CNN_MNIST().to(device)
         train_loader = get_mnist_data_loader()
-        grad_estimator = RGE(
+        grad_estimator = RandomGradientEstimator(
             model.parameters(),
             mu=1e-3,
             num_pert=2,
-            grad_estimate_method="rge-forward",
+            grad_estimate_method=RandomGradEstimateMethod.rge_forward,
             device=device,
         )
         optimizer = SGD(model.parameters(), lr=args.lr, weight_decay=0)

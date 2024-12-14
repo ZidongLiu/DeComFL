@@ -37,8 +37,3 @@ class Dataset(Enum):
     squad = "squad"
     drop = "drop"
     xsum = "xsum"
-
-
-class RandomGradEstimateMethod(Enum):
-    rge_central = "rge-central"
-    rge_forward = "rge-forward"
