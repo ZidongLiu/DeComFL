@@ -49,12 +49,15 @@ def setup_server_and_clients(
     for i in range(args.num_clients):
         client_name = get_client_name(i)
         client_device = device_map[client_name]
-        (
-            client_model,
-            client_optimizer,
-            client_grad_estimator,
-        ) = prepare_settings.prepare(args, client_device)
-        client_model.to(client_device)
+        client_model = prepare_settings.get_model(
+            dataset=args.dataset, model_setting=args, seed=args.seed
+        ).to(client_device)
+        client_optimizer = prepare_settings.get_optimizer(
+            model=client_model, dataset=args.dataset, optimizer_setting=args
+        )
+        client_grad_estimator = prepare_settings.get_random_gradient_estimator(
+            model=client_model, device=client_device, rge_setting=args, model_setting=args
+        )
 
         client = ResetClient(
             client_model,
@@ -77,13 +80,16 @@ def setup_server_and_clients(
     )
 
     # set server tools
-    (
-        server_model,
-        server_optimizer,
-        server_grad_estimator,
-    ) = prepare_settings.prepare(args, server_device)
+    server_model = prepare_settings.get_model(
+        dataset=args.dataset, model_setting=args, seed=args.seed
+    ).to(server_device)
+    server_optimizer = prepare_settings.get_optimizer(
+        model=server_model, dataset=args.dataset, optimizer_setting=args
+    )
+    server_grad_estimator = prepare_settings.get_random_gradient_estimator(
+        model=server_model, device=server_device, rge_setting=args, model_setting=args
+    )
 
-    server_model.to(server_device)
     server.set_server_model_and_criterion(
         server_model,
         model_inferences.test_inference,

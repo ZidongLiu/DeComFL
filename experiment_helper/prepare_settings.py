@@ -229,14 +229,3 @@ def get_random_gradient_estimator(
         sgd_only_no_optim=rge_setting.no_optim,
         paramwise_perturb=rge_setting.no_optim,
     )
-
-
-def prepare(
-    args, device: torch.device
-) -> tuple[nn.Module, torch.optim.SGD, RandomGradientEstimator]:
-    model = get_model(dataset=args.dataset, model_setting=args, seed=args.seed)
-    client_optimizer = get_optimizer(model=model, dataset=args.dataset, optimizer_setting=args)
-    client_grad_estimator = get_random_gradient_estimator(
-        model=model, device=device, rge_setting=args, model_setting=args
-    )
-    return model, client_optimizer, client_grad_estimator
