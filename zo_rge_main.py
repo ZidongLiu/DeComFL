@@ -14,7 +14,7 @@ from cezo_fl.models.lstm import CharLSTM
 from cezo_fl.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.util import model_helpers
 from cezo_fl.util.metrics import Metric, accuracy
-from config import get_args_str, get_params
+from config import get_params
 from preprocess import preprocess
 
 
@@ -149,7 +149,7 @@ if __name__ == "__main__":
 
     model, criterion, optimizer, scheduler, grad_estimator = prepare_settings(args, device)
 
-    args_str = get_args_str(args) + "-" + model.model_name
+    args_str = model.model_name
     if args.log_to_tensorboard:
         tensorboard_sub_folder = args_str + "-" + model_helpers.get_current_datetime_str()
         writer = SummaryWriter(

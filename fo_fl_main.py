@@ -15,7 +15,6 @@ from experiment_helper.cli_parser import (
     OptimizerSetting,
     FederatedLearningSetting,
 )
-from config import get_args_str
 from fed_avg.client import FedAvgClient
 from fed_avg.server import FedAvgServer
 from preprocess import preprocess
@@ -88,7 +87,6 @@ if __name__ == "__main__":
     if args.log_to_tensorboard:
         tensorboard_sub_folder = "-".join(
             [
-                get_args_str(args),
                 server.server_model.model_name,
                 model_helpers.get_current_datetime_str(),
             ]

@@ -136,27 +136,6 @@ def get_args_dict(args):
     return {key: getattr(args, key) for key in DEFAULTS.keys()}
 
 
-def get_args_str(args):
-    # important ones, add to string regardless of it's different from default
-    base_str = (
-        f"{args.dataset}-lr-{args.lr}-mmtm-{args.momentum}"
-        + f"-k-{args.local_update_steps}"
-        + f"-npert-{args.num_pert}-{args.grad_estimate_method}"
-    )
-    # only add to string if it's different from default
-    advanced_items = []
-    for key in ["mu", "seed"]:
-        if getattr(args, key) != DEFAULTS[key]:
-            v = getattr(args, key)
-            advanced_items += [f"{key}-{v}"]
-
-    if len(advanced_items):
-        advanced_str = "-".join(advanced_items)
-        return base_str + "-" + advanced_str
-
-    return base_str
-
-
 @dataclass
 class FakeArgs:
     # large model

@@ -22,7 +22,7 @@ from experiment_helper.cli_parser import (
     FederatedLearningSetting,
     RGESetting,
 )
-from config import get_args_str
+
 from preprocess import preprocess
 
 
@@ -149,7 +149,6 @@ if __name__ == "__main__":
         assert server.server_model
         tensorboard_sub_folder = "-".join(
             [
-                get_args_str(args),
                 server.server_model.model_name,
                 model_helpers.get_current_datetime_str(),
             ]
