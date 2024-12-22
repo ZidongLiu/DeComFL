@@ -144,8 +144,6 @@ def setup_server_and_clients(
 
 if __name__ == "__main__":
     args = CliSetting()
-    if args.dataset == "shakespeare":
-        args.num_clients = 139
     print(args)
     device_map, train_loaders, test_loader = preprocess(args)
 

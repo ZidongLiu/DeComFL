@@ -10,7 +10,6 @@ from cezo_fl.coordinate_gradient_estimator import CoordinateGradientEstimator as
 from cezo_fl.models.cnn_fashion import CNN_FMNIST
 from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.models.lenet import LeNet
-from cezo_fl.models.lstm import CharLSTM
 from cezo_fl.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.util import model_helpers
 from cezo_fl.util.metrics import Metric, accuracy
@@ -47,16 +46,6 @@ def prepare_settings(args, device):
             lr=args.lr,
             weight_decay=1e-5,
             momentum=args.momentum,
-        )
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
-    elif args.dataset == "shakespeare":
-        model = CharLSTM().to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=args.lr,
-            momentum=0.9,
-            weight_decay=5e-4,
         )
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
 

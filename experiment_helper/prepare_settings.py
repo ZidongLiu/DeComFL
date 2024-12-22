@@ -51,8 +51,6 @@ def get_model(
         model = LeNet().to(torch_dtype)
     elif dataset == "fashion":
         model = CNN_FMNIST().to(torch_dtype)
-    elif dataset == "shakespeare":
-        model = CharLSTM().to(torch_dtype)
     elif dataset in LM_TEMPLATE_MAP.keys():
         assert model_setting.large_model in SUPPORTED_LLM
         hf_model_name = get_hf_model_name(model_setting)
@@ -95,13 +93,6 @@ def get_optimizer(
             lr=optimizer_setting.lr,
             weight_decay=1e-5,
             momentum=optimizer_setting.momentum,
-        )
-    elif dataset == Dataset.shakespeare:
-        return torch.optim.SGD(
-            trainable_model_parameters,
-            lr=optimizer_setting.lr,
-            momentum=0.9,
-            weight_decay=5e-4,
         )
     elif dataset in [
         Dataset.sst2,

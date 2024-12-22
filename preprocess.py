@@ -28,8 +28,7 @@ def use_device(args) -> tuple[dict[str, torch.device], dict]:
         num_gpu = torch.cuda.device_count()
         print(f"----- Using cuda count: {num_gpu} -----")
         # num_workers will make dataloader very slow especially when number clients is large
-        # Do not shuffle shakespeare
-        kwargs = {"pin_memory": True, "shuffle": args.dataset != "shakespeare"}
+        kwargs = {"pin_memory": True}
         server_device = {"server": torch.device("cuda:0")}
         client_devices = {
             get_client_name(i): torch.device(f"cuda:{(i+1) % num_gpu}") for i in range(num_clients)
@@ -110,12 +109,6 @@ def preprocess(
         test_loader = torch.utils.data.DataLoader(
             test_dataset, batch_size=args.test_batch_size, **kwargs
         )
-    elif args.dataset == "shakespeare":
-        train_dataset = ShakeSpeare(train=True)
-        test_dataset = ShakeSpeare(train=False)
-        test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=args.test_batch_size, **kwargs
-        )
     elif args.dataset in LM_TEMPLATE_MAP.keys():
         if args.dataset == LmTask.sst2.name:
             max_length = 32
@@ -173,12 +166,7 @@ def preprocess(
     # already updated at main function
     num_clients = args.num_clients
     splitted_train_sets: list[DatasetSplit] | list[Subset]
-    if args.dataset == "shakespeare":
-        dict_users = train_dataset.get_client_dic()
-        splitted_train_sets = [
-            DatasetSplit(train_dataset, dict_users[client_idx]) for client_idx in range(num_clients)
-        ]
-    elif args.dataset in LM_TEMPLATE_MAP.keys():
+    if args.dataset in LM_TEMPLATE_MAP.keys():
         if args.iid:
             generator = torch.Generator().manual_seed(args.seed)
             splitted_train_sets = torch.utils.data.random_split(

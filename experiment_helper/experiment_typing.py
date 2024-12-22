@@ -22,7 +22,6 @@ class Dataset(Enum):
     mnist = "mnist"
     cifar10 = "cifar10"
     fashion = "fashion"
-    shakespeare = "shakespeare"
 
     # language classification
     sst2 = "sst2"
