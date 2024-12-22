@@ -16,14 +16,12 @@ def use_device(device_setting: DeviceSetting, num_clients: int) -> dict[str, tor
         }
     elif use_mps:
         print("----- Using mps -----")
-        print("----- Forcing model_dtype = float32 -----")
-        device_setting.model_dtype = "float32"
+        print("----- Model Dtype must be float32 -----")
         server_device = {get_server_name(): torch.device("mps")}
         client_devices = {get_client_name(i): torch.device("mps") for i in range(num_clients)}
     else:
         print("----- Using cpu -----")
-        print("----- Forcing model_dtype = float32 -----")
-        device_setting.model_dtype = "float32"
+        print("----- Model Dtype must be float32 -----")
         server_device = {get_server_name(): torch.device("cpu")}
         client_devices = {get_client_name(i): torch.device("cpu") for i in range(num_clients)}
 

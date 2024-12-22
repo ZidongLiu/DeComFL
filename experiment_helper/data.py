@@ -13,7 +13,6 @@ from cezo_fl.util.data_split import dirichlet_split
 from cezo_fl.util.language_utils import (
     LM_DATASET_MAP,
     LM_TEMPLATE_MAP,
-    SUPPORTED_LLM,
     CustomLMDataset,
     CustomLMGenerationDataset,
     LmClassificationTask,
@@ -43,7 +42,7 @@ class DataSetting(BaseSettings, cli_parse_args=True):
 
 
 def get_dataloaders(
-    data_setting: DataSetting, num_train_split: int
+    data_setting: DataSetting, num_train_split: int, seed: int, hf_model_name: str | None = None
 ) -> tuple[
     list[torch.utils.data.DataLoader],
     torch.utils.data.DataLoader,
@@ -99,6 +98,7 @@ def get_dataloaders(
             test_dataset, batch_size=data_setting.test_batch_size, pin_memory=True
         )
     elif isinstance(data_setting.dataset, (LmClassificationTask, LmGenerationTask)):
+        assert isinstance(hf_model_name, str)
         if data_setting.dataset == LmClassificationTask.sst2.name:
             max_length = 32
         else:
@@ -106,13 +106,12 @@ def get_dataloaders(
 
         if isinstance(data_setting.dataset, LmClassificationTask):
             dataset = huggingface_load_dataset(
-                LM_DATASET_MAP[data_setting.dataset], data_setting.dataset
+                LM_DATASET_MAP[data_setting.dataset.value], data_setting.dataset.value
             )
             raw_train_dataset = dataset["train"]
             raw_test_dataset = dataset["validation"]
-            hf_model_name = SUPPORTED_LLM[data_setting.large_model]
             tokenizer = get_hf_tokenizer(hf_model_name)
-            template = LM_TEMPLATE_MAP[data_setting.dataset]()
+            template = LM_TEMPLATE_MAP[data_setting.dataset.value]()
             encoded_train_texts = list(map(template.verbalize, raw_train_dataset))
             encoded_test_texts = list(map(template.verbalize, raw_test_dataset))
             train_dataset = CustomLMDataset(encoded_train_texts, tokenizer, max_length=max_length)
@@ -124,12 +123,11 @@ def get_dataloaders(
                 collate_fn=get_collate_fn(tokenizer, max_length),
             )
         elif isinstance(data_setting.dataset, LmGenerationTask):
-            dataset = huggingface_load_dataset(LM_DATASET_MAP[data_setting.dataset])
-            raw_train_dataset = dataset["train"].select(range(1000)).shuffle(data_setting.seed)
-            raw_test_dataset = dataset["validation"].select(range(100)).shuffle(data_setting.seed)
-            hf_model_name = SUPPORTED_LLM[data_setting.large_model]
+            dataset = huggingface_load_dataset(LM_DATASET_MAP[data_setting.dataset.value])
+            raw_train_dataset = dataset["train"].select(range(1000)).shuffle(seed)
+            raw_test_dataset = dataset["validation"].select(range(100)).shuffle(seed)
             tokenizer = get_hf_tokenizer(hf_model_name)
-            template = LM_TEMPLATE_MAP[data_setting.dataset]()
+            template = LM_TEMPLATE_MAP[data_setting.dataset.value]()
             # Notice the difference between train and test dataset preparation.
             # "verbalize" function generates text including the answers
             # "encode" function generates text without the answers
@@ -158,7 +156,7 @@ def get_dataloaders(
     splitted_train_sets: list[DatasetSplit] | list[Subset]
     if data_setting.dataset in LM_TEMPLATE_MAP.keys():
         if data_setting.iid:
-            generator = torch.Generator().manual_seed(data_setting.seed)
+            generator = torch.Generator().manual_seed(seed)
             splitted_train_sets = torch.utils.data.random_split(
                 train_dataset,
                 get_random_split_chunk_length(len(train_dataset), num_train_split),
@@ -171,10 +169,10 @@ def get_dataloaders(
                 labels,
                 num_train_split,
                 data_setting.dirichlet_alpha,
-                data_setting.seed,
+                seed,
             )
     else:
-        generator = torch.Generator().manual_seed(data_setting.seed)
+        generator = torch.Generator().manual_seed(seed)
         splitted_train_sets = torch.utils.data.random_split(
             train_dataset,
             get_random_split_chunk_length(len(train_dataset), num_train_split),

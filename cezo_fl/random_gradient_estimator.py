@@ -18,7 +18,7 @@ class RandomGradientEstimator:
         parameters: Iterator[Parameter],
         mu=1e-3,
         num_pert=1,
-        grad_estimate_method: RandomGradEstimateMethod = RandomGradEstimateMethod.rge_central,
+        grad_estimate_method: RandomGradEstimateMethod | str = RandomGradEstimateMethod.rge_central,
         normalize_perturbation: bool = False,
         device: str | torch.device | None = None,
         torch_dtype: torch.dtype = torch.float32,
@@ -33,9 +33,15 @@ class RandomGradientEstimator:
         self.num_pert = num_pert
         self.device = device
         self.torch_dtype = torch_dtype
-        assert isinstance(grad_estimate_method, RandomGradEstimateMethod)
-        self.grad_estimate_method: RandomGradEstimateMethod = grad_estimate_method
-
+        if isinstance(grad_estimate_method, RandomGradEstimateMethod):
+            self.grad_estimate_method: RandomGradEstimateMethod = grad_estimate_method
+        else:
+            if grad_estimate_method == RandomGradEstimateMethod.rge_central.value:
+                self.grad_estimate_method = RandomGradEstimateMethod.rge_central
+            elif grad_estimate_method == RandomGradEstimateMethod.rge_forward.value:
+                self.grad_estimate_method = RandomGradEstimateMethod.rge_forward
+            else:
+                raise Exception("Grad estimate method has to be rge-central or rge-forward")
         self.paramwise_perturb = paramwise_perturb
         if paramwise_perturb:
             assert normalize_perturbation is False

@@ -16,7 +16,7 @@ from experiment_helper.cli_parser import (
     OptimizerSetting,
     ModelSetting,
     NormalTrainingLoopSetting,
-    FederatedLearningSetting,
+    RGESetting,
 )
 from experiment_helper.device import use_device
 from experiment_helper.data import (
@@ -100,8 +100,8 @@ class Setting(
     DataSetting,
     OptimizerSetting,
     ModelSetting,
+    RGESetting,
     NormalTrainingLoopSetting,
-    FederatedLearningSetting,
 ):
     pass
 
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     torch.manual_seed(args.seed)
 
     device_map = use_device(args, 1)
-    train_loaders, test_loader = get_dataloaders(args, 1)
+    train_loaders, test_loader = get_dataloaders(args, 1, args.seed, args.get_hf_model_name())
     train_loader = train_loaders[0]
     device = device_map[get_server_name()]
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
         writer = SummaryWriter(
             path.join(
                 "tensorboards",
-                args.dataset,
+                args.dataset.value,
                 args.log_to_tensorboard,
                 tensorboard_sub_folder,
             )

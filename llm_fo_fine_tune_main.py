@@ -32,7 +32,9 @@ if __name__ == "__main__":
     args = CliSetting()
 
     device_map = use_device(args, 1)
-    train_loaders, test_loader = get_dataloaders(args, 1)
+    train_loaders, test_loader = get_dataloaders(
+        args, 1, args.seed, hf_model_name=args.get_hf_model_name()
+    )
     device = device_map[get_server_name()]
 
     def inf_loader(dl):

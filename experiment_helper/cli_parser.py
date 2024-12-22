@@ -1,3 +1,4 @@
+import torch
 from pydantic import Field, AliasChoices
 from pydantic_settings import BaseSettings, CliImplicitFlag
 from experiment_helper.experiment_typing import (
@@ -5,6 +6,7 @@ from experiment_helper.experiment_typing import (
     ModelDtype,
 )
 from cezo_fl.random_gradient_estimator import RandomGradEstimateMethod
+from cezo_fl.util.language_utils import SUPPORTED_LLM
 from experiment_helper.data import DataSetting  # noqa: F401
 
 
@@ -14,13 +16,6 @@ class GeneralSetting(BaseSettings, cli_parse_args=True):
     log_to_tensorboard: str | None = Field(
         default=None, validation_alias=AliasChoices("log-to-tensorboard")
     )
-
-
-class LoraSetting(BaseSettings, cli_parse_args=True):
-    # LoRA
-    lora: CliImplicitFlag[bool] = Field(default=False)
-    lora_r: int = Field(default=8, validation_alias=AliasChoices("lora-r"))
-    lora_alpha: int = Field(default=16, validation_alias=AliasChoices("lora-alpha"))
 
 
 class ModelSetting(BaseSettings, cli_parse_args=True):
@@ -40,6 +35,21 @@ class ModelSetting(BaseSettings, cli_parse_args=True):
     model_dtype: ModelDtype = Field(
         default=ModelDtype.float32, validation_alias=AliasChoices("model-dtype")
     )
+
+    # LoRA
+    lora: CliImplicitFlag[bool] = Field(default=False)
+    lora_r: int = Field(default=8, validation_alias=AliasChoices("lora-r"))
+    lora_alpha: int = Field(default=16, validation_alias=AliasChoices("lora-alpha"))
+
+    def get_hf_model_name(self) -> str:
+        return SUPPORTED_LLM[self.large_model.value]
+
+    def get_torch_dtype(self):
+        return {
+            ModelDtype.float16: torch.dtype("float16"),
+            ModelDtype.float32: torch.dtype("float32"),
+            ModelDtype.bfloat16: torch.dtype("bfloat16"),
+        }
 
 
 class OptimizerSetting(BaseSettings, cli_parse_args=True):

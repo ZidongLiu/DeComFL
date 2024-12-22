@@ -21,6 +21,7 @@ from experiment_helper.cli_parser import (
     OptimizerSetting,
     FederatedLearningSetting,
     RGESetting,
+    ByzantineSetting,
 )
 from experiment_helper.device import use_device
 from experiment_helper.data import get_dataloaders
@@ -34,6 +35,7 @@ class CliSetting(
     OptimizerSetting,
     FederatedLearningSetting,
     RGESetting,
+    ByzantineSetting,
 ):
     pass
 
@@ -146,7 +148,9 @@ if __name__ == "__main__":
     args = CliSetting()
     print(args)
     device_map = use_device(args, args.num_clients)
-    train_loaders, test_loader = get_dataloaders(args, args.num_clients)
+    train_loaders, test_loader = get_dataloaders(
+        args, args.num_clients, args.seed, args.get_hf_model_name()
+    )
     server = setup_server_and_clients(args, device_map, train_loaders)
 
     if args.log_to_tensorboard:

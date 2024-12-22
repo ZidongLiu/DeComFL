@@ -30,10 +30,6 @@ from experiment_helper.data import ImageClassificationTask, LmClassificationTask
 from dataclasses import dataclass
 
 
-def get_hf_model_name(model_setting: ModelSetting) -> str:
-    return SUPPORTED_LLM[model_setting.large_model.value]
-
-
 SupportedDataset: TypeAlias = ImageClassificationTask | LmClassificationTask | LmGenerationTask
 
 
@@ -46,15 +42,16 @@ def get_model(
     model: AllModel
     if seed:
         torch.manual_seed(seed)
+
     if dataset == ImageClassificationTask.mnist:
-        model = CNN_MNIST().to(torch_dtype)
+        return CNN_MNIST().to(torch_dtype)
     elif dataset == ImageClassificationTask.cifar10:
-        model = LeNet().to(torch_dtype)
+        return LeNet().to(torch_dtype)
     elif dataset == ImageClassificationTask.fashion:
-        model = CNN_FMNIST().to(torch_dtype)
+        return CNN_FMNIST().to(torch_dtype)
     elif isinstance(dataset, (LmClassificationTask, LmGenerationTask)):
         assert model_setting.large_model in SUPPORTED_LLM
-        hf_model_name = get_hf_model_name(model_setting)
+        hf_model_name = model_setting.get_hf_model_name()
         model = AutoModelForCausalLM.from_pretrained(hf_model_name, torch_dtype=torch_dtype)
         model.model_name = model_setting.large_model
         if model_setting and model_setting.lora:
@@ -140,7 +137,7 @@ def get_model_inferences_and_metrics(
             test_acc=accuracy,
         )
 
-    hf_model_name = get_hf_model_name(model_setting)
+    hf_model_name = model_setting.get_hf_model_name()
     tokenizer = get_hf_tokenizer(hf_model_name)
     if isinstance(dataset, LmGenerationTask):
         generation_kwargs = {

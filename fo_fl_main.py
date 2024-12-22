@@ -80,7 +80,9 @@ if __name__ == "__main__":
     args = CliSetting()
     print(args)
     device_map = use_device(args, args.num_clients)
-    train_loaders, test_loader = get_dataloaders(args, args.num_clients)
+    train_loaders, test_loader = get_dataloaders(
+        args, args.num_clients, args.seed, args.get_hf_model_name()
+    )
 
     server = setup_server_and_clients(args, device_map, train_loaders)
 
