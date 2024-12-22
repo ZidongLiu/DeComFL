@@ -37,7 +37,7 @@ class ModelSetting(BaseSettings, cli_parse_args=True):
     )
 
     # LoRA
-    lora: bool = Field(default=False)
+    lora: CliImplicitFlag[bool] = Field(default=False)
     lora_r: int = Field(default=8, validation_alias=AliasChoices("lora-r"))
     lora_alpha: int = Field(default=16, validation_alias=AliasChoices("lora-alpha"))
 
@@ -77,7 +77,7 @@ class RGESetting(BaseSettings, cli_parse_args=True):
         validation_alias=AliasChoices("num-pert"),
         description="Number of perturbations needed to perform when estimating gradient",
     )
-    adjust_perturb: bool = Field(
+    adjust_perturb: CliImplicitFlag[bool] = Field(
         default=False,
         validation_alias=AliasChoices("adjust-perturb"),
         description="Whether to adjust number of perturbation in the training process",
