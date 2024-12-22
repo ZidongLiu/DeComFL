@@ -36,9 +36,12 @@ class DataSetting(BaseSettings, cli_parse_args=True):
     )
     train_batch_size: int = Field(default=8, validation_alias=AliasChoices("train-batch-size"))
     test_batch_size: int = Field(default=8, validation_alias=AliasChoices("test-batch-size"))
-    iid: CliImplicitFlag[bool] = Field(default=True)
+    iid: CliImplicitFlag[bool] = Field(
+        default=True, description="Use dirichlet sampling for data split or iid sampling"
+    )
     dirichlet_alpha: float = Field(default=1.0, validation_alias=AliasChoices("dirichlet-alpha"))
-    num_workers: int = Field(default=2, validation_alias=AliasChoices("num-workers"))
+    # Might add later
+    # num_workers: int = Field(default=2, validation_alias=AliasChoices("num-workers"))
 
 
 def get_dataloaders(
