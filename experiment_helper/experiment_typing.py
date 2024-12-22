@@ -15,24 +15,3 @@ class ModelDtype(Enum):
     float32 = "float32"
     float16 = "float16"
     bfloat16 = "bfloat16"
-
-
-class Dataset(Enum):
-    # TODO: split 2 different type of dataset
-    mnist = "mnist"
-    cifar10 = "cifar10"
-    fashion = "fashion"
-
-    # language classification
-    sst2 = "sst2"
-    rte = "rte"
-    multirc = "multirc"
-    cb = "cb"
-    wic = "wic"
-    wsc = "wsc"
-    boolq = "boolq"
-
-    # language generation
-    squad = "squad"
-    drop = "drop"
-    xsum = "xsum"

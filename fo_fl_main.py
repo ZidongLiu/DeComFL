@@ -4,7 +4,7 @@ import torch
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 
-from cezo_fl.fl_helpers import get_client_name
+from cezo_fl.fl_helpers import get_client_name, get_server_name
 from cezo_fl.util import model_helpers
 from experiment_helper import prepare_settings
 from experiment_helper.cli_parser import (
@@ -17,7 +17,8 @@ from experiment_helper.cli_parser import (
 )
 from fed_avg.client import FedAvgClient
 from fed_avg.server import FedAvgServer
-from preprocess import preprocess
+from experiment_helper.data import get_dataloaders
+from experiment_helper.device import use_device
 
 
 class CliSetting(
@@ -57,7 +58,7 @@ def setup_server_and_clients(
         )
         clients.append(client)
 
-    server_device = device_map["server"]
+    server_device = device_map[get_server_name()]
 
     server_model = prepare_settings.get_model(args.dataset, args, args.seed)
     server_model.to(server_device)
@@ -78,7 +79,8 @@ def setup_server_and_clients(
 if __name__ == "__main__":
     args = CliSetting()
     print(args)
-    device_map, train_loaders, test_loader = preprocess(args)
+    device_map = use_device(args, args.num_clients)
+    train_loaders, test_loader = get_dataloaders(args, args.num_clients)
 
     server = setup_server_and_clients(args, device_map, train_loaders)
 

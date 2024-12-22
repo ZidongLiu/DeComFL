@@ -218,7 +218,7 @@ class XSUMTemplate(Template):
         return f"Document: {document}\n{prompt}{summary}"
 
 
-class LmTask(Enum):
+class LmClassificationTask(Enum):
     sst2 = "sst2"
     rte = "rte"
     multirc = "multirc"
@@ -226,35 +226,38 @@ class LmTask(Enum):
     wic = "wic"
     wsc = "wsc"
     boolq = "boolq"
+
+
+class LmGenerationTask(Enum):
     squad = "squad"
     drop = "drop"
     xsum = "xsum"
 
 
 LM_DATASET_MAP = {
-    LmTask.sst2.name: "glue",
-    LmTask.rte.name: "super_glue",
-    LmTask.multirc.name: "super_glue",
-    LmTask.cb.name: "super_glue",
-    LmTask.wic.name: "super_glue",
-    LmTask.wsc.name: "super_glue",
-    LmTask.boolq.name: "super_glue",
-    LmTask.squad.name: "squad",
-    LmTask.drop.name: "drop",
-    LmTask.xsum.name: "xsum",
+    LmClassificationTask.sst2.name: "glue",
+    LmClassificationTask.rte.name: "super_glue",
+    LmClassificationTask.multirc.name: "super_glue",
+    LmClassificationTask.cb.name: "super_glue",
+    LmClassificationTask.wic.name: "super_glue",
+    LmClassificationTask.wsc.name: "super_glue",
+    LmClassificationTask.boolq.name: "super_glue",
+    LmGenerationTask.squad.name: "squad",
+    LmGenerationTask.drop.name: "drop",
+    LmGenerationTask.xsum.name: "xsum",
 }
 
 LM_TEMPLATE_MAP = {
-    LmTask.sst2.name: SST2Template,
-    LmTask.rte.name: RTETemplate,
-    LmTask.multirc.name: MultiRCTemplate,
-    LmTask.cb.name: CBTemplate,
-    LmTask.wic.name: WICTemplate,
-    LmTask.wsc.name: WSCTemplate,
-    LmTask.boolq.name: BoolQTemplate,
-    LmTask.squad.name: SQuADTemplate,
-    LmTask.drop.name: DROPTemplate,
-    LmTask.xsum.name: XSUMTemplate,
+    LmClassificationTask.sst2.name: SST2Template,
+    LmClassificationTask.rte.name: RTETemplate,
+    LmClassificationTask.multirc.name: MultiRCTemplate,
+    LmClassificationTask.cb.name: CBTemplate,
+    LmClassificationTask.wic.name: WICTemplate,
+    LmClassificationTask.wsc.name: WSCTemplate,
+    LmClassificationTask.boolq.name: BoolQTemplate,
+    LmGenerationTask.squad.name: SQuADTemplate,
+    LmGenerationTask.drop.name: DROPTemplate,
+    LmGenerationTask.xsum.name: XSUMTemplate,
 }
 
 

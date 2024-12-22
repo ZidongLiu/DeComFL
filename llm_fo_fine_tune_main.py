@@ -3,6 +3,7 @@ from tqdm import tqdm
 
 
 from cezo_fl.util.metrics import Metric
+from cezo_fl.fl_helpers import get_server_name
 from experiment_helper import prepare_settings
 from experiment_helper.cli_parser import (
     GeneralSetting,
@@ -12,7 +13,8 @@ from experiment_helper.cli_parser import (
     OptimizerSetting,
     NormalTrainingLoopSetting,
 )
-from preprocess import preprocess
+from experiment_helper.data import get_dataloaders
+from experiment_helper.device import use_device
 
 
 class CliSetting(
@@ -29,8 +31,9 @@ class CliSetting(
 if __name__ == "__main__":
     args = CliSetting()
 
-    device_map, train_loaders, test_loader = preprocess(args)
-    device = device_map["server"]
+    device_map = use_device(args, 1)
+    train_loaders, test_loader = get_dataloaders(args, 1)
+    device = device_map[get_server_name()]
 
     def inf_loader(dl):
         while True:

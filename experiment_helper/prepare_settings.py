@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, TypeAlias
 import torch
 import torch.nn as nn
 
@@ -12,7 +12,6 @@ from cezo_fl.util.model_helpers import AllModel
 from cezo_fl.models.cnn_fashion import CNN_FMNIST
 from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.models.lenet import LeNet
-from cezo_fl.models.lstm import CharLSTM
 from cezo_fl.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.util.language_utils import (
     LM_TEMPLATE_MAP,
@@ -27,8 +26,7 @@ from experiment_helper.cli_parser import (
     OptimizerSetting,
     RGESetting,
 )
-from experiment_helper.experiment_typing import Dataset
-
+from experiment_helper.data import ImageClassificationTask, LmClassificationTask, LmGenerationTask
 from dataclasses import dataclass
 
 
@@ -36,8 +34,11 @@ def get_hf_model_name(model_setting: ModelSetting) -> str:
     return SUPPORTED_LLM[model_setting.large_model.value]
 
 
+SupportedDataset: TypeAlias = ImageClassificationTask | LmClassificationTask | LmGenerationTask
+
+
 def get_model(
-    dataset: Dataset,
+    dataset: SupportedDataset,
     model_setting: ModelSetting,
     seed: int | None = None,
 ) -> AllModel:
@@ -45,13 +46,13 @@ def get_model(
     model: AllModel
     if seed:
         torch.manual_seed(seed)
-    if dataset == "mnist":
+    if dataset == ImageClassificationTask.mnist:
         model = CNN_MNIST().to(torch_dtype)
-    elif dataset == "cifar10":
+    elif dataset == ImageClassificationTask.cifar10:
         model = LeNet().to(torch_dtype)
-    elif dataset == "fashion":
+    elif dataset == ImageClassificationTask.fashion:
         model = CNN_FMNIST().to(torch_dtype)
-    elif dataset in LM_TEMPLATE_MAP.keys():
+    elif isinstance(dataset, (LmClassificationTask, LmGenerationTask)):
         assert model_setting.large_model in SUPPORTED_LLM
         hf_model_name = get_hf_model_name(model_setting)
         model = AutoModelForCausalLM.from_pretrained(hf_model_name, torch_dtype=torch_dtype)
@@ -70,50 +71,38 @@ def get_model(
 
 
 def get_optimizer(
-    model: AllModel, dataset: Dataset, optimizer_setting: OptimizerSetting
+    model: AllModel, dataset: SupportedDataset, optimizer_setting: OptimizerSetting
 ) -> torch.optim.SGD:
     trainable_model_parameters = model_helpers.get_trainable_model_parameters(model)
-    if dataset == Dataset.mnist:
+    if dataset == ImageClassificationTask.mnist:
         return torch.optim.SGD(
             trainable_model_parameters,
             lr=optimizer_setting.lr,
             weight_decay=1e-5,
             momentum=optimizer_setting.momentum,
         )
-    elif dataset == Dataset.cifar10:
+    elif dataset == ImageClassificationTask.cifar10:
         return torch.optim.SGD(
             trainable_model_parameters,
             lr=optimizer_setting.lr,
             weight_decay=5e-4,
             momentum=optimizer_setting.momentum,
         )
-    elif dataset == Dataset.fashion:
+    elif dataset == ImageClassificationTask.fashion:
         return torch.optim.SGD(
             trainable_model_parameters,
             lr=optimizer_setting.lr,
             weight_decay=1e-5,
             momentum=optimizer_setting.momentum,
         )
-    elif dataset in [
-        Dataset.sst2,
-        Dataset.cb,
-        Dataset.wsc,
-        Dataset.wic,
-        Dataset.multirc,
-        Dataset.rte,
-        Dataset.boolq,
-    ]:
+    elif isinstance(dataset, LmClassificationTask):
         return torch.optim.SGD(
             trainable_model_parameters,
             lr=optimizer_setting.lr,
             momentum=0,
             weight_decay=5e-4,
         )
-    elif dataset in [
-        Dataset.squad,
-        Dataset.drop,
-        Dataset.xsum,
-    ]:
+    elif isinstance(dataset, LmGenerationTask):
         return torch.optim.SGD(
             trainable_model_parameters,
             lr=optimizer_setting.lr,
@@ -139,7 +128,7 @@ class MetricPacks:
 
 
 def get_model_inferences_and_metrics(
-    dataset: Dataset, model_setting: ModelSetting
+    dataset: SupportedDataset, model_setting: ModelSetting
 ) -> tuple[ModelInferences, MetricPacks]:
     if dataset.value not in LM_TEMPLATE_MAP.keys():
         return ModelInferences(
@@ -153,7 +142,7 @@ def get_model_inferences_and_metrics(
 
     hf_model_name = get_hf_model_name(model_setting)
     tokenizer = get_hf_tokenizer(hf_model_name)
-    if dataset in [Dataset.squad, Dataset.drop, Dataset.xsum]:
+    if isinstance(dataset, LmGenerationTask):
         generation_kwargs = {
             "do_sample": True,
             "temperature": 1.0,

@@ -3,9 +3,9 @@ from pydantic_settings import BaseSettings, CliImplicitFlag
 from experiment_helper.experiment_typing import (
     LargeModel,
     ModelDtype,
-    Dataset,
-    RandomGradEstimateMethod,
 )
+from cezo_fl.random_gradient_estimator import RandomGradEstimateMethod
+from experiment_helper.data import DataSetting  # noqa: F401
 
 
 class GeneralSetting(BaseSettings, cli_parse_args=True):
@@ -21,16 +21,6 @@ class LoraSetting(BaseSettings, cli_parse_args=True):
     lora: CliImplicitFlag[bool] = Field(default=False)
     lora_r: int = Field(default=8, validation_alias=AliasChoices("lora-r"))
     lora_alpha: int = Field(default=16, validation_alias=AliasChoices("lora-alpha"))
-
-
-class DataSetting(BaseSettings, cli_parse_args=True):
-    # data
-    dataset: Dataset = Field(default=Dataset.mnist)
-    train_batch_size: int = Field(default=8, validation_alias=AliasChoices("train-batch-size"))
-    test_batch_size: int = Field(default=8, validation_alias=AliasChoices("test-batch-size"))
-    iid: CliImplicitFlag[bool] = Field(default=True)
-    dirichlet_alpha: float = Field(default=1.0, validation_alias=AliasChoices("dirichlet-alpha"))
-    num_workers: int = Field(default=2, validation_alias=AliasChoices("num-workers"))
 
 
 class ModelSetting(BaseSettings, cli_parse_args=True):
