@@ -1,3 +1,5 @@
+from typing import Literal
+
 import torch
 from pydantic import Field, AliasChoices
 from pydantic_settings import BaseSettings, CliImplicitFlag
@@ -12,25 +14,23 @@ from experiment_helper.data import DataSetting  # noqa: F401
 
 class GeneralSetting(BaseSettings, cli_parse_args=True):
     # general
-    seed: int = Field(default=365)
+    seed: int = Field(
+        default=365,
+        description="Random seed used to initialize model, get dataloaders and to sample the RGE's seeds each round",
+    )
     log_to_tensorboard: str | None = Field(
-        default=None, validation_alias=AliasChoices("log-to-tensorboard")
+        default=None,
+        validation_alias=AliasChoices("log-to-tensorboard"),
+        description="Provide a valid path, will log training process to the tensorboard in that path",
     )
 
 
 class ModelSetting(BaseSettings, cli_parse_args=True):
-    """
-    This warning will go away once we upgraded pydantic-setting to 2.6.2 hopefully.
-    See https://github.com/pydantic/pydantic-settings/issues/482
-    Warning```
-    UserWarning: Field "model_dtype" in Settings has conflict with protected namespace "model_".
-    You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ('settings_',)`.
-    ```
-    """
-
     # model
     large_model: LargeModel = Field(
-        default=LargeModel.opt_125m, validation_alias=AliasChoices("large-model")
+        default=LargeModel.opt_125m,
+        validation_alias=AliasChoices("large-model"),
+        description="Model name for Hugging Face Lanuguage Model. current only support facebook/opt families",
     )
     model_dtype: ModelDtype = Field(
         default=ModelDtype.float32, validation_alias=AliasChoices("model-dtype")
@@ -60,23 +60,37 @@ class OptimizerSetting(BaseSettings, cli_parse_args=True):
 
 class DeviceSetting(BaseSettings, cli_parse_args=True):
     # device
-    no_cuda: CliImplicitFlag[bool] = Field(default=False, validation_alias=AliasChoices("no-cuda"))
-    no_mps: CliImplicitFlag[bool] = Field(default=False, validation_alias=AliasChoices("no-mps"))
+    cuda: CliImplicitFlag[bool] = Field(
+        default=True, description="--no-cuda will disable cuda training"
+    )
+    mps: CliImplicitFlag[bool] = Field(
+        default=True,
+        description="--no-mps will disable macOS GPU training, this command line argument is ignored when cuda is available and choose to use cuda",
+    )
 
 
 class RGESetting(BaseSettings, cli_parse_args=True):
     # zo_grad_estimator
-    mu: float = Field(default=1e-3)
-    num_pert: int = Field(default=1, validation_alias=AliasChoices("num-pert"))
+    mu: float = Field(default=1e-3, description="Perturbation step to measure local gradients")
+    num_pert: int = Field(
+        default=1,
+        validation_alias=AliasChoices("num-pert"),
+        description="Number of perturbations needed to perform when estimating gradient",
+    )
     adjust_perturb: CliImplicitFlag[bool] = Field(
-        default=False, validation_alias=AliasChoices("adjust-perturb")
+        default=False,
+        validation_alias=AliasChoices("adjust-perturb"),
+        description="Whether to adjust number of perturbation in the training process",
     )
     grad_estimate_method: RandomGradEstimateMethod = Field(
         default=RandomGradEstimateMethod.rge_central,
         validation_alias=AliasChoices("grad-estimate-method"),
+        description="Forward or Central",
     )
-    no_optim: CliImplicitFlag[bool] = Field(
-        default=False, validation_alias=AliasChoices("no-optim")
+    no_optim: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("no-optim"),
+        description="When no-optim, Update model without torch.optim (SGD only). This can significantly save memory.",
     )
 
 
@@ -97,6 +111,10 @@ class FederatedLearningSetting(BaseSettings, cli_parse_args=True):
 
 class ByzantineSetting(BaseSettings, cli_parse_args=True):
     # Byzantinem TODO improve options
-    aggregation: str = Field(default="mean")  # "mean, median, trim, krum"
+    aggregation: Literal["mean", "median", "trim", "krum"] = Field(default="mean")
     byz_type: str = Field(default="no_byz", validation_alias=AliasChoices("byz-type"))
-    num_byz: int = Field(default=1, validation_alias=AliasChoices("num-byz"))
+    num_byz: int = Field(
+        default=1,
+        validation_alias=AliasChoices("num-byz"),
+        description="Number of byzantine attackers",
+    )

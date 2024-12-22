@@ -4,8 +4,8 @@ from cezo_fl.fl_helpers import get_client_name, get_server_name
 
 
 def use_device(device_setting: DeviceSetting, num_clients: int) -> dict[str, torch.device]:
-    use_cuda = not device_setting.no_cuda and torch.cuda.is_available()
-    use_mps = not device_setting.no_mps and torch.backends.mps.is_available()
+    use_cuda = device_setting.cuda and torch.cuda.is_available()
+    use_mps = device_setting.mps and torch.backends.mps.is_available()
     if use_cuda:
         num_gpu = torch.cuda.device_count()
         print(f"----- Using cuda count: {num_gpu} -----")
