@@ -9,7 +9,6 @@ from os import path
 from typing import Iterator, TypeAlias
 
 import torch
-import torch.optim as optim
 from peft import PeftModel
 from transformers.models.opt.modeling_opt import OPTForCausalLM
 
@@ -55,23 +54,6 @@ def save_model_and_optimizer(optimizer, model, model_path, model_prefix):
         },
         save_path,
     )
-
-
-def load_model_and_optimizer(optimizer, model, model_path):
-    checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint["model_state_dict"])
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-    model.eval()
-
-
-def get_model_and_optimizer(model, optimizer=None, checkpoint=None):
-    if optimizer is None:
-        optimizer = optim.SGD(get_trainable_model_parameters(model), lr=0.01, momentum=0)
-
-    if checkpoint:
-        load_model_and_optimizer(optimizer, model, checkpoint)
-
-    return model, optimizer
 
 
 def get_trainable_model_parameters(

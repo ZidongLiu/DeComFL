@@ -9,31 +9,57 @@ from tqdm import tqdm
 from byzantine import aggregation as byz_agg
 from byzantine import attack as byz_attack
 from cezo_fl.client import ResetClient
-from cezo_fl.fl_helpers import get_client_name
+from cezo_fl.fl_helpers import get_client_name, get_server_name
 from cezo_fl.server import CeZO_Server
-from cezo_fl.util import model_helpers, prepare_settings
+from cezo_fl.util import model_helpers
+from experiment_helper import prepare_settings
+from experiment_helper.cli_parser import (
+    GeneralSetting,
+    DeviceSetting,
+    DataSetting,
+    ModelSetting,
+    OptimizerSetting,
+    FederatedLearningSetting,
+    RGESetting,
+    ByzantineSetting,
+)
+from experiment_helper.device import use_device
+from experiment_helper.data import get_dataloaders
 
-from config import get_args_str, get_params
-from preprocess import preprocess
+
+class CliSetting(
+    GeneralSetting,
+    DeviceSetting,
+    DataSetting,
+    ModelSetting,
+    OptimizerSetting,
+    FederatedLearningSetting,
+    RGESetting,
+    ByzantineSetting,
+):
+    pass
 
 
 def setup_server_and_clients(
-    args, device_map: dict[str, torch.device], train_loaders
+    args: CliSetting, device_map: dict[str, torch.device], train_loaders
 ) -> CeZO_Server:
     model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
-        args.dataset, prepare_settings.SUPPORTED_LLM.get(args.large_model)
+        args.dataset, args
     )
     clients = []
 
     for i in range(args.num_clients):
         client_name = get_client_name(i)
         client_device = device_map[client_name]
-        (
-            client_model,
-            client_optimizer,
-            client_grad_estimator,
-        ) = prepare_settings.prepare_settings_underseed(args, client_device)
-        client_model.to(client_device)
+        client_model = prepare_settings.get_model(
+            dataset=args.dataset, model_setting=args, seed=args.seed
+        ).to(client_device)
+        client_optimizer = prepare_settings.get_optimizer(
+            model=client_model, dataset=args.dataset, optimizer_setting=args
+        )
+        client_grad_estimator = prepare_settings.get_random_gradient_estimator(
+            model=client_model, device=client_device, rge_setting=args, model_setting=args
+        )
 
         client = ResetClient(
             client_model,
@@ -47,7 +73,7 @@ def setup_server_and_clients(
         )
         clients.append(client)
 
-    server_device = device_map["server"]
+    server_device = device_map[get_server_name()]
     server = CeZO_Server(
         clients,
         server_device,
@@ -56,13 +82,16 @@ def setup_server_and_clients(
     )
 
     # set server tools
-    (
-        server_model,
-        server_optimizer,
-        server_grad_estimator,
-    ) = prepare_settings.prepare_settings_underseed(args, server_device)
+    server_model = prepare_settings.get_model(
+        dataset=args.dataset, model_setting=args, seed=args.seed
+    ).to(server_device)
+    server_optimizer = prepare_settings.get_optimizer(
+        model=server_model, dataset=args.dataset, optimizer_setting=args
+    )
+    server_grad_estimator = prepare_settings.get_random_gradient_estimator(
+        model=server_model, device=server_device, rge_setting=args, model_setting=args
+    )
 
-    server_model.to(server_device)
     server.set_server_model_and_criterion(
         server_model,
         model_inferences.test_inference,
@@ -115,32 +144,19 @@ def setup_server_and_clients(
     return server
 
 
-# get_warmup_lr is not used for now.
-def get_warmup_lr(args, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
-    assert isinstance(args.lr, float) and isinstance(args.warmup_epochs, int)
-    overall_iterations = args.warmup_epochs * iters_per_epoch + 1
-    current_iterations = current_epoch * iters_per_epoch + current_iter + 1
-    return args.lr * current_iterations / overall_iterations
-
-
-def get_size_of_model(model):
-    return sum(p.numel() * p.element_size() for p in model.parameters())
-
-
 if __name__ == "__main__":
-    args = get_params().parse_args()
-    if args.dataset == "shakespeare":
-        args.num_clients = 139
+    args = CliSetting()
     print(args)
-    device_map, train_loaders, test_loader = preprocess(args)
-
+    device_map = use_device(args, args.num_clients)
+    train_loaders, test_loader = get_dataloaders(
+        args, args.num_clients, args.seed, args.get_hf_model_name()
+    )
     server = setup_server_and_clients(args, device_map, train_loaders)
 
     if args.log_to_tensorboard:
         assert server.server_model
         tensorboard_sub_folder = "-".join(
             [
-                get_args_str(args),
                 server.server_model.model_name,
                 model_helpers.get_current_datetime_str(),
             ]
@@ -149,7 +165,7 @@ if __name__ == "__main__":
             path.join(
                 "tensorboards",
                 "decomfl",
-                args.dataset,
+                args.dataset.value,
                 args.log_to_tensorboard,
                 tensorboard_sub_folder,
             )
