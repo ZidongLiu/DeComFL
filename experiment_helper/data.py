@@ -157,7 +157,7 @@ def get_dataloaders(
 
     # already updated at main function
     splitted_train_sets: list[DatasetSplit] | list[Subset]
-    if data_setting.dataset in LM_TEMPLATE_MAP.keys():
+    if isinstance(data_setting.dataset, (LmClassificationTask, LmGenerationTask)):
         if data_setting.iid:
             generator = torch.Generator().manual_seed(seed)
             splitted_train_sets = torch.utils.data.random_split(
@@ -183,7 +183,7 @@ def get_dataloaders(
         )
     splitted_train_loaders = []
     for i in range(num_train_split):
-        if data_setting.dataset in LM_TEMPLATE_MAP.keys():
+        if isinstance(data_setting.dataset, (LmClassificationTask, LmGenerationTask)):
             dataloader = torch.utils.data.DataLoader(
                 splitted_train_sets[i],
                 batch_size=data_setting.train_batch_size,

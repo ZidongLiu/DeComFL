@@ -127,7 +127,7 @@ class MetricPacks:
 def get_model_inferences_and_metrics(
     dataset: SupportedDataset, model_setting: ModelSetting
 ) -> tuple[ModelInferences, MetricPacks]:
-    if dataset.value not in LM_TEMPLATE_MAP.keys():
+    if not isinstance(dataset, (LmClassificationTask, LmGenerationTask)):
         return ModelInferences(
             model_helpers.model_forward, model_helpers.model_forward
         ), MetricPacks(
