@@ -195,6 +195,7 @@ def get_model_inferences_and_metrics(
 def get_random_gradient_estimator(
     model: AllModel, device: torch.device, rge_setting: RGESetting, model_setting: ModelSetting
 ):
+    no_optim = not rge_setting.optim
     return RandomGradientEstimator(
         parameters=model_helpers.get_trainable_model_parameters(model),
         mu=rge_setting.mu,
@@ -203,6 +204,6 @@ def get_random_gradient_estimator(
         device=device,
         torch_dtype=model_setting.get_torch_dtype(),
         # To save memory consumption, we have to use parameter-wise perturb + no_optim together.
-        sgd_only_no_optim=rge_setting.no_optim,
-        paramwise_perturb=rge_setting.no_optim,
+        sgd_only_no_optim=no_optim,
+        paramwise_perturb=no_optim,
     )

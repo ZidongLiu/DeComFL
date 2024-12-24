@@ -25,6 +25,17 @@ class GeneralSetting(BaseSettings, cli_parse_args=True):
     )
 
 
+class DeviceSetting(BaseSettings, cli_parse_args=True):
+    # device
+    cuda: CliImplicitFlag[bool] = Field(
+        default=True, description="--no-cuda will disable cuda training"
+    )
+    mps: CliImplicitFlag[bool] = Field(
+        default=True,
+        description="--no-mps will disable macOS GPU training, this command line argument is ignored when cuda is available and choose to use cuda",
+    )
+
+
 class ModelSetting(BaseSettings, cli_parse_args=True):
     # model
     large_model: LargeModel = Field(
@@ -58,17 +69,6 @@ class OptimizerSetting(BaseSettings, cli_parse_args=True):
     momentum: float = Field(default=0)
 
 
-class DeviceSetting(BaseSettings, cli_parse_args=True):
-    # device
-    cuda: CliImplicitFlag[bool] = Field(
-        default=True, description="--no-cuda will disable cuda training"
-    )
-    mps: CliImplicitFlag[bool] = Field(
-        default=True,
-        description="--no-mps will disable macOS GPU training, this command line argument is ignored when cuda is available and choose to use cuda",
-    )
-
-
 class RGESetting(BaseSettings, cli_parse_args=True):
     # zo_grad_estimator
     mu: float = Field(default=1e-3, description="Perturbation step to measure local gradients")
@@ -87,10 +87,9 @@ class RGESetting(BaseSettings, cli_parse_args=True):
         validation_alias=AliasChoices("grad-estimate-method"),
         description="Forward or Central",
     )
-    no_optim: bool = Field(
-        default=False,
-        validation_alias=AliasChoices("no-optim"),
-        description="When no-optim, Update model without torch.optim (SGD only). This can significantly save memory.",
+    optim: CliImplicitFlag[bool] = Field(
+        default=True,
+        description="Use optimizer or not, when no-optim, update model without torch.optim (SGD only). This can significantly save memory.",
     )
 
 
