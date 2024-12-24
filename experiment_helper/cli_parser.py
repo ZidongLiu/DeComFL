@@ -57,10 +57,10 @@ class ModelSetting(BaseSettings, cli_parse_args=True):
 
     def get_torch_dtype(self):
         return {
-            ModelDtype.float16: torch.dtype("float16"),
-            ModelDtype.float32: torch.dtype("float32"),
-            ModelDtype.bfloat16: torch.dtype("bfloat16"),
-        }
+            ModelDtype.float16: torch.float16,
+            ModelDtype.float32: torch.float32,
+            ModelDtype.bfloat16: torch.bfloat16,
+        }[self.model_dtype]
 
 
 class OptimizerSetting(BaseSettings, cli_parse_args=True):

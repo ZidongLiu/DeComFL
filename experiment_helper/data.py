@@ -102,7 +102,7 @@ def get_dataloaders(
         )
     elif isinstance(data_setting.dataset, (LmClassificationTask, LmGenerationTask)):
         assert isinstance(hf_model_name, str)
-        if data_setting.dataset == LmClassificationTask.sst2.name:
+        if data_setting.dataset == LmClassificationTask.sst2:
             max_length = 32
         else:
             max_length = 2048

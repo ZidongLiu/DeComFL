@@ -50,7 +50,7 @@ def get_model(
     elif dataset == ImageClassificationTask.fashion:
         return CNN_FMNIST().to(torch_dtype)
     elif isinstance(dataset, (LmClassificationTask, LmGenerationTask)):
-        assert model_setting.large_model in SUPPORTED_LLM
+        assert model_setting.large_model.value in SUPPORTED_LLM
         hf_model_name = model_setting.get_hf_model_name()
         model = AutoModelForCausalLM.from_pretrained(hf_model_name, torch_dtype=torch_dtype)
         model.model_name = model_setting.large_model
