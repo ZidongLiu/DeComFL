@@ -63,7 +63,12 @@ def train_model(epoch: int) -> tuple[float, float]:
                 images, labels = images.to(device), labels.to(device)
             # update models
             optimizer.zero_grad()
-            grad_estimator.compute_grad(images, labels, criterion, seed=iteration**2 + iteration)
+            grad_estimator.compute_grad(
+                images,
+                labels,
+                lambda x, y: criterion(model_inferences.train_inference(model, x), y),
+                seed=iteration**2 + iteration,
+            )
             optimizer.step()
 
             pred = model(images)
@@ -116,6 +121,9 @@ if __name__ == "__main__":
     device = device_map[get_server_name()]
 
     criterion = torch.nn.CrossEntropyLoss()
+    model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
+        args.dataset, args
+    )
     model = prepare_settings.get_model(args.dataset, args, args.seed).to(device)
     optimizer = prepare_settings.get_optimizer(
         model=model, dataset=args.dataset, optimizer_setting=args
