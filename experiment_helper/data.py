@@ -195,7 +195,6 @@ def get_dataloaders(
                 collate_fn=get_collate_fn(tokenizer, max_length),
             )
         else:
-            print("here")
             dataloader = torch.utils.data.DataLoader(
                 splitted_train_sets[i], batch_size=data_setting.train_batch_size, pin_memory=True
             )
