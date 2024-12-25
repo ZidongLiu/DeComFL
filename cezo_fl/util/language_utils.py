@@ -317,7 +317,7 @@ def get_lm_loss(
     if loss_type == "f1":  # notice this is not a real score
         return partial(f1_batch_score, tokenizer=tokenizer)
 
-    assert verbalizer_id_map
+    assert verbalizer_id_map is not None
     n_candidate = len(verbalizer_id_map)
     verbalizer_id_list = [verbalizer_id_map[i] for i in range(n_candidate)]
     if loss_type == "full_sentence":

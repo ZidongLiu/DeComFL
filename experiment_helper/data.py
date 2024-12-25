@@ -1,7 +1,7 @@
 from enum import Enum
 
 import torch
-from torch.utils.data.dataset import Subset
+from torch.utils.data.dataset import Subset, Dataset
 import torchvision
 import torchvision.transforms as transforms
 from datasets import load_dataset as huggingface_load_dataset
@@ -156,31 +156,35 @@ def get_dataloaders(
         raise Exception(f"Dataset {data_setting.dataset} is not supported")
 
     # already updated at main function
-    splitted_train_sets: list[DatasetSplit] | list[Subset]
-    if isinstance(data_setting.dataset, (LmClassificationTask, LmGenerationTask)):
-        if data_setting.iid:
+    splitted_train_sets: list[DatasetSplit] | list[Subset] | list[Dataset]
+    if num_train_split == 1:
+        splitted_train_sets = [train_dataset]
+    else:
+        if isinstance(data_setting.dataset, (LmClassificationTask, LmGenerationTask)):
+            if data_setting.iid:
+                generator = torch.Generator().manual_seed(seed)
+                splitted_train_sets = torch.utils.data.random_split(
+                    train_dataset,
+                    get_random_split_chunk_length(len(train_dataset), num_train_split),
+                    generator=generator,
+                )
+            else:
+                labels = list(map(lambda x: x["label"], raw_train_dataset))
+                splitted_train_sets = dirichlet_split(
+                    train_dataset,
+                    labels,
+                    num_train_split,
+                    data_setting.dirichlet_alpha,
+                    seed,
+                )
+        else:
             generator = torch.Generator().manual_seed(seed)
             splitted_train_sets = torch.utils.data.random_split(
                 train_dataset,
                 get_random_split_chunk_length(len(train_dataset), num_train_split),
                 generator=generator,
             )
-        else:
-            labels = list(map(lambda x: x["label"], raw_train_dataset))
-            splitted_train_sets = dirichlet_split(
-                train_dataset,
-                labels,
-                num_train_split,
-                data_setting.dirichlet_alpha,
-                seed,
-            )
-    else:
-        generator = torch.Generator().manual_seed(seed)
-        splitted_train_sets = torch.utils.data.random_split(
-            train_dataset,
-            get_random_split_chunk_length(len(train_dataset), num_train_split),
-            generator=generator,
-        )
+
     splitted_train_loaders = []
     for i in range(num_train_split):
         if isinstance(data_setting.dataset, (LmClassificationTask, LmGenerationTask)):
@@ -191,6 +195,7 @@ def get_dataloaders(
                 collate_fn=get_collate_fn(tokenizer, max_length),
             )
         else:
+            print("here")
             dataloader = torch.utils.data.DataLoader(
                 splitted_train_sets[i], batch_size=data_setting.train_batch_size, pin_memory=True
             )

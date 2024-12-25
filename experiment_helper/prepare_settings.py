@@ -168,8 +168,8 @@ def get_model_inferences_and_metrics(
             ),
             MetricPacks(
                 train_loss=train_criterion,
-                train_acc=lambda pred, true: torch.Tensor(0.0),  # noop training acc step here
-                test_loss=lambda pred, true: torch.Tensor(0.0),  # noop test loss step here
+                train_acc=lambda pred, true: torch.tensor(0.0),  # noop training acc step here
+                test_loss=lambda pred, true: torch.tensor(0.0),  # noop test loss step here
                 test_acc=test_accuracy_func,
             ),
         )
