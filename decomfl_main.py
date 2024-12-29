@@ -44,7 +44,7 @@ def setup_server_and_clients(
     args: CliSetting, device_map: dict[str, torch.device], train_loaders
 ) -> CeZO_Server:
     model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
-        args.dataset, args
+        args.dataset, args.model_setting
     )
     clients = []
 
@@ -52,13 +52,16 @@ def setup_server_and_clients(
         client_name = get_client_name(i)
         client_device = device_map[client_name]
         client_model = prepare_settings.get_model(
-            dataset=args.dataset, model_setting=args, seed=args.seed
+            dataset=args.dataset, model_setting=args.model_setting, seed=args.seed
         ).to(client_device)
         client_optimizer = prepare_settings.get_optimizer(
-            model=client_model, dataset=args.dataset, optimizer_setting=args
+            model=client_model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
         )
         client_grad_estimator = prepare_settings.get_random_gradient_estimator(
-            model=client_model, device=client_device, rge_setting=args, model_setting=args
+            model=client_model,
+            device=client_device,
+            rge_setting=args.rge_setting,
+            model_setting=args.model_setting,
         )
 
         client = ResetClient(
@@ -83,13 +86,16 @@ def setup_server_and_clients(
 
     # set server tools
     server_model = prepare_settings.get_model(
-        dataset=args.dataset, model_setting=args, seed=args.seed
+        dataset=args.dataset, model_setting=args.model_setting, seed=args.seed
     ).to(server_device)
     server_optimizer = prepare_settings.get_optimizer(
-        model=server_model, dataset=args.dataset, optimizer_setting=args
+        model=server_model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
     )
     server_grad_estimator = prepare_settings.get_random_gradient_estimator(
-        model=server_model, device=server_device, rge_setting=args, model_setting=args
+        model=server_model,
+        device=server_device,
+        rge_setting=args.rge_setting,
+        model_setting=args.model_setting,
     )
 
     server.set_server_model_and_criterion(
@@ -147,9 +153,9 @@ def setup_server_and_clients(
 if __name__ == "__main__":
     args = CliSetting()
     print(args)
-    device_map = use_device(args, args.num_clients)
+    device_map = use_device(args.device_setting, args.num_clients)
     train_loaders, test_loader = get_dataloaders(
-        args, args.num_clients, args.seed, args.get_hf_model_name()
+        args.data_setting, args.num_clients, args.seed, args.get_hf_model_name()
     )
     server = setup_server_and_clients(args, device_map, train_loaders)
 

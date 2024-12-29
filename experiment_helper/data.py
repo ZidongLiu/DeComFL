@@ -1,4 +1,5 @@
 from enum import Enum
+from functools import cached_property
 
 import torch
 from torch.utils.data.dataset import Subset, Dataset
@@ -29,7 +30,7 @@ class ImageClassificationTask(Enum):
     fashion = "fashion"
 
 
-class DataSetting(BaseSettings, cli_parse_args=True):
+class DataSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
     # data
     dataset: ImageClassificationTask | LmClassificationTask | LmGenerationTask = Field(
         default=ImageClassificationTask.mnist
@@ -42,6 +43,10 @@ class DataSetting(BaseSettings, cli_parse_args=True):
     dirichlet_alpha: float = Field(default=1.0, validation_alias=AliasChoices("dirichlet-alpha"))
     # Might add later
     # num_workers: int = Field(default=2, validation_alias=AliasChoices("num-workers"))
+
+    @cached_property
+    def data_setting(self):
+        return DataSetting()
 
 
 def get_dataloaders(

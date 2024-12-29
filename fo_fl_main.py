@@ -36,16 +36,18 @@ def setup_server_and_clients(
     args, device_map: dict[str, torch.device], train_loaders
 ) -> FedAvgServer:
     model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
-        args.dataset, args
+        args.dataset, args.model_setting
     )
     clients = []
 
     for i in range(args.num_clients):
         client_name = get_client_name(i)
         client_device = device_map[client_name]
-        client_model = prepare_settings.get_model(args.dataset, args, args.seed)
+        client_model = prepare_settings.get_model(args.dataset, args.model_setting, args.seed)
         client_model.to(client_device)
-        client_optimizer = prepare_settings.get_optimizer(client_model, args.dataset, args)
+        client_optimizer = prepare_settings.get_optimizer(
+            client_model, args.dataset, args.optimizer_setting
+        )
 
         client = FedAvgClient(
             client_model,
@@ -60,7 +62,7 @@ def setup_server_and_clients(
 
     server_device = device_map[get_server_name()]
 
-    server_model = prepare_settings.get_model(args.dataset, args, args.seed)
+    server_model = prepare_settings.get_model(args.dataset, args.model_setting, args.seed)
     server_model.to(server_device)
     server = FedAvgServer(
         clients,
@@ -79,9 +81,9 @@ def setup_server_and_clients(
 if __name__ == "__main__":
     args = CliSetting()
     print(args)
-    device_map = use_device(args, args.num_clients)
+    device_map = use_device(args.device_setting, args.num_clients)
     train_loaders, test_loader = get_dataloaders(
-        args, args.num_clients, args.seed, args.get_hf_model_name()
+        args.data_setting, args.num_clients, args.seed, args.get_hf_model_name()
     )
 
     server = setup_server_and_clients(args, device_map, train_loaders)

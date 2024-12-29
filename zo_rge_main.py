@@ -115,22 +115,24 @@ if __name__ == "__main__":
     args = Setting()
     torch.manual_seed(args.seed)
 
-    device_map = use_device(args, 1)
-    train_loaders, test_loader = get_dataloaders(args, 1, args.seed, args.get_hf_model_name())
+    device_map = use_device(args.device_setting, 1)
+    train_loaders, test_loader = get_dataloaders(
+        args.data_setting, 1, args.seed, args.get_hf_model_name()
+    )
     train_loader = train_loaders[0]
     device = device_map[get_server_name()]
 
     criterion = torch.nn.CrossEntropyLoss()
     model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
-        args.dataset, args
+        args.dataset, args.model_setting
     )
-    model = prepare_settings.get_model(args.dataset, args, args.seed).to(device)
+    model = prepare_settings.get_model(args.dataset, args.model_setting, args.seed).to(device)
     optimizer = prepare_settings.get_optimizer(
-        model=model, dataset=args.dataset, optimizer_setting=args
+        model=model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
     )
     scheduler = get_scheduler(optimizer, args.dataset)
     grad_estimator = prepare_settings.get_random_gradient_estimator(
-        model=model, device=device, rge_setting=args, model_setting=args
+        model=model, device=device, rge_setting=args.rge_setting, model_setting=args.model_setting
     )
 
     if args.log_to_tensorboard:

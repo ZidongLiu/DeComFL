@@ -35,7 +35,7 @@ def set_fake_clients(
     num_clients: int = 3, num_pert: int = 4, local_update_steps: int = 2
 ) -> list[ResetClient]:
     args = Setting()
-    device_map = device.use_device(args, num_clients=num_clients)
+    device_map = device.use_device(args.device_setting, num_clients=num_clients)
     model_device = device_map[get_server_name()]
     fake_clients = []
     assert isinstance(args.lr, float)

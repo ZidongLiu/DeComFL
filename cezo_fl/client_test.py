@@ -23,8 +23,8 @@ class Setting(
 # NOTE: this unit test only passes for 1e-6
 def test_sync_client_reset():
     args = Setting()
-    device_map = device.use_device(args, num_clients=1)
-    train_loaders, _ = data.get_dataloaders(args, num_train_split=1, seed=365)
+    device_map = device.use_device(args.device_setting, num_clients=1)
+    train_loaders, _ = data.get_dataloaders(args.data_setting, num_train_split=1, seed=365)
     model_device = device_map[get_server_name()]
 
     model = CNN_MNIST().to(model_device)

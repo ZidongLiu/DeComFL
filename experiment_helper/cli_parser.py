@@ -1,4 +1,5 @@
 from typing import Literal
+from functools import cached_property
 
 import torch
 from pydantic import Field, AliasChoices
@@ -9,10 +10,10 @@ from experiment_helper.experiment_typing import (
 )
 from cezo_fl.random_gradient_estimator import RandomGradEstimateMethod
 from cezo_fl.util.language_utils import SUPPORTED_LLM
-from experiment_helper.data import DataSetting  # noqa: F401
+from experiment_helper.data import DataSetting  # noqa: F401, for a central export place for all settings
 
 
-class GeneralSetting(BaseSettings, cli_parse_args=True):
+class GeneralSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
     # general
     seed: int = Field(
         default=365,
@@ -24,8 +25,12 @@ class GeneralSetting(BaseSettings, cli_parse_args=True):
         description="Provide a valid path, will log training process to the tensorboard in that path",
     )
 
+    @cached_property
+    def general_setting(self) -> "GeneralSetting":
+        return GeneralSetting()
 
-class DeviceSetting(BaseSettings, cli_parse_args=True):
+
+class DeviceSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
     # device
     cuda: CliImplicitFlag[bool] = Field(
         default=True, description="--no-cuda will disable cuda training"
@@ -35,8 +40,12 @@ class DeviceSetting(BaseSettings, cli_parse_args=True):
         description="--no-mps will disable macOS GPU training, this command line argument is ignored when cuda is available and choose to use cuda",
     )
 
+    @cached_property
+    def device_setting(self) -> "DeviceSetting":
+        return DeviceSetting()
 
-class ModelSetting(BaseSettings, cli_parse_args=True):
+
+class ModelSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
     # model
     large_model: LargeModel = Field(
         default=LargeModel.opt_125m,
@@ -52,6 +61,10 @@ class ModelSetting(BaseSettings, cli_parse_args=True):
     lora_r: int = Field(default=8, validation_alias=AliasChoices("lora-r"))
     lora_alpha: int = Field(default=16, validation_alias=AliasChoices("lora-alpha"))
 
+    @cached_property
+    def model_setting(self) -> "ModelSetting":
+        return ModelSetting()
+
     def get_hf_model_name(self) -> str:
         return SUPPORTED_LLM[self.large_model.value]
 
@@ -63,13 +76,17 @@ class ModelSetting(BaseSettings, cli_parse_args=True):
         }[self.model_dtype]
 
 
-class OptimizerSetting(BaseSettings, cli_parse_args=True):
+class OptimizerSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
     # optimizer
     lr: float = Field(default=1e-4)
     momentum: float = Field(default=0)
 
+    @cached_property
+    def optimizer_setting(self) -> "OptimizerSetting":
+        return OptimizerSetting()
 
-class RGESetting(BaseSettings, cli_parse_args=True):
+
+class RGESetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
     # zo_grad_estimator
     mu: float = Field(default=1e-3, description="Perturbation step to measure local gradients")
     num_pert: int = Field(
@@ -92,14 +109,22 @@ class RGESetting(BaseSettings, cli_parse_args=True):
         description="Use optimizer or not, when no-optim, update model without torch.optim (SGD only). This can significantly save memory.",
     )
 
+    @cached_property
+    def rge_setting(self) -> "RGESetting":
+        return RGESetting()
 
-class NormalTrainingLoopSetting(BaseSettings, cli_parse_args=True):
+
+class NormalTrainingLoopSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
     # non-fl training loop
     epoch: int = Field(default=500)
     warmup_epochs: int = Field(default=5, validation_alias=AliasChoices("warmup-epochs"))
 
+    @cached_property
+    def normal_training_loop_setting(self) -> "NormalTrainingLoopSetting":
+        return NormalTrainingLoopSetting()
 
-class FederatedLearningSetting(BaseSettings, cli_parse_args=True):
+
+class FederatedLearningSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
     # Federated Learning
     iterations: int = Field(default=100)
     eval_iterations: int = Field(default=20, validation_alias=AliasChoices("eval-iterations"))
@@ -107,8 +132,12 @@ class FederatedLearningSetting(BaseSettings, cli_parse_args=True):
     num_sample_clients: int = Field(default=2, validation_alias=AliasChoices("num-sample-clients"))
     local_update_steps: int = Field(default=1, validation_alias=AliasChoices("local-update-steps"))
 
+    @cached_property
+    def federated_learning_setting(self) -> "FederatedLearningSetting":
+        return FederatedLearningSetting()
 
-class ByzantineSetting(BaseSettings, cli_parse_args=True):
+
+class ByzantineSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
     # Byzantinem TODO improve options
     aggregation: Literal["mean", "median", "trim", "krum"] = Field(default="mean")
     byz_type: str = Field(default="no_byz", validation_alias=AliasChoices("byz-type"))
@@ -117,3 +146,7 @@ class ByzantineSetting(BaseSettings, cli_parse_args=True):
         validation_alias=AliasChoices("num-byz"),
         description="Number of byzantine attackers",
     )
+
+    @cached_property
+    def byzantine_setting(self) -> "ByzantineSetting":
+        return ByzantineSetting()

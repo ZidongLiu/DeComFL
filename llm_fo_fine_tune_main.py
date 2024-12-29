@@ -31,9 +31,9 @@ class CliSetting(
 if __name__ == "__main__":
     args = CliSetting()
 
-    device_map = use_device(args, 1)
+    device_map = use_device(args.device_setting, 1)
     train_loaders, test_loader = get_dataloaders(
-        args, 1, args.seed, hf_model_name=args.get_hf_model_name()
+        args.data_setting, 1, args.seed, hf_model_name=args.get_hf_model_name()
     )
     device = device_map[get_server_name()]
 
@@ -44,11 +44,13 @@ if __name__ == "__main__":
 
     inf_test_loader = inf_loader(test_loader)
 
-    (_, metrics) = prepare_settings.get_model_inferences_and_metrics(args.dataset, args)
+    (_, metrics) = prepare_settings.get_model_inferences_and_metrics(
+        args.dataset, args.model_setting
+    )
 
-    model = prepare_settings.get_model(args.dataset, args, args.seed)
+    model = prepare_settings.get_model(args.dataset, args.model_setting, args.seed)
     model.to(device)
-    optimizer = prepare_settings.get_optimizer(model, args.dataset, args)
+    optimizer = prepare_settings.get_optimizer(model, args.dataset, args.optimizer_setting)
 
     acc = Metric("accuracy")
     model.eval()
