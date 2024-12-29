@@ -20,6 +20,7 @@ For READMD.md, we will use `environment.yml` whenever an environment file is nee
 3. Once installation is finished, run `conda activate decomfl` to use the created virtual env.
 4. (Optional) If you see something like `conda init before activate`. Run `conda init`, then restart your terminal/powershell. Then repeat step 3.
 5. Run any command provided in [Run Experiments](#run-experiments) section. If code works, then congratulations, you have successfully set up the environment for this repo!
+6. Update the environemtn if there are some missing dependencies, most recent change was introduced by adding grpc. Try `conda env update --file environment.yml --prune`. The `--prune` is optional, if `--prune` conda will remove any dependencies that are no longer required from the environment.
 
 ## Run Experiments
 
