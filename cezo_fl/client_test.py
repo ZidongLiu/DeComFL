@@ -5,30 +5,37 @@ from torch.optim import SGD
 
 from cezo_fl.client import SyncClient
 from cezo_fl.models.cnn_mnist import CNN_MNIST
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.util.metrics import accuracy
-from config import FakeArgs
-from preprocess import preprocess
+from cezo_fl.fl_helpers import get_server_name
+from experiment_helper import device, cli_parser, data
+
+
+class Setting(
+    cli_parser.DeviceSetting,
+    cli_parser.DataSetting,
+    cli_parser.OptimizerSetting,
+    cli_parse_args=False,
+):
+    pass
 
 
 # NOTE: this unit test only passes for 1e-6
 def test_sync_client_reset():
-    args = FakeArgs()
+    args = Setting()
+    device_map = device.use_device(args.device_setting, num_clients=1)
+    train_loaders, _ = data.get_dataloaders(args.data_setting, num_train_split=1, seed=365)
+    model_device = device_map[get_server_name()]
 
-    args.dataset = "mnist"
-    args.num_clients = 1
-    device_map, train_loaders, _ = preprocess(args)
-    device = device_map["server"]
-
-    model = CNN_MNIST().to(device)
+    model = CNN_MNIST().to(model_device)
 
     train_loader = train_loaders[0]
-    grad_estimator = RGE(
+    grad_estimator = RandomGradientEstimator(
         model.parameters(),
         mu=1e-3,
         num_pert=2,
         grad_estimate_method="rge-forward",
-        device=device,
+        device=model_device,
     )
     optimizer = SGD(model.parameters(), lr=args.lr, weight_decay=0)
 
@@ -42,7 +49,7 @@ def test_sync_client_reset():
         optimizer=optimizer,
         criterion=criterion,
         accuracy_func=accuracy,
-        device=device,
+        device=model_device,
     )
 
     original_model = deepcopy(model)

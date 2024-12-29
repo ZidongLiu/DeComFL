@@ -24,11 +24,13 @@ For READMD.md, we will use `environment.yml` whenever an environment file is nee
 ## Run Experiments
 
 - **Run zeroth-order random gradient estimate + SGD training**. Train model using ZOO RGE.
-  Usage example: `python zo_rge_main.py --dataset=cifar10 --num-pert=10 --lr=1e-6 --mu=1e-3`
+  Usage example: `python zo_rge_main.py --dataset=mnist --num-pert=10 --lr=1e-5 --mu=1e-3 --momentum=0.9`
 
 - **Run DeComFL:** Follow FL routine, split data into chunks and train on different clients.
   Usage example: `python decomfl_main.py --large-model=opt-125m --dataset=sst2 --iterations=1000 --train-batch-size=32 --test-batch-size=200 --eval-iterations=25 --num-clients=3 --num-sample-clients=2 --local-update-steps=1 --num-pert=5 --lr=1e-5 --mu=1e-3 --grad-estimate-method=rge-forward`
 
+- **Run FedAvg:** Run standard fedavg algorithm.
+  `python fo_fl_main.py --dataset=sst2 --lr=1e-3 --num-clients=5 --num-sample-clients=3 --local-update-steps=1 --train-batch-size=32 --test-batch-size=200 --momentum=0.9`
 
 ## Citation
 
@@ -42,7 +44,8 @@ For READMD.md, we will use `environment.yml` whenever an environment file is nee
 ```
 
 ## Contributors
-DeComFL is currently contributed and maintained by <a href="https://zidongliu.github.io/" style="text-decoration: none;">**Zidong Liu**</a> (ComboCurve), <a href="https://scholar.google.com/citations?user=LuF6KX4AAAAJ&hl=en&oi=ao" style="text-decoration: none;">**Bicheng Ying**</a> (Google) and <a href="https://rogerrogerusc.github.io/" style="text-decoration: none;">**Zhe Li**</a> (RIT), and advised by Prof. <a href="https://haibo-yang-osu.github.io/homepage/" style="text-decoration: none;">**Haibo Yang**</a> (RIT). 
+
+DeComFL is currently contributed and maintained by <a href="https://zidongliu.github.io/" style="text-decoration: none;">**Zidong Liu**</a> (ComboCurve), <a href="https://scholar.google.com/citations?user=LuF6KX4AAAAJ&hl=en&oi=ao" style="text-decoration: none;">**Bicheng Ying**</a> (Google) and <a href="https://rogerrogerusc.github.io/" style="text-decoration: none;">**Zhe Li**</a> (RIT), and advised by Prof. <a href="https://haibo-yang-osu.github.io/homepage/" style="text-decoration: none;">**Haibo Yang**</a> (RIT).
 
 <div style="display: flex; justify-content: space-between;">
     <img src="https://github.com/user-attachments/assets/b3982917-e302-42c3-b396-e33bb9f52c90" alt="Image 1" style="width: 80%;" />

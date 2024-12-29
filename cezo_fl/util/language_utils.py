@@ -11,40 +11,6 @@ import numpy as np
 from transformers import AutoTokenizer
 
 
-# utils for shakespeare dataset
-
-ALL_LETTERS = "\n !\"&'(),-.0123456789:;>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[]abcdefghijklmnopqrstuvwxyz}"
-NUM_LETTERS = len(ALL_LETTERS)
-
-
-def _one_hot(index, size):
-    """returns one-hot vector with given size and value 1 at given index"""
-    vec = [0 for _ in range(size)]
-    vec[int(index)] = 1
-    return vec
-
-
-def letter_to_vec(letter):
-    """returns one-hot representation of given letter"""
-    index = ALL_LETTERS.find(letter)
-    return index
-
-
-def word_to_indices(word):
-    """returns a list of character indices
-
-    Args:
-        word: string
-
-    Return:
-        indices: int list with length len(word)
-    """
-    indices = []
-    for c in word:
-        indices.append(ALL_LETTERS.find(c))
-    return indices
-
-
 # LLM
 SUPPORTED_LLM = {
     "opt-125m": "facebook/opt-125m",
@@ -252,7 +218,7 @@ class XSUMTemplate(Template):
         return f"Document: {document}\n{prompt}{summary}"
 
 
-class LmTask(Enum):
+class LmClassificationTask(Enum):
     sst2 = "sst2"
     rte = "rte"
     multirc = "multirc"
@@ -260,35 +226,38 @@ class LmTask(Enum):
     wic = "wic"
     wsc = "wsc"
     boolq = "boolq"
+
+
+class LmGenerationTask(Enum):
     squad = "squad"
     drop = "drop"
     xsum = "xsum"
 
 
 LM_DATASET_MAP = {
-    LmTask.sst2.name: "glue",
-    LmTask.rte.name: "super_glue",
-    LmTask.multirc.name: "super_glue",
-    LmTask.cb.name: "super_glue",
-    LmTask.wic.name: "super_glue",
-    LmTask.wsc.name: "super_glue",
-    LmTask.boolq.name: "super_glue",
-    LmTask.squad.name: "squad",
-    LmTask.drop.name: "drop",
-    LmTask.xsum.name: "xsum",
+    LmClassificationTask.sst2.name: "glue",
+    LmClassificationTask.rte.name: "super_glue",
+    LmClassificationTask.multirc.name: "super_glue",
+    LmClassificationTask.cb.name: "super_glue",
+    LmClassificationTask.wic.name: "super_glue",
+    LmClassificationTask.wsc.name: "super_glue",
+    LmClassificationTask.boolq.name: "super_glue",
+    LmGenerationTask.squad.name: "squad",
+    LmGenerationTask.drop.name: "drop",
+    LmGenerationTask.xsum.name: "xsum",
 }
 
 LM_TEMPLATE_MAP = {
-    LmTask.sst2.name: SST2Template,
-    LmTask.rte.name: RTETemplate,
-    LmTask.multirc.name: MultiRCTemplate,
-    LmTask.cb.name: CBTemplate,
-    LmTask.wic.name: WICTemplate,
-    LmTask.wsc.name: WSCTemplate,
-    LmTask.boolq.name: BoolQTemplate,
-    LmTask.squad.name: SQuADTemplate,
-    LmTask.drop.name: DROPTemplate,
-    LmTask.xsum.name: XSUMTemplate,
+    LmClassificationTask.sst2.name: SST2Template,
+    LmClassificationTask.rte.name: RTETemplate,
+    LmClassificationTask.multirc.name: MultiRCTemplate,
+    LmClassificationTask.cb.name: CBTemplate,
+    LmClassificationTask.wic.name: WICTemplate,
+    LmClassificationTask.wsc.name: WSCTemplate,
+    LmClassificationTask.boolq.name: BoolQTemplate,
+    LmGenerationTask.squad.name: SQuADTemplate,
+    LmGenerationTask.drop.name: DROPTemplate,
+    LmGenerationTask.xsum.name: XSUMTemplate,
 }
 
 
@@ -348,7 +317,7 @@ def get_lm_loss(
     if loss_type == "f1":  # notice this is not a real score
         return partial(f1_batch_score, tokenizer=tokenizer)
 
-    assert verbalizer_id_map
+    assert verbalizer_id_map is not None
     n_candidate = len(verbalizer_id_map)
     verbalizer_id_list = [verbalizer_id_map[i] for i in range(n_candidate)]
     if loss_type == "full_sentence":

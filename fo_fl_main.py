@@ -4,29 +4,60 @@ import torch
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 
-from cezo_fl.fl_helpers import get_client_name
-from cezo_fl.util import model_helpers, prepare_settings
-from config import get_args_str, get_params
+from cezo_fl.fl_helpers import get_client_name, get_server_name
+from cezo_fl.util import model_helpers
+from experiment_helper import prepare_settings
+from experiment_helper.cli_parser import (
+    GeneralSetting,
+    DeviceSetting,
+    DataSetting,
+    ModelSetting,
+    OptimizerSetting,
+    FederatedLearningSetting,
+)
 from fed_avg.client import FedAvgClient
 from fed_avg.server import FedAvgServer
-from preprocess import preprocess
+from experiment_helper.data import get_dataloaders
+from experiment_helper.device import use_device
+
+
+class CliSetting(
+    GeneralSetting,
+    DeviceSetting,
+    DataSetting,
+    ModelSetting,
+    OptimizerSetting,
+    FederatedLearningSetting,
+):
+    """
+    This is a replacement for regular argparse module.
+    We used a third party library pydantic_setting to make command line interface easier to manage.
+    Example:
+    if __name__ == "__main__":
+        args = CliSetting()
+
+    args will have all parameters defined by all components.
+    """
+
+    pass
 
 
 def setup_server_and_clients(
     args, device_map: dict[str, torch.device], train_loaders
 ) -> FedAvgServer:
     model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
-        args.dataset, prepare_settings.SUPPORTED_LLM.get(args.large_model)
+        args.dataset, args.model_setting
     )
     clients = []
 
     for i in range(args.num_clients):
         client_name = get_client_name(i)
         client_device = device_map[client_name]
-        (client_model, client_optimizer, _) = prepare_settings.prepare_settings_underseed(
-            args, client_device
-        )
+        client_model = prepare_settings.get_model(args.dataset, args.model_setting, args.seed)
         client_model.to(client_device)
+        client_optimizer = prepare_settings.get_optimizer(
+            client_model, args.dataset, args.optimizer_setting
+        )
 
         client = FedAvgClient(
             client_model,
@@ -39,10 +70,9 @@ def setup_server_and_clients(
         )
         clients.append(client)
 
-    server_device = device_map["server"]
-    (server_model, server_optimizer, _) = prepare_settings.prepare_settings_underseed(
-        args, server_device
-    )
+    server_device = device_map[get_server_name()]
+
+    server_model = prepare_settings.get_model(args.dataset, args.model_setting, args.seed)
     server_model.to(server_device)
     server = FedAvgServer(
         clients,
@@ -59,18 +89,18 @@ def setup_server_and_clients(
 
 
 if __name__ == "__main__":
-    args = get_params().parse_args()
-    if args.dataset == "shakespeare":
-        args.num_clients = 139
+    args = CliSetting()
     print(args)
-    device_map, train_loaders, test_loader = preprocess(args)
+    device_map = use_device(args.device_setting, args.num_clients)
+    train_loaders, test_loader = get_dataloaders(
+        args.data_setting, args.num_clients, args.seed, args.get_hf_model_name()
+    )
 
     server = setup_server_and_clients(args, device_map, train_loaders)
 
     if args.log_to_tensorboard:
         tensorboard_sub_folder = "-".join(
             [
-                get_args_str(args),
                 server.server_model.model_name,
                 model_helpers.get_current_datetime_str(),
             ]
@@ -79,7 +109,7 @@ if __name__ == "__main__":
             path.join(
                 "tensorboards",
                 "fed_avg",
-                args.dataset,
+                args.dataset.value,
                 args.log_to_tensorboard,
                 tensorboard_sub_folder,
             )

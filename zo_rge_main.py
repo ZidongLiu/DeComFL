@@ -2,86 +2,42 @@ from os import path
 from typing import Any
 
 import torch
-import torch.nn as nn
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 
-from cezo_fl.coordinate_gradient_estimator import CoordinateGradientEstimator as CGE
-from cezo_fl.models.cnn_fashion import CNN_FMNIST
-from cezo_fl.models.cnn_mnist import CNN_MNIST
-from cezo_fl.models.lenet import LeNet
-from cezo_fl.models.lstm import CharLSTM
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
 from cezo_fl.util import model_helpers
-from cezo_fl.util.checkpoint import CheckPoint
+from cezo_fl.fl_helpers import get_server_name
 from cezo_fl.util.metrics import Metric, accuracy
-from config import get_args_str, get_params
-from preprocess import preprocess
+
+from experiment_helper.cli_parser import (
+    GeneralSetting,
+    DeviceSetting,
+    DataSetting,
+    OptimizerSetting,
+    ModelSetting,
+    NormalTrainingLoopSetting,
+    RGESetting,
+)
+from experiment_helper.device import use_device
+from experiment_helper.data import (
+    get_dataloaders,
+    ImageClassificationTask,
+    LmClassificationTask,
+    LmGenerationTask,
+)
+from experiment_helper import prepare_settings
 
 
-def prepare_settings(args, device):
-    if args.dataset == "mnist":
-        model = CNN_MNIST().to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=args.lr,
-            weight_decay=1e-5,
-            momentum=args.momentum,
-        )
-        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
-    elif args.dataset == "cifar10":
-        model = LeNet().to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=args.lr,
-            weight_decay=5e-4,
-            momentum=args.momentum,
-        )
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
-    elif args.dataset == "fashion":
-        model = CNN_FMNIST().to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=args.lr,
-            weight_decay=1e-5,
-            momentum=args.momentum,
-        )
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
-    elif args.dataset == "shakespeare":
-        model = CharLSTM().to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=args.lr,
-            momentum=0.9,
-            weight_decay=5e-4,
-        )
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
-
-    if args.grad_estimate_method in ["rge-central", "rge-forward"]:
-        method = args.grad_estimate_method[4:]
-        print(f"Using RGE {method}")
-        grad_estimator = RGE(
-            model,
-            parameters=model_helpers.get_trainable_model_parameters(model),
-            mu=args.mu,
-            num_pert=args.num_pert,
-            grad_estimate_method=method,
-            device=device,
-        )
-    elif args.grad_estimate_method in ["cge-forward"]:
-        print("Using CGE forward")
-        grad_estimator = CGE(
-            model,
-            mu=args.mu,
-            device=device,
-        )
+def get_scheduler(
+    optimizer: torch.optim.SGD,
+    dataset: ImageClassificationTask | LmClassificationTask | LmGenerationTask,
+) -> torch.optim.lr_scheduler.LRScheduler:
+    if args.dataset == ImageClassificationTask.mnist:
+        return torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
+    elif args.dataset in [ImageClassificationTask.cifar10, ImageClassificationTask.fashion]:
+        return torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
     else:
-        raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
-    return model, criterion, optimizer, scheduler, grad_estimator
+        raise Exception(f"{dataset.value} not support yet in zo_rge_main")
 
 
 def get_warmup_lr(args: Any, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
@@ -107,7 +63,12 @@ def train_model(epoch: int) -> tuple[float, float]:
                 images, labels = images.to(device), labels.to(device)
             # update models
             optimizer.zero_grad()
-            grad_estimator.compute_grad(images, labels, criterion, seed=iteration**2 + iteration)
+            grad_estimator.compute_grad(
+                images,
+                labels,
+                lambda x, y: criterion(model_inferences.train_inference(model, x), y),
+                seed=iteration**2 + iteration,
+            )
             optimizer.step()
 
             pred = model(images)
@@ -138,27 +99,58 @@ def eval_model(epoch: int) -> tuple[float, float]:
     return eval_loss.avg, eval_accuracy.avg
 
 
+class Setting(
+    GeneralSetting,
+    DeviceSetting,
+    DataSetting,
+    OptimizerSetting,
+    ModelSetting,
+    RGESetting,
+    NormalTrainingLoopSetting,
+):
+    """
+    This is a replacement for regular argparse module.
+    We used a third party library pydantic_setting to make command line interface easier to manage.
+    Example:
+    if __name__ == "__main__":
+        args = CliSetting()
+
+    args will have all parameters defined by all components.
+    """
+
+    pass
+
+
 if __name__ == "__main__":
-    args = get_params().parse_args()
+    args = Setting()
     torch.manual_seed(args.seed)
 
-    # set num_clients = 1 to make sure there's 1 train_loader
-    args.num_clients = 1
-    device_map, train_loaders, test_loader = preprocess(args)
+    device_map = use_device(args.device_setting, 1)
+    train_loaders, test_loader = get_dataloaders(
+        args.data_setting, 1, args.seed, args.get_hf_model_name()
+    )
     train_loader = train_loaders[0]
-    device = device_map["server"]
+    device = device_map[get_server_name()]
 
-    model, criterion, optimizer, scheduler, grad_estimator = prepare_settings(args, device)
+    criterion = torch.nn.CrossEntropyLoss()
+    model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
+        args.dataset, args.model_setting
+    )
+    model = prepare_settings.get_model(args.dataset, args.model_setting, args.seed).to(device)
+    optimizer = prepare_settings.get_optimizer(
+        model=model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
+    )
+    scheduler = get_scheduler(optimizer, args.dataset)
+    grad_estimator = prepare_settings.get_random_gradient_estimator(
+        model=model, device=device, rge_setting=args.rge_setting, model_setting=args.model_setting
+    )
 
-    checkpoint = CheckPoint(args, model, optimizer, grad_estimator)
-
-    args_str = get_args_str(args) + "-" + model.model_name
     if args.log_to_tensorboard:
-        tensorboard_sub_folder = args_str + "-" + model_helpers.get_current_datetime_str()
+        tensorboard_sub_folder = model.model_name + "-" + model_helpers.get_current_datetime_str()
         writer = SummaryWriter(
             path.join(
                 "tensorboards",
-                args.dataset,
+                args.dataset.value,
                 args.log_to_tensorboard,
                 tensorboard_sub_folder,
             )
@@ -173,13 +165,6 @@ if __name__ == "__main__":
         if args.log_to_tensorboard:
             writer.add_scalar("Loss/test", eval_loss, epoch)
             writer.add_scalar("Accuracy/test", eval_accuracy, epoch)
-
-        if checkpoint.should_update(eval_loss, eval_accuracy, epoch):
-            checkpoint.save(
-                args_str + "-" + model_helpers.get_current_datetime_str(),
-                epoch,
-                subfolder=args.log_to_tensorboard,
-            )
 
     if args.log_to_tensorboard:
         writer.close()
