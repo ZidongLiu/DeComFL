@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 from datasets import load_dataset as huggingface_load_dataset
 
 from pydantic import Field, AliasChoices
-from pydantic_settings import BaseSettings, CliImplicitFlag
+from pydantic_settings import BaseSettings, CliImplicitFlag, SettingsConfigDict
 
 from cezo_fl.util.data_split import dirichlet_split
 from cezo_fl.util.language_utils import (
@@ -31,6 +31,9 @@ class ImageClassificationTask(Enum):
 
 
 class DataSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
+    # pydantic's config, not neural network model
+    model_config = SettingsConfigDict(frozen=True)
+
     # data
     dataset: ImageClassificationTask | LmClassificationTask | LmGenerationTask = Field(
         default=ImageClassificationTask.mnist

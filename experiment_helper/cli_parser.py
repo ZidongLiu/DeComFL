@@ -3,7 +3,7 @@ from functools import cached_property
 
 import torch
 from pydantic import Field, AliasChoices
-from pydantic_settings import BaseSettings, CliImplicitFlag
+from pydantic_settings import BaseSettings, CliImplicitFlag, SettingsConfigDict
 from experiment_helper.experiment_typing import (
     LargeModel,
     ModelDtype,
@@ -13,7 +13,12 @@ from cezo_fl.util.language_utils import SUPPORTED_LLM
 from experiment_helper.data import DataSetting  # noqa: F401, for a central export place for all settings
 
 
-class GeneralSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
+class FrozenSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
+    # pydantic's config, not neural network model
+    model_config = SettingsConfigDict(frozen=True)
+
+
+class GeneralSetting(FrozenSetting):
     # general
     seed: int = Field(
         default=365,
@@ -30,7 +35,7 @@ class GeneralSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=
         return GeneralSetting()
 
 
-class DeviceSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
+class DeviceSetting(FrozenSetting):
     # device
     cuda: CliImplicitFlag[bool] = Field(
         default=True, description="--no-cuda will disable cuda training"
@@ -45,7 +50,7 @@ class DeviceSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=T
         return DeviceSetting()
 
 
-class ModelSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
+class ModelSetting(FrozenSetting):
     # model
     large_model: LargeModel = Field(
         default=LargeModel.opt_125m,
@@ -76,7 +81,7 @@ class ModelSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=Tr
         }[self.model_dtype]
 
 
-class OptimizerSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
+class OptimizerSetting(FrozenSetting):
     # optimizer
     lr: float = Field(default=1e-4)
     momentum: float = Field(default=0)
@@ -86,7 +91,7 @@ class OptimizerSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_arg
         return OptimizerSetting()
 
 
-class RGESetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
+class RGESetting(FrozenSetting):
     # zo_grad_estimator
     mu: float = Field(default=1e-3, description="Perturbation step to measure local gradients")
     num_pert: int = Field(
@@ -114,7 +119,7 @@ class RGESetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True
         return RGESetting()
 
 
-class NormalTrainingLoopSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
+class NormalTrainingLoopSetting(FrozenSetting):
     # non-fl training loop
     epoch: int = Field(default=500)
     warmup_epochs: int = Field(default=5, validation_alias=AliasChoices("warmup-epochs"))
@@ -124,7 +129,7 @@ class NormalTrainingLoopSetting(BaseSettings, cli_parse_args=True, cli_ignore_un
         return NormalTrainingLoopSetting()
 
 
-class FederatedLearningSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
+class FederatedLearningSetting(FrozenSetting):
     # Federated Learning
     iterations: int = Field(default=100)
     eval_iterations: int = Field(default=20, validation_alias=AliasChoices("eval-iterations"))
@@ -137,7 +142,7 @@ class FederatedLearningSetting(BaseSettings, cli_parse_args=True, cli_ignore_unk
         return FederatedLearningSetting()
 
 
-class ByzantineSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
+class ByzantineSetting(FrozenSetting):
     # Byzantinem TODO improve options
     aggregation: Literal["mean", "median", "trim", "krum"] = Field(default="mean")
     byz_type: str = Field(default="no_byz", validation_alias=AliasChoices("byz-type"))
