@@ -8,7 +8,7 @@ import torch
 
 from cezo_fl.client import AbstractClient
 from cezo_fl.random_gradient_estimator import RandomGradientEstimator
-from cezo_fl.run_client_jobs import execute_sampled_clients
+from cezo_fl.run_client_jobs import execute_sampled_clients, rpc_execute_sampled_clients
 from cezo_fl.shared import CriterionType
 from cezo_fl.util.metrics import Metric
 
@@ -163,8 +163,11 @@ class CeZO_Server:
         seeds = [random.randint(0, 1000000) for _ in range(self.local_update_steps)]
 
         # Step 1 & 2: pull model and local update
-        step_train_loss, step_train_accuracy, local_grad_scalar_list = execute_sampled_clients(
-            self, sampled_client_index, seeds, parallel=False
+        # step_train_loss, step_train_accuracy, local_grad_scalar_list = execute_sampled_clients(
+        #     self, sampled_client_index, seeds, parallel=False
+        # )
+        step_train_loss, step_train_accuracy, local_grad_scalar_list = rpc_execute_sampled_clients(
+            self, sampled_client_index, seeds
         )
 
         for index in sampled_client_index:

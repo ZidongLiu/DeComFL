@@ -2,9 +2,11 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Sequence, TypeAlias
 
 import torch
+from torch.distributed import rpc
 
 from cezo_fl.client import AbstractClient, LocalUpdateResult
 from cezo_fl.util.metrics import Metric
+from cezo_fl.fl_helpers import get_client_name
 
 
 def parallalizable_client_job(
@@ -38,7 +40,19 @@ def parallalizable_client_job(
         client_local_update_result = client.local_update(seeds=local_update_seeds)
 
     # move result to server device and return
-    return client_local_update_result.to(server_device)
+    return client_local_update_result.to("cpu")
+
+
+def parallalizable_client_job_rref(
+    clientRRef: AbstractClient,
+    pull_seeds_list: Sequence[Sequence[int]],
+    pull_grad_list: Sequence[Sequence[torch.Tensor]],
+    local_update_seeds: Sequence[int],
+    server_device: torch.device,
+) -> LocalUpdateResult:
+    return parallalizable_client_job(
+        clientRRef.to_here(), pull_seeds_list, pull_grad_list, local_update_seeds, server_device
+    )
 
 
 # Outer list is for clients and inner list for local update data
@@ -94,6 +108,36 @@ def execute_sampled_clients(
                 parallalizable_client_job(client, seeds_list, grad_list, seeds, server.device)
             )
 
+    for client_local_update_result in client_results:
+        step_train_loss.update(client_local_update_result.step_loss)
+        step_train_accuracy.update(client_local_update_result.step_accuracy)
+        local_grad_scalar_list.append(client_local_update_result.grad_tensors)
+
+    return step_train_loss, step_train_accuracy, local_grad_scalar_list
+
+
+def rpc_execute_sampled_clients(server, sampled_client_index: Sequence[int], seeds: Sequence[int]):
+    local_grad_scalar_list: LOCAL_GRAD_SCALAR_LIST = []  # Clients X Local_update
+    step_train_loss = Metric("Step train loss")
+    step_train_accuracy = Metric("Step train accuracy")
+
+    futures = []
+    for index in sampled_client_index:
+        client = server.clients[index]
+        last_update_iter = server.client_last_updates[index]
+        # The seed and grad in last_update_iter is fetched as well
+        # Note at that iteration, we just reset the client model so that iteration
+        # information is needed as well.
+        seeds_list = server.seed_grad_records.fetch_seed_records(last_update_iter)
+        grad_list = server.seed_grad_records.fetch_grad_records(last_update_iter)
+        grad_list = [[tensor.to("cpu") for tensor in tensors] for tensors in grad_list]
+        args = (client, seeds_list, grad_list, seeds, server.device)
+
+        futures.append(
+            rpc.rpc_async(to=get_client_name(index), func=parallalizable_client_job_rref, args=args)
+        )
+
+    client_results = [f.wait().to(server.device) for f in futures]
     for client_local_update_result in client_results:
         step_train_loss.update(client_local_update_result.step_loss)
         step_train_accuracy.update(client_local_update_result.step_accuracy)
