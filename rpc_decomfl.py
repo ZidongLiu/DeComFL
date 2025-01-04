@@ -7,6 +7,8 @@ from tensorboardX import SummaryWriter
 from tqdm import tqdm
 
 from byzantine import aggregation as byz_agg
+
+
 from byzantine import attack as byz_attack
 from cezo_fl.client import ResetClient
 from cezo_fl.fl_helpers import get_client_name, get_server_name
@@ -148,15 +150,32 @@ def rpc_worker(rank, world_size, args: CliSetting):
     rpc.shutdown()
 
 
+def print_work_info(client_ref):
+    print("worker", rpc.get_worker_info())
+    print("client", client_ref.owner_name())
+    print(client_ref.to_here().device)
+    return client_ref.to_here().device
+
+
 def rpc_server(rank, world_size, args: CliSetting):
     """Caller function that sends an RPC to the worker."""
     rpc.init_rpc(get_server_name(), rank=rank, world_size=world_size)
+    print(args)
     # Name of the worker to send the task to
     device_map = use_device(args.device_setting, args.num_clients)
     _, test_loader = get_dataloaders(
         args.data_setting, args.num_clients, args.seed, args.get_hf_model_name()
     )
     server = setup_server_and_clients(args, device_map, test_loader)
+    # add 5s sleep here, need to fix this
+    # time.sleep(5)
+
+    ret = rpc.rpc_async(
+        get_client_name(0),
+        print_work_info,
+        (server.clients[0],),
+    )
+    print(ret.wait())
 
     # with tqdm(total=args.iterations, desc="Training:") as t, torch.no_grad():
     #     for ite in range(args.iterations):
