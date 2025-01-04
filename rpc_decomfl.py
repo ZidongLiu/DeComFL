@@ -170,22 +170,22 @@ def rpc_server(rank, world_size, args: CliSetting):
     # add 5s sleep here, need to fix this
     # time.sleep(5)
 
-    ret = rpc.rpc_async(
-        get_client_name(0),
-        print_work_info,
-        (server.clients[0],),
-    )
-    print(ret.wait())
+    # ret = rpc.rpc_async(
+    #     get_client_name(0),
+    #     print_work_info,
+    #     (server.clients[0],),
+    # )
+    # print(ret.wait())
+    # server.train_one_step(0)
+    with tqdm(total=args.iterations, desc="Training:") as t, torch.no_grad():
+        for ite in range(args.iterations):
+            step_loss, step_accuracy = server.train_one_step(ite)
+            t.set_postfix({"Loss": step_loss, "Accuracy": step_accuracy})
+            t.update(1)
 
-    # with tqdm(total=args.iterations, desc="Training:") as t, torch.no_grad():
-    #     for ite in range(args.iterations):
-    #         step_loss, step_accuracy = server.train_one_step(ite)
-    #         t.set_postfix({"Loss": step_loss, "Accuracy": step_accuracy})
-    #         t.update(1)
-
-    #         # eval
-    #         if args.eval_iterations != 0 and (ite + 1) % args.eval_iterations == 0:
-    #             eval_loss, eval_accuracy = server.eval_model(test_loader)
+            # eval
+            if args.eval_iterations != 0 and (ite + 1) % args.eval_iterations == 0:
+                eval_loss, eval_accuracy = server.eval_model(test_loader)
 
     rpc.shutdown()
 
