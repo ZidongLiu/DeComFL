@@ -13,6 +13,9 @@ from cezo_fl.models.cnn_fashion import CNN_FMNIST
 from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.models.lenet import LeNet
 from cezo_fl.random_gradient_estimator import RandomGradientEstimator
+from cezo_fl.random_gradient_estimators.hessian_random_gradient_estimator import (
+    HessianRandomGradientEstimator,
+)
 from cezo_fl.util.language_utils import (
     LM_TEMPLATE_MAP,
     SUPPORTED_LLM,
@@ -194,7 +197,7 @@ def get_model_inferences_and_metrics(
 
 def get_random_gradient_estimator(
     model: AllModel, device: torch.device, rge_setting: RGESetting, model_setting: ModelSetting
-):
+) -> RandomGradientEstimator:
     no_optim = not rge_setting.optim
     return RandomGradientEstimator(
         parameters=model_helpers.get_trainable_model_parameters(model),
@@ -206,4 +209,16 @@ def get_random_gradient_estimator(
         # To save memory consumption, we have to use parameter-wise perturb + no_optim together.
         sgd_only_no_optim=no_optim,
         paramwise_perturb=no_optim,
+    )
+
+
+def get_hessian_random_gradient_estimator(
+    model: AllModel, device: torch.device, rge_setting: RGESetting, model_setting: ModelSetting
+) -> HessianRandomGradientEstimator:
+    return HessianRandomGradientEstimator(
+        parameters=model_helpers.get_trainable_model_parameters(model),
+        mu=rge_setting.mu,
+        num_pert=rge_setting.num_pert,
+        device=device,
+        torch_dtype=model_setting.get_torch_dtype(),
     )
