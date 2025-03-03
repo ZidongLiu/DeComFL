@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from byzantine import aggregation as byz_agg
 from byzantine import attack as byz_attack
+from byzantine import bayesian_estimate as bys_estimate
 from cezo_fl.client import ResetClient
 from cezo_fl.fl_helpers import get_client_name, get_server_name
 from cezo_fl.server import CeZO_Server
@@ -151,6 +152,9 @@ def setup_server_and_clients(
         server.register_aggregation_func(byz_agg.trim)
     elif args.aggregation == "krum":
         server.register_aggregation_func(byz_agg.krum)
+    # Haven't picked a name for our method. 
+    elif args.aggregation == "our":
+        server.register_aggregation_func(bys_estimate.Bayesian_estimate)
     else:
         raise Exception(
             "aggregation type should be one of mean, median, trim, krum. "

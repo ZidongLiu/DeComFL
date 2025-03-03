@@ -11,6 +11,7 @@ from cezo_fl.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.run_client_jobs import execute_sampled_clients
 from cezo_fl.shared import CriterionType
 from cezo_fl.util.metrics import Metric
+from byzantine.bayesian_estimate import Bayesian_estimate
 
 # Type alias
 # OneRoundGradScalars contains a list (K local update) of (P perturbation) gradient scalars.
@@ -105,6 +106,12 @@ class CeZO_Server:
 
         self._aggregation_func: AggregationFunc = fed_avg
         self._attack_func: AttackFunc = lambda x: x  # No attach
+        # For byzantine estimation
+        self.mean = 0 # mean of all gradient scalars
+        self.variance = 0 # variance of gradient scalars
+        self.pi = 0 # percentage of modified values
+        self.list_flag = [0 for _ in range(num_sample_clients)] # If the flag is 0, the value is not modified. 
+        
 
     def set_server_model_and_criterion(
         self,
@@ -172,7 +179,18 @@ class CeZO_Server:
 
         # Step 3 aggregation of local grad scalar with (possible attack).
         local_grad_scalar_list = self.attack_func(local_grad_scalar_list)
-        global_grad_scalar = self.aggregation_func(local_grad_scalar_list)
+        
+        # Initialize mean, variance at the beginning of first aggregation (iteration 0)
+        if iteration == 0: 
+            mean, variance = mean_and_variance(local_grad_scalar_list)
+            # Now we only consider using 1 perturbation and 1 local update, so we only need 1 mean and 1 variance. 
+            self.mean = mean[0]
+            self.variance = variance[0]
+        if self._aggregation_func is Bayesian_estimate: 
+            global_grad_scalar = self.aggregation_func(local_grad_scalar_list, )
+        else: 
+            global_grad_scalar = self.aggregation_func(local_grad_scalar_list)
+
 
         # Step 4: update the last update records
         self.seed_grad_records.add_records(seeds=seeds, grad=global_grad_scalar)
@@ -225,3 +243,16 @@ class CeZO_Server:
             f"Eval Loss:{eval_loss.avg:.4f}, " f"Accuracy:{eval_accuracy.avg * 100:.2f}%",
         )
         return eval_loss.avg, eval_accuracy.avg
+
+
+
+def mean_and_variance(local_grad_scalar_list: list[list[torch.Tensor]])->tuple[list[torch.Tensor], list[torch.Tensor]]: 
+    num_sample_clients = len(local_grad_scalar_list)
+    grad_mean: list[torch.Tensor] = []
+    grad_variance: list[torch.Tensor] = []
+    for each_local_step_update in zip(*local_grad_scalar_list):
+        mean_val = sum(each_local_step_update) / num_sample_clients
+        grad_mean.append(mean_val)
+        var_val = sum((grad - mean_val).pow(2) for grad in each_local_step_update) / num_sample_clients
+        grad_variance.append(var_val)
+    return grad_mean, grad_variance
