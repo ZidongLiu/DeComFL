@@ -187,7 +187,7 @@ class CeZO_Server:
             self.mean = mean[0]
             self.variance = variance[0]
         if self._aggregation_func is Bayesian_estimate: 
-            global_grad_scalar = self.aggregation_func(local_grad_scalar_list, )
+            self.pi, self.list_flag, self.mean, self.variance, global_grad_scalar = self.aggregation_func(local_grad_scalar_list, self.mean, self.variance, self.pi, self.list_flag)
         else: 
             global_grad_scalar = self.aggregation_func(local_grad_scalar_list)
 
