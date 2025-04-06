@@ -12,8 +12,8 @@ from cezo_fl.util.model_helpers import AllModel
 from cezo_fl.models.cnn_fashion import CNN_FMNIST
 from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.models.lenet import LeNet
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator
-from cezo_fl.random_gradient_estimators.hessian_random_gradient_estimator import (
+from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradientEstimator
+from cezo_fl.gradient_estimators.hessian_random_gradient_estimator import (
     HessianRandomGradientEstimator,
 )
 from cezo_fl.util.language_utils import (

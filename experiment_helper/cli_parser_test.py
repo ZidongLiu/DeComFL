@@ -14,7 +14,7 @@ from experiment_helper.experiment_typing import (
     LargeModel,
     ModelDtype,
 )
-from cezo_fl.random_gradient_estimator import RandomGradEstimateMethod
+from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradEstimateMethod
 
 
 def test_general_setting():

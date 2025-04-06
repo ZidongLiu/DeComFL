@@ -8,7 +8,7 @@ from experiment_helper.experiment_typing import (
     LargeModel,
     ModelDtype,
 )
-from cezo_fl.random_gradient_estimator import RandomGradEstimateMethod
+from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradEstimateMethod
 from cezo_fl.util.language_utils import SUPPORTED_LLM
 from experiment_helper.data import DataSetting  # noqa: F401, for a central export place for all settings
 

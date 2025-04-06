@@ -8,7 +8,7 @@ from typing import Iterator, Sequence, Callable, Any
 import torch
 from torch.utils.data import DataLoader
 
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator
+from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.typing import CriterionType
 from cezo_fl.util.metrics import Metric
 

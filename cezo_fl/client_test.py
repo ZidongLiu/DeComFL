@@ -5,7 +5,7 @@ from torch.optim import SGD
 
 from cezo_fl.client import SyncClient
 from cezo_fl.models.cnn_mnist import CNN_MNIST
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator
+from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.util.metrics import accuracy
 from cezo_fl.fl_helpers import get_server_name
 from experiment_helper import device, cli_parser, data

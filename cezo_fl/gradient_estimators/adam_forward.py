@@ -1,5 +1,5 @@
 from typing import Callable, Iterator, Sequence
-from cezo_fl.random_gradient_estimators.abstract_gradient_estimator import AbstractGradientEstimator
+from cezo_fl.gradient_estimators.abstract_gradient_estimator import AbstractGradientEstimator
 
 import torch
 from torch.nn import Parameter

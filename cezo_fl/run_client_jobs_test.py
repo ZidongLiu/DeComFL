@@ -9,7 +9,10 @@ from torch.optim import SGD
 
 from cezo_fl.client import ResetClient
 from cezo_fl.models.cnn_mnist import CNN_MNIST
-from cezo_fl.random_gradient_estimator import RandomGradEstimateMethod, RandomGradientEstimator
+from cezo_fl.gradient_estimators.random_gradient_estimator import (
+    RandomGradEstimateMethod,
+    RandomGradientEstimator,
+)
 from cezo_fl.run_client_jobs import execute_sampled_clients, parallalizable_client_job
 from cezo_fl.util.metrics import accuracy
 from cezo_fl.fl_helpers import get_server_name

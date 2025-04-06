@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch import nn
 
-from cezo_fl import random_gradient_estimator
+from cezo_fl.gradient_estimators import random_gradient_estimator
 
 
 class LinearModel(nn.Module):
