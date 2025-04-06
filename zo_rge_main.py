@@ -141,7 +141,7 @@ if __name__ == "__main__":
         model=model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
     )
     scheduler = get_scheduler(optimizer, args.dataset)
-    grad_estimator = prepare_settings.get_random_gradient_estimator(
+    grad_estimator = prepare_settings.get_hessian_random_gradient_estimator(
         model=model, device=device, rge_setting=args.rge_setting, model_setting=args.model_setting
     )
 

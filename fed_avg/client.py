@@ -5,7 +5,7 @@ from peft import PeftModel
 from torch.utils.data import DataLoader
 from transformers.models.opt.modeling_opt import OPTForCausalLM
 
-from cezo_fl.shared import CriterionType
+from cezo_fl.typing import CriterionType
 from cezo_fl.util.metrics import Metric
 
 
