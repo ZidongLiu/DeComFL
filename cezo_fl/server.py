@@ -7,7 +7,7 @@ from typing import Any, Callable, Iterable, Sequence
 import torch
 
 from cezo_fl.client import AbstractClient
-from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradientEstimator
+from cezo_fl.gradient_estimators.abstract_gradient_estimator import AbstractGradientEstimator
 from cezo_fl.run_client_jobs import execute_sampled_clients
 from cezo_fl.typing import CriterionType
 from cezo_fl.util.metrics import Metric
@@ -101,7 +101,7 @@ class CeZO_Server:
         self.server_criterion: CriterionType | None = None
         self.server_accuracy_func = None
         self.optim: torch.optim.Optimizer | None = None
-        self.random_gradient_estimator: RandomGradientEstimator | None = None
+        self.gradient_estimator: AbstractGradientEstimator | None = None
 
         self._aggregation_func: AggregationFunc = fed_avg
         self._attack_func: AttackFunc = lambda x: x  # No attach
@@ -113,21 +113,21 @@ class CeZO_Server:
         criterion: CriterionType,
         accuracy_func,
         optimizer: torch.optim.Optimizer,
-        random_gradient_estimator: RandomGradientEstimator,
+        gradient_estimator: AbstractGradientEstimator,
     ) -> None:
         self.server_model = model
         self.server_model_inference = model_inference
         self.server_criterion = criterion
         self.server_accuracy_func = accuracy_func
         self.optim = optimizer
-        self.random_gradient_estimator = random_gradient_estimator
+        self.gradient_estimator = gradient_estimator
 
     def get_sampled_client_index(self) -> list[int]:
         return random.sample(range(len(self.clients)), self.num_sample_clients)
 
     def set_perturbation(self, num_pert: int) -> None:
         for client in self.clients:
-            client.random_gradient_estimator().num_pert = num_pert
+            client.gradient_estimator().num_pert = num_pert
 
     def set_learning_rate(self, lr: float) -> None:
         # Client
@@ -183,9 +183,9 @@ class CeZO_Server:
 
         if self.server_model:
             assert self.optim
-            assert self.random_gradient_estimator
+            assert self.gradient_estimator
             self.server_model.train()
-            self.random_gradient_estimator.update_model_given_seed_and_grad(
+            self.gradient_estimator.update_model_given_seed_and_grad(
                 self.optim,
                 seeds,
                 global_grad_scalar,
@@ -196,7 +196,7 @@ class CeZO_Server:
     def eval_model(self, test_loader: Iterable[Any]) -> tuple[float, float]:
         assert (
             self.server_model
-            and self.random_gradient_estimator
+            and self.gradient_estimator
             and self.server_criterion
             and self.server_accuracy_func
             and self.server_model_inference
@@ -209,11 +209,9 @@ class CeZO_Server:
             for _, (batch_inputs, batch_labels) in enumerate(test_loader):
                 if (
                     self.device != torch.device("cpu")
-                    or self.random_gradient_estimator.torch_dtype != torch.float32
+                    or self.gradient_estimator.torch_dtype != torch.float32
                 ):
-                    batch_inputs = batch_inputs.to(
-                        self.device, self.random_gradient_estimator.torch_dtype
-                    )
+                    batch_inputs = batch_inputs.to(self.device, self.gradient_estimator.torch_dtype)
                     # In generation mode, labels are not tensor.
                     if isinstance(batch_labels, torch.Tensor):
                         batch_labels = batch_labels.to(self.device)

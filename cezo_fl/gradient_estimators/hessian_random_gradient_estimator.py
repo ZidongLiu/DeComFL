@@ -5,7 +5,6 @@ import torch
 from torch.nn import Parameter
 
 
-# TODO: split this class into abstract class and several subcalsses.
 class HessianRandomGradientEstimator:
     def __init__(
         self,

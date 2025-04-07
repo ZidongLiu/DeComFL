@@ -5,8 +5,11 @@ from abc import ABC, abstractmethod
 
 
 class AbstractGradientEstimator(ABC):
+    num_pert: int
     device: str | torch.device | None
+    torch_dtype: torch.dtype
     parameters_list: list[torch.nn.Parameter]
+    sgd_only_no_optim: bool = False
 
     def get_rng(self, seed: int, perturb_index: int) -> torch.Generator:
         return torch.Generator(device=self.device).manual_seed(
