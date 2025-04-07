@@ -13,6 +13,7 @@ from cezo_fl.models.cnn_fashion import CNN_FMNIST
 from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.models.lenet import LeNet
 from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradientEstimator
+from cezo_fl.gradient_estimators.adam_forward import AdamForwardGradientEstimator
 from cezo_fl.gradient_estimators.hessian_random_gradient_estimator import (
     HessianRandomGradientEstimator,
 )
@@ -216,6 +217,18 @@ def get_hessian_random_gradient_estimator(
     model: AllModel, device: torch.device, rge_setting: RGESetting, model_setting: ModelSetting
 ) -> HessianRandomGradientEstimator:
     return HessianRandomGradientEstimator(
+        parameters=model_helpers.get_trainable_model_parameters(model),
+        mu=rge_setting.mu,
+        num_pert=rge_setting.num_pert,
+        device=device,
+        torch_dtype=model_setting.get_torch_dtype(),
+    )
+
+
+def get_adam_forward_gradient_estimator(
+    model: AllModel, device: torch.device, rge_setting: RGESetting, model_setting: ModelSetting
+) -> AdamForwardGradientEstimator:
+    return AdamForwardGradientEstimator(
         parameters=model_helpers.get_trainable_model_parameters(model),
         mu=rge_setting.mu,
         num_pert=rge_setting.num_pert,

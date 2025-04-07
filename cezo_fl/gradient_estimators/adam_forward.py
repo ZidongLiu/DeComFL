@@ -56,7 +56,7 @@ class AdamForwardGradientEstimator(AbstractGradientEstimator):
     ) -> torch.Tensor:
         grad, perturbation_dir_grads = self._zo_grad_estimate(batch_inputs, labels, loss_fn, seed)
         self.put_grad(grad)
-        return grad
+        return perturbation_dir_grads
 
     def _zo_grad_estimate(
         self,
@@ -96,7 +96,7 @@ class AdamForwardGradientEstimator(AbstractGradientEstimator):
     ) -> None:
         assert len(iteration_seeds) == len(iteration_grad_scalar)
 
-        # NOTE: K_vec updates for all local updates
+        # NOTE: Question: how to update K_vec updates for more than 1 local update?
         for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
             self.update_K_vec(one_update_grad_dirs, one_update_seed)
 

@@ -36,15 +36,17 @@ def fed_avg(
 
 class SeedAndGradientRecords:
     def __init__(self) -> None:
-        # For seed_records/grad_records, each entry stores info related to 1 iteration
-        # seed_records[i]: length = number of local updates K
-        # seed_records[i][k]: seed_k
-        # grad_records[i]: [vector for local_update_k for k in range(K)]
-        # grad_records[i][k]: scalar for 1 perturb or vector for >=1 perturb
-        # What should happen on clients pull server using grad_records[i][k]
-        # client use seed_records[i][k] to generate perturbation(s)
-        # client_grad[i][k]:
-        # vector = mean(perturbations[j] * grad_records[i][k][j] for j)
+        """
+        For seed_records/grad_records, each entry stores info related to 1 iteration:
+        - seed_records[i]: length = number of local updates K
+        - seed_records[i][k]: seed_k
+        - grad_records[i]: [vector for local_update_k for k in range(K)]
+        - grad_records[i][k]: scalar for 1 perturb or vector for >=1 perturb
+
+        What should happen on clients pull server using grad_records[i][k]:
+        - client use seed_records[i][k] to generate perturbation(s)
+        - client_grad[i][k]: vector = mean(perturbations[j] * grad_records[i][k][j] for j)
+        """
 
         self.seed_records: deque[list[int]] = deque()
         self.grad_records: deque[list[torch.Tensor]] = deque()
@@ -187,6 +189,10 @@ class CeZO_Server:
             self.server_model.train()
             self.gradient_estimator.update_model_given_seed_and_grad(
                 self.optim,
+                seeds,
+                global_grad_scalar,
+            )
+            self.gradient_estimator.update_gradient_estimator_given_seed_and_grad(
                 seeds,
                 global_grad_scalar,
             )

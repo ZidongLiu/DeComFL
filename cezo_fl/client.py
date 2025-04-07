@@ -177,6 +177,10 @@ class ResetClient(AbstractClient):
                 iteration_seeds,
                 iteration_grad_sclar,
             )
+            self.grad_estimator.update_gradient_estimator_given_seed_and_grad(
+                iteration_seeds,
+                iteration_grad_sclar,
+            )
 
         # screenshot current pulled model
         self.last_pull_state_dict = None  # remove previous record to avoid memory spike

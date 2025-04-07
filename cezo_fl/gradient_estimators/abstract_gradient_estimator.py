@@ -82,8 +82,8 @@ class AbstractGradientEstimator(ABC):
         """
         Update the gradient_estimator helpers(for decomfl v2 algorithms, like K_vec, smoothing_factor) using seeds and associated perturbation gradients.
         Args:
-            iteration_seeds: list of seeds for each iteration.
-            iteration_grad_scalar: list of gradient scalars for each iteration.
+            iteration_seeds: list of seeds for 1 iteration in decomfl framework.
+            iteration_grad_scalar: list of gradient scalars for 1 iteration in decomfl framework.
         """
         pass
 
@@ -98,7 +98,7 @@ class AbstractGradientEstimator(ABC):
         Update the model parameters using the optimizer and the provided gradients.
         Args:
             optimizer: optimizer to update the model parameters.
-            iteration_seeds: list of seeds for each iteration.
-            iteration_grad_scalar: list of gradient scalars for each iteration.
+            iteration_seeds: list of seeds for 1 iteration in decomfl framework.
+            iteration_grad_scalar: list of gradient scalars for 1 iteration in decomfl framework.
         """
         pass
