@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal
 from functools import cached_property
 
 import torch
@@ -8,6 +8,7 @@ from experiment_helper.experiment_typing import (
     LargeModel,
     ModelDtype,
 )
+from enum import Enum
 from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradEstimateMethod
 from cezo_fl.gradient_estimators.adam_forward import KUpdateStrategy
 from cezo_fl.util.language_utils import SUPPORTED_LLM
@@ -92,8 +93,18 @@ class OptimizerSetting(FrozenSetting):
         return OptimizerSetting()
 
 
+class EstimatorType(Enum):
+    vanilla = "vanilla"
+    adam_forward = "adam_forward"
+
+
 class RGESetting(FrozenSetting):
     # zo_grad_estimator
+    estimator_type: EstimatorType = Field(
+        default=EstimatorType.vanilla,
+        validation_alias=AliasChoices("estimator-type"),
+        description="Type of gradient estimator, options: vanilla, adam_forward",
+    )
     mu: float = Field(default=1e-3, description="Perturbation step to measure local gradients")
     num_pert: int = Field(
         default=1,
@@ -117,12 +128,12 @@ class RGESetting(FrozenSetting):
     k_update_strategy: KUpdateStrategy = Field(
         default=KUpdateStrategy.LAST_LOCAL_UPDATE,
         validation_alias=AliasChoices("k-update-strategy"),
-        description="Update strategy for K, options: last_local_update, all_local_updates",
+        description="Update strategy for K, options: last_local_update, all_local_updates. Only used when estimator-type is adam_forward",
     )
     hessian_smooth: float = Field(
         default=1e-3,
         validation_alias=AliasChoices("hessian-smooth"),
-        description="Smoothing factor for Hessian",
+        description="Smoothing factor for Hessian. Only used when estimator-type is adam_forward",
     )
 
     @cached_property

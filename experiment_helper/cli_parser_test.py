@@ -9,6 +9,7 @@ from experiment_helper.cli_parser import (
     NormalTrainingLoopSetting,
     FederatedLearningSetting,
     ByzantineSetting,
+    EstimatorType,
 )
 from experiment_helper.experiment_typing import (
     LargeModel,
@@ -91,6 +92,7 @@ def test_rge_setting():
     # default
     sys.argv = ["simplified_test.py"]
     rge_setting = RGESetting()
+    assert rge_setting.estimator_type == EstimatorType.vanilla
     assert rge_setting.mu == 1e-3
     assert rge_setting.num_pert == 1
     assert rge_setting.adjust_perturb is False
@@ -102,6 +104,7 @@ def test_rge_setting():
     # some change
     sys.argv = [
         "simplified_test.py",
+        "--estimator-type=adam_forward",
         "--mu=1e-5",
         "--num-pert=5",
         "--adjust-perturb",
@@ -111,6 +114,7 @@ def test_rge_setting():
         "--hessian-smooth=1e-2",
     ]
     rge_setting = RGESetting()
+    assert rge_setting.estimator_type == EstimatorType.adam_forward
     assert rge_setting.mu == 1e-5
     assert rge_setting.num_pert == 5
     assert rge_setting.adjust_perturb is True
