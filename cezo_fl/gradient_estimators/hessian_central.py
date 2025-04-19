@@ -4,8 +4,6 @@ from cezo_fl.gradient_estimators.abstract_gradient_estimator import AbstractGrad
 import torch
 from torch.nn import Parameter
 
-from typing import Literal
-
 
 class AdamForwardGradientEstimator(AbstractGradientEstimator):
     def __init__(
@@ -20,11 +18,7 @@ class AdamForwardGradientEstimator(AbstractGradientEstimator):
         self.total_dimensions = sum([p.numel() for p in self.parameters_list])
         print(f"trainable model size: {self.total_dimensions}")
 
-        self.k_update_strategy: Literal["all_local_updates", "last_local_update"] = (
-            "last_local_update"
-        )
-
-        self.hessian_smooth = 1e-3  # test fine tune this
+        self.hessian_smooth = 1e-6
         self.mu = mu
         self.num_pert = num_pert
         self.device = device
@@ -100,22 +94,11 @@ class AdamForwardGradientEstimator(AbstractGradientEstimator):
         iteration_seeds: Sequence[int],
         iteration_grad_scalar: Sequence[torch.Tensor],
     ) -> None:
-        """
-        # seeds is [seed1, seed2, ...seedk, ] for K local updates
-        # global_grad_scalar is [gradscalar1, gradscalar2, ...gradscalarK, ] for K local updates
-        # strategy 1: update K k times for every k local updates
-        # strategy 2: update K 1 time for every last local update
-        # strategy 3: update K 1 time for average of K local updates. NOTE: this is not preferred
-        """
         assert len(iteration_seeds) == len(iteration_grad_scalar)
 
-        if self.k_update_strategy == "last_local_update":
-            self.update_K_vec(iteration_grad_scalar[-1], iteration_seeds[-1])
-        elif self.k_update_strategy == "all_local_updates":
-            for one_update_seed, one_update_grad_dirs in zip(
-                iteration_seeds, iteration_grad_scalar
-            ):
-                self.update_K_vec(one_update_grad_dirs, one_update_seed)
+        # NOTE: Question: how to update K_vec updates for more than 1 local update?
+        for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
+            self.update_K_vec(one_update_grad_dirs, one_update_seed)
 
     def update_model_given_seed_and_grad(
         self,

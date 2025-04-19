@@ -81,6 +81,11 @@ class AbstractGradientEstimator(ABC):
     ) -> None:
         """
         Update the gradient_estimator helpers(for decomfl v2 algorithms, like K_vec, smoothing_factor) using seeds and associated perturbation gradients.
+        seeds is [seed1, seed2, ...seedk, ] for K local updates
+        global_grad_scalar is [gradscalar1, gradscalar2, ...gradscalarK, ] for K local updates
+        strategy 1: update K k times for every k local updates
+        strategy 2: update K 1 time for every last local update
+        strategy 3: update K 1 time for average of K local updates. NOTE: this is not preferred
         Args:
             iteration_seeds: list of seeds for 1 iteration in decomfl framework.
             iteration_grad_scalar: list of gradient scalars for 1 iteration in decomfl framework.
