@@ -234,4 +234,6 @@ def get_adam_forward_gradient_estimator(
         num_pert=rge_setting.num_pert,
         device=device,
         torch_dtype=model_setting.get_torch_dtype(),
+        k_update_strategy=rge_setting.k_update_strategy,
+        hessian_smooth=rge_setting.hessian_smooth,
     )

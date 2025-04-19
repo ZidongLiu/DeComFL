@@ -15,6 +15,7 @@ from experiment_helper.experiment_typing import (
     ModelDtype,
 )
 from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradEstimateMethod
+from cezo_fl.gradient_estimators.adam_forward import KUpdateStrategy
 
 
 def test_general_setting():
@@ -95,6 +96,8 @@ def test_rge_setting():
     assert rge_setting.adjust_perturb is False
     assert rge_setting.grad_estimate_method == RandomGradEstimateMethod.rge_central
     assert rge_setting.optim is True
+    assert rge_setting.k_update_strategy == KUpdateStrategy.LAST_LOCAL_UPDATE
+    assert rge_setting.hessian_smooth == 1e-3
 
     # some change
     sys.argv = [
@@ -104,6 +107,8 @@ def test_rge_setting():
         "--adjust-perturb",
         "--grad-estimate-method=rge-forward",
         "--no-optim",
+        "--k-update-strategy=all_local_updates",
+        "--hessian-smooth=1e-2",
     ]
     rge_setting = RGESetting()
     assert rge_setting.mu == 1e-5
@@ -111,6 +116,8 @@ def test_rge_setting():
     assert rge_setting.adjust_perturb is True
     assert rge_setting.grad_estimate_method == RandomGradEstimateMethod.rge_forward
     assert rge_setting.optim is False
+    assert rge_setting.k_update_strategy == KUpdateStrategy.ALL_LOCAL_UPDATES
+    assert rge_setting.hessian_smooth == 1e-2
 
 
 def test_normal_training_loop_setting():

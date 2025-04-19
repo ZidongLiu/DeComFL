@@ -4,7 +4,12 @@ from cezo_fl.gradient_estimators.abstract_gradient_estimator import AbstractGrad
 import torch
 from torch.nn import Parameter
 
-from typing import Literal
+from enum import Enum
+
+
+class KUpdateStrategy(Enum):
+    ALL_LOCAL_UPDATES = "all_local_updates"
+    LAST_LOCAL_UPDATE = "last_local_update"
 
 
 class AdamForwardGradientEstimator(AbstractGradientEstimator):
@@ -13,6 +18,8 @@ class AdamForwardGradientEstimator(AbstractGradientEstimator):
         parameters: Iterator[Parameter],
         mu=1e-3,
         num_pert=1,
+        k_update_strategy: KUpdateStrategy = KUpdateStrategy.LAST_LOCAL_UPDATE,
+        hessian_smooth: float = 1e-3,
         device: str | torch.device | None = None,
         torch_dtype: torch.dtype = torch.float32,
     ):
@@ -20,15 +27,13 @@ class AdamForwardGradientEstimator(AbstractGradientEstimator):
         self.total_dimensions = sum([p.numel() for p in self.parameters_list])
         print(f"trainable model size: {self.total_dimensions}")
 
-        self.k_update_strategy: Literal["all_local_updates", "last_local_update"] = (
-            "last_local_update"
-        )
-
-        self.hessian_smooth = 1e-3  # test fine tune this
         self.mu = mu
         self.num_pert = num_pert
         self.device = device
         self.torch_dtype = torch_dtype
+
+        self.k_update_strategy: KUpdateStrategy = k_update_strategy
+        self.hessian_smooth = hessian_smooth  # test fine tune this
         self.K_vec = torch.ones(self.total_dimensions, device=self.device)
 
     def construct_gradient(self, dir_grads: torch.Tensor, seed: int) -> torch.Tensor:
@@ -109,9 +114,9 @@ class AdamForwardGradientEstimator(AbstractGradientEstimator):
         """
         assert len(iteration_seeds) == len(iteration_grad_scalar)
 
-        if self.k_update_strategy == "last_local_update":
+        if self.k_update_strategy == KUpdateStrategy.LAST_LOCAL_UPDATE:
             self.update_K_vec(iteration_grad_scalar[-1], iteration_seeds[-1])
-        elif self.k_update_strategy == "all_local_updates":
+        elif self.k_update_strategy == KUpdateStrategy.ALL_LOCAL_UPDATES:
             for one_update_seed, one_update_grad_dirs in zip(
                 iteration_seeds, iteration_grad_scalar
             ):

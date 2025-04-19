@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 from functools import cached_property
 
 import torch
@@ -9,6 +9,7 @@ from experiment_helper.experiment_typing import (
     ModelDtype,
 )
 from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradEstimateMethod
+from cezo_fl.gradient_estimators.adam_forward import KUpdateStrategy
 from cezo_fl.util.language_utils import SUPPORTED_LLM
 from experiment_helper.data import DataSetting  # noqa: F401, for a central export place for all settings
 
@@ -112,6 +113,16 @@ class RGESetting(FrozenSetting):
     optim: CliImplicitFlag[bool] = Field(
         default=True,
         description="Use optimizer or not, when no-optim, update model without torch.optim (SGD only). This can significantly save memory.",
+    )
+    k_update_strategy: KUpdateStrategy = Field(
+        default=KUpdateStrategy.LAST_LOCAL_UPDATE,
+        validation_alias=AliasChoices("k-update-strategy"),
+        description="Update strategy for K, options: last_local_update, all_local_updates",
+    )
+    hessian_smooth: float = Field(
+        default=1e-3,
+        validation_alias=AliasChoices("hessian-smooth"),
+        description="Smoothing factor for Hessian",
     )
 
     @cached_property
