@@ -131,7 +131,7 @@ class RGESetting(FrozenSetting):
         description="Update strategy for K, options: last_local_update, all_local_updates. Only used when estimator-type is adam_forward",
     )
     hessian_smooth: float = Field(
-        default=1e-3,
+        default=0.95,
         validation_alias=AliasChoices("hessian-smooth"),
         description="Smoothing factor for Hessian. Only used when estimator-type is adam_forward",
     )

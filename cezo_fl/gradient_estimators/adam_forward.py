@@ -19,7 +19,7 @@ class AdamForwardGradientEstimator(AbstractGradientEstimator):
         mu=1e-3,
         num_pert=1,
         k_update_strategy: KUpdateStrategy = KUpdateStrategy.LAST_LOCAL_UPDATE,
-        hessian_smooth: float = 1e-3,
+        hessian_smooth: float = 0.95,
         device: str | torch.device | None = None,
         torch_dtype: torch.dtype = torch.float32,
     ):
@@ -51,7 +51,7 @@ class AdamForwardGradientEstimator(AbstractGradientEstimator):
 
     def update_K_vec(self, dir_grads: torch.Tensor, seed: int) -> None:
         grad = self.construct_gradient(dir_grads, seed)
-        self.K_vec = (1 - self.hessian_smooth) * self.K_vec + self.hessian_smooth * grad.square_()
+        self.K_vec = self.hessian_smooth * self.K_vec + (1 - self.hessian_smooth) * grad.square_()
 
     def generate_perturbation_norm(self, rng: torch.Generator | None = None) -> torch.Tensor:
         return torch.randn(
