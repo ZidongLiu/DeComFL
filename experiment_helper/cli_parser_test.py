@@ -99,7 +99,7 @@ def test_rge_setting():
     assert rge_setting.grad_estimate_method == RandomGradEstimateMethod.rge_central
     assert rge_setting.optim is True
     assert rge_setting.k_update_strategy == KUpdateStrategy.LAST_LOCAL_UPDATE
-    assert rge_setting.hessian_smooth == 1e-3
+    assert rge_setting.hessian_smooth == 0.95
 
     # some change
     sys.argv = [
