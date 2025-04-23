@@ -5,7 +5,7 @@ from typing import Any, Callable, Iterable, Sequence
 
 import torch
 
-from cezo_fl.shared import CriterionType
+from cezo_fl.typing import CriterionType
 from cezo_fl.util.metrics import Metric
 
 from fed_avg.client import FedAvgClient

@@ -67,7 +67,7 @@ def setup_server_and_clients(
         client_optimizer = prepare_settings.get_optimizer(
             model=client_model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
         )
-        client_grad_estimator = prepare_settings.get_random_gradient_estimator(
+        client_grad_estimator = prepare_settings.get_gradient_estimator(
             model=client_model,
             device=client_device,
             rge_setting=args.rge_setting,
@@ -101,7 +101,7 @@ def setup_server_and_clients(
     server_optimizer = prepare_settings.get_optimizer(
         model=server_model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
     )
-    server_grad_estimator = prepare_settings.get_random_gradient_estimator(
+    server_grad_estimator = prepare_settings.get_gradient_estimator(
         model=server_model,
         device=server_device,
         rge_setting=args.rge_setting,

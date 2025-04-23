@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch import nn
 
-from cezo_fl import random_gradient_estimator
+from cezo_fl.gradient_estimators import random_gradient_estimator
 
 
 class LinearModel(nn.Module):
@@ -64,3 +64,37 @@ def test_parameter_wise_equivalent_all_togther(
     torch.testing.assert_close(dir_grads1, dir_grads2)
     for p1, p2 in zip(model1.parameters(), model2.parameters()):
         torch.testing.assert_close(p1.grad, p2.grad)
+
+
+def test_update_model_given_seed_and_grad():
+    # Make the update second times and the output suppose to be the same.
+    ouputs = []
+    for _ in range(2):
+        torch.manual_seed(0)
+        fake_model = torch.nn.Sequential(
+            torch.nn.Linear(10, 5),
+            torch.nn.ReLU(),
+            torch.nn.Linear(5, 2),
+        )
+
+        optim = torch.optim.SGD(fake_model.parameters(), lr=1e-3)
+        rge = random_gradient_estimator.RandomGradientEstimator(
+            fake_model.parameters(),
+            num_pert=2,
+            paramwise_perturb=False,
+        )
+        rge.update_model_given_seed_and_grad(
+            optim,
+            iteration_seeds=[1, 2, 3],
+            iteration_grad_scalar=[  # two perturbations
+                torch.tensor([0.1, 0.2]),
+                torch.tensor([0.3, 0.4]),
+                torch.tensor([0.5, 0.6]),
+            ],
+        )
+        ouputs.append(
+            fake_model(torch.tensor([list(range(i, 10 + i)) for i in range(3)], dtype=torch.float))
+        )
+    assert ouputs[0].shape == (3, 2)
+    assert ouputs[1].shape == (3, 2)
+    torch.testing.assert_close(ouputs[0], ouputs[1])

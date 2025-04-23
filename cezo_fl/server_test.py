@@ -4,9 +4,7 @@ from unittest.mock import MagicMock, patch
 import torch
 
 from cezo_fl.client import AbstractClient, LocalUpdateResult
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator
 from cezo_fl.server import CeZO_Server, SeedAndGradientRecords
-from cezo_fl.shared import update_model_given_seed_and_grad
 
 
 def test_seed_records():
@@ -20,36 +18,6 @@ def test_seed_records():
     sr.remove_too_old(earliest_record_needs=1)
     assert sr.fetch_seed_records(earliest_record_needs=2) == [[3, 4, 5]]
     assert sr.fetch_seed_records(earliest_record_needs=3) == []
-
-
-def test_update_model_given_seed_and_grad():
-    # Make the update second times and the output suppose to be the same.
-    ouputs = []
-    for _ in range(2):
-        torch.manual_seed(0)
-        fake_model = torch.nn.Sequential(
-            torch.nn.Linear(10, 5),
-            torch.nn.ReLU(),
-            torch.nn.Linear(5, 2),
-        )
-
-        optim = torch.optim.SGD(fake_model.parameters(), lr=1e-3)
-        update_model_given_seed_and_grad(
-            optim,
-            RandomGradientEstimator(fake_model.parameters(), num_pert=2),
-            iteration_seeds=[1, 2, 3],
-            iteration_grad_scalar=[  # two perturbations
-                torch.tensor([0.1, 0.2]),
-                torch.tensor([0.3, 0.4]),
-                torch.tensor([0.5, 0.6]),
-            ],
-        )
-        ouputs.append(
-            fake_model(torch.tensor([list(range(i, 10 + i)) for i in range(3)], dtype=torch.float))
-        )
-    assert ouputs[0].shape == (3, 2)
-    assert ouputs[1].shape == (3, 2)
-    torch.testing.assert_close(ouputs[0], ouputs[1])
 
 
 class FakeClient(AbstractClient):

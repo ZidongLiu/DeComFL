@@ -63,12 +63,14 @@ def train_model(epoch: int) -> tuple[float, float]:
                 images, labels = images.to(device), labels.to(device)
             # update models
             optimizer.zero_grad()
-            grad_estimator.compute_grad(
+            seed = iteration**2 + iteration
+            dir_grads = grad_estimator.compute_grad(
                 images,
                 labels,
                 lambda x, y: criterion(model_inferences.train_inference(model, x), y),
-                seed=iteration**2 + iteration,
+                seed=seed,
             )
+            grad_estimator.update_gradient_estimator_given_seed_and_grad([seed], [dir_grads])
             optimizer.step()
 
             pred = model(images)
@@ -141,7 +143,7 @@ if __name__ == "__main__":
         model=model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
     )
     scheduler = get_scheduler(optimizer, args.dataset)
-    grad_estimator = prepare_settings.get_random_gradient_estimator(
+    grad_estimator = prepare_settings.get_gradient_estimator(
         model=model, device=device, rge_setting=args.rge_setting, model_setting=args.model_setting
     )
 

@@ -12,7 +12,11 @@ from cezo_fl.util.model_helpers import AllModel
 from cezo_fl.models.cnn_fashion import CNN_FMNIST
 from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.models.lenet import LeNet
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator
+from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradientEstimator
+from cezo_fl.gradient_estimators.adam_forward import AdamForwardGradientEstimator
+from cezo_fl.gradient_estimators.hessian_random_gradient_estimator import (
+    HessianRandomGradientEstimator,
+)
 from cezo_fl.util.language_utils import (
     LM_TEMPLATE_MAP,
     SUPPORTED_LLM,
@@ -21,11 +25,7 @@ from cezo_fl.util.language_utils import (
 )
 from cezo_fl.util.metrics import accuracy
 
-from experiment_helper.cli_parser import (
-    ModelSetting,
-    OptimizerSetting,
-    RGESetting,
-)
+from experiment_helper.cli_parser import ModelSetting, OptimizerSetting, RGESetting, EstimatorType
 from experiment_helper.data import ImageClassificationTask, LmClassificationTask, LmGenerationTask
 from dataclasses import dataclass
 
@@ -192,18 +192,43 @@ def get_model_inferences_and_metrics(
         )
 
 
-def get_random_gradient_estimator(
+def get_gradient_estimator(
     model: AllModel, device: torch.device, rge_setting: RGESetting, model_setting: ModelSetting
-):
+) -> RandomGradientEstimator | AdamForwardGradientEstimator:
     no_optim = not rge_setting.optim
-    return RandomGradientEstimator(
+    if rge_setting.estimator_type == EstimatorType.vanilla:
+        return RandomGradientEstimator(
+            parameters=model_helpers.get_trainable_model_parameters(model),
+            mu=rge_setting.mu,
+            num_pert=rge_setting.num_pert,
+            grad_estimate_method=rge_setting.grad_estimate_method,
+            device=device,
+            torch_dtype=model_setting.get_torch_dtype(),
+            # To save memory consumption, we have to use parameter-wise perturb + no_optim together.
+            sgd_only_no_optim=no_optim,
+            paramwise_perturb=no_optim,
+        )
+    elif rge_setting.estimator_type == EstimatorType.adam_forward:
+        return AdamForwardGradientEstimator(
+            parameters=model_helpers.get_trainable_model_parameters(model),
+            mu=rge_setting.mu,
+            num_pert=rge_setting.num_pert,
+            device=device,
+            torch_dtype=model_setting.get_torch_dtype(),
+            k_update_strategy=rge_setting.k_update_strategy,
+            hessian_smooth=rge_setting.hessian_smooth,
+        )
+    else:
+        raise ValueError(f"Invalid estimator type: {rge_setting.estimator_type}")
+
+
+def _get_hessian_random_gradient_estimator(
+    model: AllModel, device: torch.device, rge_setting: RGESetting, model_setting: ModelSetting
+) -> HessianRandomGradientEstimator:
+    return HessianRandomGradientEstimator(
         parameters=model_helpers.get_trainable_model_parameters(model),
         mu=rge_setting.mu,
         num_pert=rge_setting.num_pert,
-        grad_estimate_method=rge_setting.grad_estimate_method,
         device=device,
         torch_dtype=model_setting.get_torch_dtype(),
-        # To save memory consumption, we have to use parameter-wise perturb + no_optim together.
-        sgd_only_no_optim=no_optim,
-        paramwise_perturb=no_optim,
     )

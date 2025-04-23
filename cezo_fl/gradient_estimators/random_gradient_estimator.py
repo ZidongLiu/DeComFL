@@ -1,9 +1,9 @@
 from enum import Enum
 from typing import Callable, Iterator, Sequence
 
-
 import torch
 from torch.nn import Parameter
+from cezo_fl.gradient_estimators.abstract_gradient_estimator import AbstractGradientEstimator
 
 
 class RandomGradEstimateMethod(Enum):
@@ -12,7 +12,7 @@ class RandomGradEstimateMethod(Enum):
 
 
 # TODO: split this class into abstract class and several subcalsses.
-class RandomGradientEstimator:
+class RandomGradientEstimator(AbstractGradientEstimator):
     def __init__(
         self,
         parameters: Iterator[Parameter],
@@ -228,6 +228,14 @@ class RandomGradientEstimator:
             dir_grad = (pert_plus_loss - pert_minus_loss) / (self.mu * denominator_factor)
             dir_grads += [dir_grad]
         return torch.tensor(dir_grads, device=self.device)
+
+    def update_gradient_estimator_given_seed_and_grad(
+        self,
+        iteration_seeds: Sequence[int],
+        iteration_grad_scalar: Sequence[torch.Tensor],
+    ) -> None:
+        # No updates needed for this class.
+        pass
 
     def update_model_given_seed_and_grad(
         self,

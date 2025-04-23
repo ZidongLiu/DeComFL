@@ -9,12 +9,14 @@ from experiment_helper.cli_parser import (
     NormalTrainingLoopSetting,
     FederatedLearningSetting,
     ByzantineSetting,
+    EstimatorType,
 )
 from experiment_helper.experiment_typing import (
     LargeModel,
     ModelDtype,
 )
-from cezo_fl.random_gradient_estimator import RandomGradEstimateMethod
+from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradEstimateMethod
+from cezo_fl.gradient_estimators.adam_forward import KUpdateStrategy
 
 
 def test_general_setting():
@@ -90,27 +92,36 @@ def test_rge_setting():
     # default
     sys.argv = ["simplified_test.py"]
     rge_setting = RGESetting()
+    assert rge_setting.estimator_type == EstimatorType.vanilla
     assert rge_setting.mu == 1e-3
     assert rge_setting.num_pert == 1
     assert rge_setting.adjust_perturb is False
     assert rge_setting.grad_estimate_method == RandomGradEstimateMethod.rge_central
     assert rge_setting.optim is True
+    assert rge_setting.k_update_strategy == KUpdateStrategy.LAST_LOCAL_UPDATE
+    assert rge_setting.hessian_smooth == 0.95
 
     # some change
     sys.argv = [
         "simplified_test.py",
+        "--estimator-type=adam_forward",
         "--mu=1e-5",
         "--num-pert=5",
         "--adjust-perturb",
         "--grad-estimate-method=rge-forward",
         "--no-optim",
+        "--k-update-strategy=all_local_updates",
+        "--hessian-smooth=1e-2",
     ]
     rge_setting = RGESetting()
+    assert rge_setting.estimator_type == EstimatorType.adam_forward
     assert rge_setting.mu == 1e-5
     assert rge_setting.num_pert == 5
     assert rge_setting.adjust_perturb is True
     assert rge_setting.grad_estimate_method == RandomGradEstimateMethod.rge_forward
     assert rge_setting.optim is False
+    assert rge_setting.k_update_strategy == KUpdateStrategy.ALL_LOCAL_UPDATES
+    assert rge_setting.hessian_smooth == 1e-2
 
 
 def test_normal_training_loop_setting():
