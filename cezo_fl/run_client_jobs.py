@@ -1,10 +1,10 @@
-import torch
-from typing import Sequence, TypeAlias
 from concurrent.futures import ThreadPoolExecutor
-from asyncio.futures import Future
+from typing import Sequence, TypeAlias
 
-from shared.metrics import Metric
+import torch
+
 from cezo_fl.client import AbstractClient, LocalUpdateResult
+from cezo_fl.util.metrics import Metric
 
 
 def parallalizable_client_job(
@@ -58,7 +58,7 @@ def execute_sampled_clients(
 
     if parallel:
         with ThreadPoolExecutor() as executor:
-            futures: list[Future] = []
+            futures = []
             for index in sampled_client_index:
                 client = server.clients[index]
                 last_update_iter = server.client_last_updates[index]

@@ -1,44 +1,49 @@
+from enum import Enum
+from typing import Callable, Iterator, Sequence
+
 import torch
 from torch.nn import Parameter
-from typing import Callable, Iterator, TypeAlias, Literal, Sequence
-import transformers
-from shared.language_utils import LLMBatchInput
+from cezo_fl.gradient_estimators.abstract_gradient_estimator import AbstractGradientEstimator
 
 
-GradEstimateMethod: TypeAlias = Literal["forward", "central"]
+class RandomGradEstimateMethod(Enum):
+    rge_central = "rge-central"
+    rge_forward = "rge-forward"
 
 
 # TODO: split this class into abstract class and several subcalsses.
-class RandomGradientEstimator:
+class RandomGradientEstimator(AbstractGradientEstimator):
     def __init__(
         self,
-        model: torch.nn.Module | transformers.models.opt.modeling_opt.OPTForCausalLM,
-        parameters: Iterator[Parameter] | None = None,
+        parameters: Iterator[Parameter],
         mu=1e-3,
         num_pert=1,
-        grad_estimate_method: GradEstimateMethod = "central",
+        grad_estimate_method: RandomGradEstimateMethod | str = RandomGradEstimateMethod.rge_central,
         normalize_perturbation: bool = False,
-        device: str | None = None,
+        device: str | torch.device | None = None,
         torch_dtype: torch.dtype = torch.float32,
-        prune_mask_arr: torch.Tensor | None = None,
         paramwise_perturb: bool = False,
         sgd_only_no_optim: bool = False,
     ):
-        self.model = model
-        if parameters is None:
-            parameters = model.parameters()
         self.parameters_list: list[Parameter] = [p for p in parameters if p.requires_grad]
         self.total_dimensions = sum([p.numel() for p in self.parameters_list])
+        print(f"trainable model size: {self.total_dimensions}")
 
         self.mu = mu
         self.num_pert = num_pert
         self.device = device
         self.torch_dtype = torch_dtype
-        self.grad_estimate_method: GradEstimateMethod = grad_estimate_method
-
+        if isinstance(grad_estimate_method, RandomGradEstimateMethod):
+            self.grad_estimate_method: RandomGradEstimateMethod = grad_estimate_method
+        else:
+            if grad_estimate_method == RandomGradEstimateMethod.rge_central.value:
+                self.grad_estimate_method = RandomGradEstimateMethod.rge_central
+            elif grad_estimate_method == RandomGradEstimateMethod.rge_forward.value:
+                self.grad_estimate_method = RandomGradEstimateMethod.rge_forward
+            else:
+                raise Exception("Grad estimate method has to be rge-central or rge-forward")
         self.paramwise_perturb = paramwise_perturb
         if paramwise_perturb:
-            assert prune_mask_arr is None
             assert normalize_perturbation is False
 
         self.sgd_only_no_optim = sgd_only_no_optim
@@ -46,23 +51,6 @@ class RandomGradientEstimator:
             assert self.paramwise_perturb
 
         self.normalize_perturbation = normalize_perturbation
-        self.prune_mask_arr = None
-        if prune_mask_arr:
-            self.set_prune_mask(prune_mask_arr)
-
-    # TODO(zidong) move this func out of this class
-    def model_forward(self, batch_inputs: torch.Tensor | LLMBatchInput):
-        if isinstance(self.model, transformers.models.opt.modeling_opt.OPTForCausalLM):
-            return self.model(
-                input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask
-            )
-        elif isinstance(self.model, torch.nn.Module):
-            return self.model(batch_inputs)
-        else:
-            raise Exception("This model type is not supported")
-
-    def set_prune_mask(self, prune_mask_arr) -> None:
-        self.prune_mask_arr = prune_mask_arr
 
     def get_rng(self, seed: int, perturb_index: int) -> torch.Generator:
         return torch.Generator(device=self.device).manual_seed(
@@ -73,8 +61,6 @@ class RandomGradientEstimator:
         p = torch.randn(
             self.total_dimensions, device=self.device, dtype=self.torch_dtype, generator=rng
         )
-        if self.prune_mask_arr is not None:
-            p.mul_(self.prune_mask_arr)
 
         if self.normalize_perturbation:
             p.div_(torch.norm(p))
@@ -100,24 +86,29 @@ class RandomGradientEstimator:
             start += p.numel()
 
     def generate_then_put_grad(self, seed: int, dir_grads: torch.Tensor) -> None:
-        update_grad = 0
+        update_grad: torch.Tensor | None = None
         num_pert = len(dir_grads)
         for i, dir_grad in enumerate(dir_grads):
             rng = self.get_rng(seed, i)
-            update_grad += self.generate_perturbation_norm(rng).mul_(dir_grad / num_pert)
+            update = self.generate_perturbation_norm(rng).mul_(dir_grad / num_pert)
+            if update_grad is None:
+                update_grad = update
+            else:
+                update_grad += update
+        assert update_grad is not None
         self.put_grad(update_grad)
 
-    def compute_grad(self, batch_inputs, labels, criterion, seed: int) -> torch.Tensor:
+    def compute_grad(self, batch_inputs, labels, loss_fn, seed: int) -> torch.Tensor:
         if not self.paramwise_perturb:
             # We generate the perturbation vector all together. It should be faster but consume
             # more memory
             grad, perturbation_dir_grads = self._zo_grad_estimate(
-                batch_inputs, labels, criterion, seed
+                batch_inputs, labels, loss_fn, seed
             )
             self.put_grad(grad)
         else:
             perturbation_dir_grads = self._zo_grad_estimate_paramwise(
-                batch_inputs, labels, criterion, seed
+                batch_inputs, labels, loss_fn, seed
             )
             self.generate_then_put_grad_paramwise(seed, perturbation_dir_grads)
 
@@ -139,7 +130,7 @@ class RandomGradientEstimator:
         self,
         batch_inputs: torch.Tensor,
         labels: torch.Tensor,
-        criterion: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         seed: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculate the zeroth-order gradient estimate.
@@ -154,21 +145,23 @@ class RandomGradientEstimator:
         """
         grad: torch.Tensor | None = None
         dir_grads = []
-        denominator_factor = 2 if self.grad_estimate_method == "central" else 1
-        if self.grad_estimate_method == "forward":
-            pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
+        denominator_factor = (
+            2 if self.grad_estimate_method == RandomGradEstimateMethod.rge_central else 1
+        )
+        if self.grad_estimate_method == RandomGradEstimateMethod.rge_forward:
+            pert_minus_loss = loss_fn(batch_inputs, labels)
 
         for i in range(self.num_pert):
             rng = self.get_rng(seed, i)
             pb_norm = self.generate_perturbation_norm(rng)
 
             self.perturb_model(pb_norm, alpha=self.mu)
-            pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)
-            if self.grad_estimate_method == "central":
+            pert_plus_loss = loss_fn(batch_inputs, labels)
+            if self.grad_estimate_method == RandomGradEstimateMethod.rge_central:
                 self.perturb_model(pb_norm, alpha=-2 * self.mu)
-                pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
+                pert_minus_loss = loss_fn(batch_inputs, labels)
                 self.perturb_model(pb_norm, alpha=self.mu)  # Restore model
-            elif self.grad_estimate_method == "forward":
+            elif self.grad_estimate_method == RandomGradEstimateMethod.rge_forward:
                 self.perturb_model(pb_norm, alpha=-self.mu)  # Restore model
 
             dir_grad = (pert_plus_loss - pert_minus_loss) / (self.mu * denominator_factor)
@@ -180,6 +173,7 @@ class RandomGradientEstimator:
 
             del pb_norm
 
+        assert grad is not None
         return grad.div_(self.num_pert), torch.tensor(dir_grads, device=self.device)
 
     def generate_then_put_grad_paramwise(self, seed: int, dir_grads: torch.Tensor) -> None:
@@ -208,30 +202,40 @@ class RandomGradientEstimator:
         self,
         batch_inputs: torch.Tensor,
         labels: torch.Tensor,
-        criterion: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         seed: int,
     ) -> torch.Tensor:
         dir_grads = []
-        denominator_factor = 2 if self.grad_estimate_method == "central" else 1
-        if self.grad_estimate_method == "forward":
-            pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
+        denominator_factor = (
+            2 if self.grad_estimate_method == RandomGradEstimateMethod.rge_central else 1
+        )
+        if self.grad_estimate_method == RandomGradEstimateMethod.rge_forward:
+            pert_minus_loss = loss_fn(batch_inputs, labels)
 
         for i in range(self.num_pert):
             rng = self.get_rng(seed, i)
             self.perturb_model_paramwise(rng, alpha=self.mu)
-            pert_plus_loss = criterion(self.model_forward(batch_inputs), labels)
-            if self.grad_estimate_method == "central":
+            pert_plus_loss = loss_fn(batch_inputs, labels)
+            if self.grad_estimate_method == RandomGradEstimateMethod.rge_central:
                 rng = self.get_rng(seed, i)
                 self.perturb_model_paramwise(rng, alpha=-2 * self.mu)
-                pert_minus_loss = criterion(self.model_forward(batch_inputs), labels)
+                pert_minus_loss = loss_fn(batch_inputs, labels)
                 rng = self.get_rng(seed, i)
                 self.perturb_model_paramwise(rng, alpha=self.mu)  # Restore model
-            elif self.grad_estimate_method == "forward":
+            elif self.grad_estimate_method == RandomGradEstimateMethod.rge_forward:
                 rng = self.get_rng(seed, i)
                 self.perturb_model_paramwise(rng, alpha=-self.mu)  # Restore model
             dir_grad = (pert_plus_loss - pert_minus_loss) / (self.mu * denominator_factor)
             dir_grads += [dir_grad]
         return torch.tensor(dir_grads, device=self.device)
+
+    def update_gradient_estimator_given_seed_and_grad(
+        self,
+        iteration_seeds: Sequence[int],
+        iteration_grad_scalar: Sequence[torch.Tensor],
+    ) -> None:
+        # No updates needed for this class.
+        pass
 
     def update_model_given_seed_and_grad(
         self,
@@ -282,29 +286,7 @@ class RandomGradientEstimator:
                 self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
 
             for param in self.parameters_list:
+                assert param.grad is not None
                 param.add_(param.grad, alpha=lr)  # gradient ascent instead of descent.
                 if weight_decay > 0:
                     param.mul_(1 / (1 - lr * weight_decay))
-
-
-# Copied from DeepZero and slightly modified
-@torch.no_grad()
-def functional_forward_rge(func, params_dict: dict, num_pert, mu):
-    base = func(params_dict)
-    grads_dict = {}
-    for _ in range(num_pert):
-        perturbs_dict, perturbed_params_dict = {}, {}
-        for key, param in params_dict.items():
-            perturb = torch.randn_like(param)
-            perturb /= torch.norm(perturb) + 1e-8
-            perturb *= mu
-            perturbs_dict[key] = perturb
-            perturbed_params_dict[key] = perturb + param
-        directional_derivative = (func(perturbed_params_dict) - base) / mu
-        if len(grads_dict.keys()) == len(params_dict.keys()):
-            for key, perturb in perturbs_dict.items():
-                grads_dict[key] += perturb * directional_derivative / num_pert
-        else:
-            for key, perturb in perturbs_dict.items():
-                grads_dict[key] = perturb * directional_derivative / num_pert
-    return grads_dict

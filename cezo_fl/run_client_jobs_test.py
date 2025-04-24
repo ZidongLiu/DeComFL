@@ -1,18 +1,22 @@
 from unittest.mock import MagicMock
+
+import numpy as np
 import pytest
 import torch
 import torchvision
 import torchvision.transforms as transforms
-import numpy as np
+from torch.optim import SGD
 
 from cezo_fl.client import ResetClient
-from cezo_fl.run_client_jobs import parallalizable_client_job, execute_sampled_clients
-from models.cnn_mnist import CNN_MNIST
-from config import FakeArgs
-from preprocess import preprocess
-from gradient_estimators.random_gradient_estimator import RandomGradientEstimator as RGE
-from torch.optim import SGD
-from shared.metrics import accuracy
+from cezo_fl.models.cnn_mnist import CNN_MNIST
+from cezo_fl.gradient_estimators.random_gradient_estimator import (
+    RandomGradEstimateMethod,
+    RandomGradientEstimator,
+)
+from cezo_fl.run_client_jobs import execute_sampled_clients, parallalizable_client_job
+from cezo_fl.util.metrics import accuracy
+from cezo_fl.fl_helpers import get_server_name
+from experiment_helper import device, cli_parser
 
 
 def get_mnist_data_loader():
@@ -26,38 +30,41 @@ def get_mnist_data_loader():
     return torch.utils.data.DataLoader(train_dataset, batch_size=8, shuffle=False)
 
 
-def set_fake_clients(num_clients=3, num_pert=4, local_update_steps=2) -> list[ResetClient]:
-    args = FakeArgs()
-    args.dataset = "mnist"
-    args.num_clients = num_clients
-    args.num_pert = num_pert
-    args.local_update_steps = local_update_steps
+class Setting(cli_parser.OptimizerSetting, cli_parser.DeviceSetting, cli_parse_args=False):
+    pass
 
-    device_map, _, _ = preprocess(args)
-    device = device_map["server"]
+
+def set_fake_clients(
+    num_clients: int = 3, num_pert: int = 4, local_update_steps: int = 2
+) -> list[ResetClient]:
+    args = Setting()
+    device_map = device.use_device(args.device_setting, num_clients=num_clients)
+    model_device = device_map[get_server_name()]
     fake_clients = []
-    for i in range(args.num_clients):
+    assert isinstance(args.lr, float)
+    for i in range(num_clients):
         torch.random.manual_seed(1234)  # Make sure all models are the same
-        model = CNN_MNIST().to(device)
+        model = CNN_MNIST().to(model_device)
         train_loader = get_mnist_data_loader()
-        grad_estimator = RGE(
-            model,
+        grad_estimator = RandomGradientEstimator(
+            model.parameters(),
             mu=1e-3,
             num_pert=2,
-            grad_estimate_method="forward",
-            device=device,
+            grad_estimate_method=RandomGradEstimateMethod.rge_forward,
+            device=model_device,
         )
         optimizer = SGD(model.parameters(), lr=args.lr, weight_decay=0)
         criterion = torch.nn.CrossEntropyLoss()
         fake_clients.append(
             ResetClient(
                 model=model,
+                model_inference=lambda m, x: m(x),
                 dataloader=train_loader,
                 grad_estimator=grad_estimator,
                 optimizer=optimizer,
                 criterion=criterion,
                 accuracy_func=accuracy,
-                device=device,
+                device=model_device,
             )
         )
     return fake_clients
