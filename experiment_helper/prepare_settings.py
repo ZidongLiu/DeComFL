@@ -53,7 +53,7 @@ def get_model(
         assert model_setting.large_model.value in SUPPORTED_LLM
         hf_model_name = model_setting.get_hf_model_name()
         model = AutoModelForCausalLM.from_pretrained(hf_model_name, torch_dtype=torch_dtype)
-        model.model_name = model_setting.large_model
+        model.model_name = model_setting.large_model.value
         if model_setting and model_setting.lora:
             # this step initialize lora parameters, which should be under control of seed
             lora_config = LoraConfig(

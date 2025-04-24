@@ -34,7 +34,7 @@ class AdamForwardGradientEstimator(AbstractGradientEstimator):
 
         self.k_update_strategy: KUpdateStrategy = k_update_strategy
         self.hessian_smooth = hessian_smooth  # test fine tune this
-        self.K_vec = torch.ones(self.total_dimensions, device=self.device)
+        self.K_vec = torch.ones(self.total_dimensions, device=self.device, dtype=self.torch_dtype)
 
     def construct_gradient(self, dir_grads: torch.Tensor, seed: int) -> torch.Tensor:
         update_grad: torch.Tensor | None = None
