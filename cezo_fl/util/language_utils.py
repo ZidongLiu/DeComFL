@@ -20,6 +20,8 @@ SUPPORTED_LLM = {
     "opt-6.7b": "facebook/opt-6.7b",
     "opt-13b": "facebook/opt-13b",
     "opt-30b": "facebook/opt-30b",
+    "phi-1": "microsoft/phi-1",
+    "phi-1.5": "microsoft/phi-1_5",
 }
 
 
@@ -99,6 +101,21 @@ class SST2Template(ClassificationTemplate):
     def verbalize_for_pred(self, sample):
         text = sample["sentence"].strip()
         return f"{text} It was"
+
+    def verbalize(self, sample):
+        label = sample["label"]
+        return f"{self.verbalize_for_pred(sample)}{self.verbalizer[label]}"
+
+
+class QQPTemplate(ClassificationTemplate):
+    verbalizer = {0: " No", 1: " Yes"}
+
+    def verbalize_for_pred(self, sample):
+        q1 = sample["question1"].strip()
+        q2 = sample["question1"].strip()
+        return (
+            f"Question 1: {q1}\n Question 2: {q2}\n Are they semantically equivalent? Yes or No?\n"
+        )
 
     def verbalize(self, sample):
         label = sample["label"]
@@ -226,6 +243,7 @@ class LmClassificationTask(Enum):
     wic = "wic"
     wsc = "wsc"
     boolq = "boolq"
+    qqp = "qqp"
 
 
 class LmGenerationTask(Enum):
@@ -242,6 +260,7 @@ LM_DATASET_MAP = {
     LmClassificationTask.wic.name: "super_glue",
     LmClassificationTask.wsc.name: "super_glue",
     LmClassificationTask.boolq.name: "super_glue",
+    LmClassificationTask.qqp.name: "glue",
     LmGenerationTask.squad.name: "squad",
     LmGenerationTask.drop.name: "drop",
     LmGenerationTask.xsum.name: "xsum",
@@ -255,6 +274,7 @@ LM_TEMPLATE_MAP = {
     LmClassificationTask.wic.name: WICTemplate,
     LmClassificationTask.wsc.name: WSCTemplate,
     LmClassificationTask.boolq.name: BoolQTemplate,
+    LmClassificationTask.qqp.name: QQPTemplate,
     LmGenerationTask.squad.name: SQuADTemplate,
     LmGenerationTask.drop.name: DROPTemplate,
     LmGenerationTask.xsum.name: XSUMTemplate,
