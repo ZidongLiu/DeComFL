@@ -1,6 +1,7 @@
 from typing import Sequence
 from unittest.mock import MagicMock, patch
 
+import pytest
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -10,6 +11,10 @@ from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.gradient_estimators.random_gradient_estimator import (
     RandomGradientEstimator,
     RandomGradEstimateMethod,
+)
+from cezo_fl.gradient_estimators.adam_forward import (
+    AdamForwardGradientEstimator,
+    KUpdateStrategy,
 )
 from cezo_fl.server import CeZO_Server, SeedAndGradientRecords
 from cezo_fl.util.metrics import accuracy
@@ -103,27 +108,47 @@ def test_server_train_one_step(mocke_get_sampled_client_index):
     assert len(second_pull_model_args[0]) == 2  # Pull the 1-st and 2-nd round seeds.
 
 
-def test_server_client_model_sync():
+@pytest.mark.parametrize("estimator_type", ["vanilla", "adam_forward"])
+@pytest.mark.parametrize(
+    "k_update_strategy", [KUpdateStrategy.LAST_LOCAL_UPDATE, KUpdateStrategy.ALL_LOCAL_UPDATES]
+)
+def test_server_client_model_sync(estimator_type, k_update_strategy):
+    # Skip k_update_strategy test for vanilla estimator
+    if estimator_type == "vanilla" and k_update_strategy != KUpdateStrategy.LAST_LOCAL_UPDATE:
+        pytest.skip("k_update_strategy only applies to adam_forward estimator")
+
     # Setup test environment
     num_clients = 3
     local_update_steps = 2
     device = torch.device("cpu")
+    lr = 1e-4
 
     # Create clients with same initial model
     clients = []
-    lr = 1e-4
     for _ in range(num_clients):
         # have to set seed to make the model initialized the same
         torch.manual_seed(0)
         model = CNN_MNIST().to(device)
         optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-        grad_estimator = RandomGradientEstimator(
-            model.parameters(),
-            mu=1e-3,
-            num_pert=2,
-            grad_estimate_method=RandomGradEstimateMethod.rge_forward,
-            device=device,
-        )
+
+        if estimator_type == "vanilla":
+            grad_estimator = RandomGradientEstimator(
+                model.parameters(),
+                mu=1e-3,
+                num_pert=2,
+                grad_estimate_method=RandomGradEstimateMethod.rge_forward,
+                device=device,
+            )
+        else:  # adam_forward
+            grad_estimator = AdamForwardGradientEstimator(
+                model.parameters(),
+                mu=1e-3,
+                num_pert=2,
+                k_update_strategy=k_update_strategy,
+                hessian_smooth=0.95,
+                device=device,
+            )
+
         client = ResetClient(
             model=model,
             model_inference=lambda m, x: m(x),
@@ -148,13 +173,24 @@ def test_server_client_model_sync():
     torch.manual_seed(0)
     server_model = CNN_MNIST().to(device)
     server_optimizer = torch.optim.SGD(server_model.parameters(), lr=lr)
-    server_grad_estimator = RandomGradientEstimator(
-        server_model.parameters(),
-        mu=1e-3,
-        num_pert=2,
-        grad_estimate_method=RandomGradEstimateMethod.rge_forward,
-        device=device,
-    )
+
+    if estimator_type == "vanilla":
+        server_grad_estimator = RandomGradientEstimator(
+            server_model.parameters(),
+            mu=1e-3,
+            num_pert=2,
+            grad_estimate_method=RandomGradEstimateMethod.rge_forward,
+            device=device,
+        )
+    else:  # adam_forward
+        server_grad_estimator = AdamForwardGradientEstimator(
+            server_model.parameters(),
+            mu=1e-3,
+            num_pert=2,
+            k_update_strategy=k_update_strategy,
+            hessian_smooth=0.95,
+            device=device,
+        )
 
     server.set_server_model_and_criterion(
         server_model,
@@ -164,6 +200,7 @@ def test_server_client_model_sync():
         server_optimizer,
         server_grad_estimator,
     )
+
     with torch.no_grad():
         # Run a few training steps
         for i in range(5):
@@ -185,8 +222,7 @@ def test_server_client_model_sync():
             for server_param, client_param in zip(
                 server.server_model.parameters(), client.model.parameters()
             ):
-                print((server_param - client_param).abs().max())
                 # Models should be synchronized after each step
                 assert (
-                    server_param - client_param
-                ).abs().max() < 1e-6, f"Server and client {client_index} model parameters differ"
+                    (server_param - client_param).abs().max() < 1e-6
+                ), f"Server and client {client_index} model parameters differ for {estimator_type} with {k_update_strategy}"
