@@ -168,7 +168,7 @@ def get_dataloaders(
     if num_train_split == 1:
         splitted_train_sets = [train_dataset]
     else:
-        if isinstance(data_setting.dataset, (LmClassificationTask, LmGenerationTask)):
+        if isinstance(data_setting.dataset, (LmClassificationTask)):
             if data_setting.iid:
                 generator = torch.Generator().manual_seed(seed)
                 splitted_train_sets = torch.utils.data.random_split(
