@@ -69,45 +69,55 @@ def get_model(
 
 def get_optimizer(
     model: AllModel, dataset: SupportedDataset, optimizer_setting: OptimizerSetting
-) -> torch.optim.SGD:
+) -> torch.optim.SGD | torch.optim.Adam:
     trainable_model_parameters = model_helpers.get_trainable_model_parameters(model)
-    if dataset == ImageClassificationTask.mnist:
-        return torch.optim.SGD(
+    if optimizer_setting.optimizer == "sgd":
+        if dataset == ImageClassificationTask.mnist:
+            return torch.optim.SGD(
+                trainable_model_parameters,
+                lr=optimizer_setting.lr,
+                weight_decay=1e-5,
+                momentum=optimizer_setting.momentum,
+            )
+        elif dataset == ImageClassificationTask.cifar10:
+            return torch.optim.SGD(
+                trainable_model_parameters,
+                lr=optimizer_setting.lr,
+                weight_decay=5e-4,
+                momentum=optimizer_setting.momentum,
+            )
+        elif dataset == ImageClassificationTask.fashion:
+            return torch.optim.SGD(
+                trainable_model_parameters,
+                lr=optimizer_setting.lr,
+                weight_decay=1e-5,
+                momentum=optimizer_setting.momentum,
+            )
+        elif isinstance(dataset, LmClassificationTask):
+            return torch.optim.SGD(
+                trainable_model_parameters,
+                lr=optimizer_setting.lr,
+                momentum=0,
+                weight_decay=5e-4,
+            )
+        elif isinstance(dataset, LmGenerationTask):
+            return torch.optim.SGD(
+                trainable_model_parameters,
+                lr=optimizer_setting.lr,
+                momentum=0,
+                weight_decay=0,
+            )
+        else:
+            raise Exception(f"dataset {dataset.value} not supported")
+    elif optimizer_setting.optimizer == "adam":
+        return torch.optim.Adam(
             trainable_model_parameters,
             lr=optimizer_setting.lr,
-            weight_decay=1e-5,
-            momentum=optimizer_setting.momentum,
-        )
-    elif dataset == ImageClassificationTask.cifar10:
-        return torch.optim.SGD(
-            trainable_model_parameters,
-            lr=optimizer_setting.lr,
+            betas=(optimizer_setting.beta1, optimizer_setting.beta2),
             weight_decay=5e-4,
-            momentum=optimizer_setting.momentum,
-        )
-    elif dataset == ImageClassificationTask.fashion:
-        return torch.optim.SGD(
-            trainable_model_parameters,
-            lr=optimizer_setting.lr,
-            weight_decay=1e-5,
-            momentum=optimizer_setting.momentum,
-        )
-    elif isinstance(dataset, LmClassificationTask):
-        return torch.optim.SGD(
-            trainable_model_parameters,
-            lr=optimizer_setting.lr,
-            momentum=0,
-            weight_decay=5e-4,
-        )
-    elif isinstance(dataset, LmGenerationTask):
-        return torch.optim.SGD(
-            trainable_model_parameters,
-            lr=optimizer_setting.lr,
-            momentum=0,
-            weight_decay=0,
         )
     else:
-        raise Exception(f"dataset {dataset.value} not supported")
+        raise Exception(f"optimizer {optimizer_setting.optimizer} not supported")
 
 
 @dataclass

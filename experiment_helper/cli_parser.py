@@ -85,8 +85,11 @@ class ModelSetting(FrozenSetting):
 
 class OptimizerSetting(FrozenSetting):
     # optimizer
+    optimizer: Literal["sgd", "adam"] = Field(default="sgd")
     lr: float = Field(default=1e-4)
     momentum: float = Field(default=0)
+    beta1: float = Field(default=0.9)
+    beta2: float = Field(default=0.999)
 
     @cached_property
     def optimizer_setting(self) -> "OptimizerSetting":
