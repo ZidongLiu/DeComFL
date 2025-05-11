@@ -58,7 +58,7 @@ class FedAvgServer:
         self.fo_fl_strategy = fo_fl_strategy
         if fo_fl_strategy in [FOFLStrategy.fedadam, FOFLStrategy.fedyogi, FOFLStrategy.fedadagrad]:
             self.ms = [torch.zeros_like(p) for p in self.server_model.parameters()]
-            self.vs = [torch.ones_like(p) for p in self.server_model.parameters()]
+            self.vs = [torch.zeros_like(p) for p in self.server_model.parameters()]
 
     def get_sampled_client_index(self) -> list[int]:
         return random.sample(range(len(self.clients)), self.num_sample_clients)
