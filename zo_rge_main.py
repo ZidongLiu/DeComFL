@@ -29,7 +29,7 @@ from experiment_helper import prepare_settings
 
 
 def get_scheduler(
-    optimizer: torch.optim.SGD,
+    optimizer: torch.optim.Optimizer,
     dataset: ImageClassificationTask | LmClassificationTask | LmGenerationTask,
 ) -> torch.optim.lr_scheduler.LRScheduler:
     if args.dataset == ImageClassificationTask.mnist:

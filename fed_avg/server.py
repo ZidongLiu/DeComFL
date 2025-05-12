@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import Enum
 import random
 from typing import Any, Callable, Iterable, Sequence
 
@@ -9,6 +10,13 @@ from cezo_fl.typing import CriterionType
 from cezo_fl.util.metrics import Metric
 
 from fed_avg.client import FedAvgClient
+
+
+class FOFLStrategy(Enum):
+    fedavg = "fedavg"
+    fedadagrad = "fedadagrad"
+    fedyogi = "fedyogi"
+    fedadam = "fedadam"
 
 
 class FedAvgServer:
@@ -22,7 +30,12 @@ class FedAvgServer:
         server_accuracy_func: Callable,
         num_sample_clients: int = 10,
         local_update_steps: int = 10,
+        fo_fl_strategy: FOFLStrategy = FOFLStrategy.fedavg,
+        lr: float = 1e-3,
+        fo_fl_beta1: float = 0.9,
+        fo_fl_beta2: float = 0.999,
     ) -> None:
+        print("server strategy", fo_fl_strategy)
         self.clients = clients
         self.device = device
         self.num_sample_clients = num_sample_clients
@@ -35,21 +48,70 @@ class FedAvgServer:
 
         self.dtype = next(server_model.parameters()).dtype
 
+        self.lr = lr
+        self.gamma = 1e-8
+        self.fo_fl_beta1 = fo_fl_beta1
+        self.fo_fl_beta2 = fo_fl_beta2
+
+        self.ms: list[torch.Tensor] | None = None
+        self.vs: list[torch.Tensor] | None = None
+        self.fo_fl_strategy = fo_fl_strategy
+        if fo_fl_strategy in [FOFLStrategy.fedadam, FOFLStrategy.fedyogi, FOFLStrategy.fedadagrad]:
+            self.ms = [torch.zeros_like(p) for p in self.server_model.parameters()]
+            self.vs = [torch.zeros_like(p) for p in self.server_model.parameters()]
+
     def get_sampled_client_index(self) -> list[int]:
         return random.sample(range(len(self.clients)), self.num_sample_clients)
 
     def aggregate_client_models(self, client_indices: list[int]) -> None:
         self.server_model.train()
-        with torch.no_grad():
-            running_sum: Sequence[torch.Tensor] = [0.0 for _ in self.server_model.parameters()]  # type: ignore[misc, use 0 to start calculcation for tensor]
-            for client_index in client_indices:
-                client = self.clients[client_index]
-                for i, p in enumerate(client.model.parameters()):
-                    running_sum[i] += p.to(self.device)
+        running_sum: Sequence[torch.Tensor] = [0.0 for _ in self.server_model.parameters()]  # type: ignore[misc, use 0 to start calculcation for tensor]
 
-            for model_p, to_set_p in zip(self.server_model.parameters(), running_sum):
-                temp = to_set_p.div_(self.num_sample_clients)
-                model_p.set_(temp)  # type: ignore[call-overload, this method takes Tensor as input but not allowed here, pytorch typing is off]
+        if self.fo_fl_strategy == FOFLStrategy.fedavg:
+            with torch.no_grad():
+                for client_index in client_indices:
+                    client = self.clients[client_index]
+                    for i, p in enumerate(client.model.parameters()):
+                        running_sum[i] += p.to(self.device)
+
+                for i, (model_p, sum_p) in enumerate(
+                    zip(self.server_model.parameters(), running_sum)
+                ):
+                    temp = sum_p.div_(self.num_sample_clients)
+                    model_p.set_(temp)  # type: ignore[call-overload, this method takes Tensor as input but not allowed here, pytorch typing is off]
+
+        elif self.fo_fl_strategy in [
+            FOFLStrategy.fedadagrad,
+            FOFLStrategy.fedyogi,
+            FOFLStrategy.fedadam,
+        ]:
+            assert self.ms is not None and self.vs is not None
+            with torch.no_grad():
+                for client_index in client_indices:
+                    client = self.clients[client_index]
+                    for i, p in enumerate(client.model.parameters()):
+                        running_sum[i] += p.to(self.device)
+
+                for i, (model_p, sum_p) in enumerate(
+                    zip(self.server_model.parameters(), running_sum)
+                ):
+                    delta_t = sum_p.div_(self.num_sample_clients) - model_p
+                    self.ms[i].mul_(self.fo_fl_beta1).add_(delta_t, alpha=1 - self.fo_fl_beta1)
+                    delta_t_squared = delta_t.pow(2)
+                    if self.fo_fl_strategy == FOFLStrategy.fedadagrad:
+                        self.vs[i].add_(delta_t_squared)
+                    elif self.fo_fl_strategy == FOFLStrategy.fedyogi:
+                        self.vs[i].add_(
+                            delta_t_squared * torch.sign(self.vs[i] - delta_t_squared),
+                            alpha=-(1 - self.fo_fl_beta2),
+                        )
+                    elif self.fo_fl_strategy == FOFLStrategy.fedadam:
+                        self.vs[i].mul_(self.fo_fl_beta2).add_(
+                            delta_t_squared, alpha=1 - self.fo_fl_beta2
+                        )
+                    model_p.add_(self.ms[i] / (self.vs[i] + self.gamma).sqrt(), alpha=self.lr)
+        else:
+            raise ValueError(f"Invalid FO-FL strategy: {self.fo_fl_strategy}")
 
     def train_one_step(self) -> tuple[float, float]:
         # Step 0: initiate something

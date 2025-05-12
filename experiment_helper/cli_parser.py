@@ -13,6 +13,7 @@ from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradEsti
 from cezo_fl.gradient_estimators.adam_forward import KUpdateStrategy
 from cezo_fl.util.language_utils import SUPPORTED_LLM
 from experiment_helper.data import DataSetting  # noqa: F401, for a central export place for all settings
+from fed_avg.server import FOFLStrategy
 
 
 class FrozenSetting(BaseSettings, cli_parse_args=True, cli_ignore_unknown_args=True):
@@ -85,8 +86,11 @@ class ModelSetting(FrozenSetting):
 
 class OptimizerSetting(FrozenSetting):
     # optimizer
+    optimizer: Literal["sgd", "adam"] = Field(default="sgd")
     lr: float = Field(default=1e-4)
     momentum: float = Field(default=0)
+    beta1: float = Field(default=0.9)
+    beta2: float = Field(default=0.999)
 
     @cached_property
     def optimizer_setting(self) -> "OptimizerSetting":
@@ -177,3 +181,19 @@ class ByzantineSetting(FrozenSetting):
     @cached_property
     def byzantine_setting(self) -> "ByzantineSetting":
         return ByzantineSetting()
+
+
+class FOFLSetting(FrozenSetting):
+    # FO-FL
+    fo_fl_strategy: FOFLStrategy = Field(
+        default=FOFLStrategy.fedavg,
+        validation_alias=AliasChoices("fo-fl-strategy"),
+        description="FO-FL strategy, options: fedavg, fedadam, fedadagrad, fedyogi",
+    )
+
+    fo_fl_beta1: float = Field(default=0.9)
+    fo_fl_beta2: float = Field(default=0.999)
+
+    @cached_property
+    def fo_fl_setting(self) -> "FOFLSetting":
+        return FOFLSetting()
