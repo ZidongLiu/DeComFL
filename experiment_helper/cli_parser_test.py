@@ -78,14 +78,28 @@ def test_optimizer_setting():
     # default
     sys.argv = ["simplified_test.py"]
     optimizer_setting = OptimizerSetting()
+    assert optimizer_setting.optimizer == "sgd"
     assert optimizer_setting.lr == 1e-4
     assert optimizer_setting.momentum == 0
+    assert optimizer_setting.beta1 == 0.9
+    assert optimizer_setting.beta2 == 0.999
 
     # some change
     sys.argv = ["simplified_test.py", "--lr=1e-3", "--momentum=0.9"]
     optimizer_setting = OptimizerSetting()
+    assert optimizer_setting.optimizer == "sgd"
     assert optimizer_setting.lr == 1e-3
     assert optimizer_setting.momentum == 0.9
+    assert optimizer_setting.beta1 == 0.9
+    assert optimizer_setting.beta2 == 0.999
+
+    sys.argv = ["simplified_test.py", "--optimizer=adam", "--beta1=0.99", "--beta2=0.999"]
+    optimizer_setting = OptimizerSetting()
+    assert optimizer_setting.optimizer == "adam"
+    assert optimizer_setting.lr == 1e-4
+    assert optimizer_setting.momentum == 0
+    assert optimizer_setting.beta1 == 0.99
+    assert optimizer_setting.beta2 == 0.999
 
 
 def test_rge_setting():

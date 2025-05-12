@@ -14,6 +14,7 @@ from experiment_helper.cli_parser import (
     ModelSetting,
     OptimizerSetting,
     FederatedLearningSetting,
+    FOFLSetting,
 )
 from fed_avg.client import FedAvgClient
 from fed_avg.server import FedAvgServer
@@ -28,6 +29,7 @@ class CliSetting(
     ModelSetting,
     OptimizerSetting,
     FederatedLearningSetting,
+    FOFLSetting,
 ):
     """
     This is a replacement for regular argparse module.
@@ -58,6 +60,8 @@ def setup_server_and_clients(
         client_optimizer = prepare_settings.get_optimizer(
             client_model, args.dataset, args.optimizer_setting
         )
+        if not isinstance(client_optimizer, torch.optim.SGD):
+            raise ValueError("Only SGD optimizer is supported for FO-FL")
 
         client = FedAvgClient(
             client_model,
@@ -74,6 +78,7 @@ def setup_server_and_clients(
 
     server_model = prepare_settings.get_model(args.dataset, args.model_setting, args.seed)
     server_model.to(server_device)
+
     server = FedAvgServer(
         clients,
         server_device,
@@ -83,6 +88,10 @@ def setup_server_and_clients(
         server_accuracy_func=metrics.test_acc,
         num_sample_clients=args.num_sample_clients,
         local_update_steps=args.local_update_steps,
+        fo_fl_strategy=args.fo_fl_strategy,
+        fo_fl_beta1=args.fo_fl_beta1,
+        fo_fl_beta2=args.fo_fl_beta2,
+        lr=args.lr,
     )
 
     return server
@@ -90,7 +99,7 @@ def setup_server_and_clients(
 
 if __name__ == "__main__":
     args = CliSetting()
-    print(args)
+    print(args.fo_fl_strategy)
     device_map = use_device(args.device_setting, args.num_clients)
     train_loaders, test_loader = get_dataloaders(
         args.data_setting, args.num_clients, args.seed, args.get_hf_model_name()
