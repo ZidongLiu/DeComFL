@@ -10,6 +10,8 @@ from experiment_helper.cli_parser import (
     FederatedLearningSetting,
     ByzantineSetting,
     EstimatorType,
+    FOFLSetting,
+    FOFLStrategy,
 )
 from experiment_helper.experiment_typing import (
     LargeModel,
@@ -193,3 +195,24 @@ def test_byzantine_setting():
     assert byzantine_setting.aggregation == "trim"
     assert byzantine_setting.byz_type == "krum"
     assert byzantine_setting.num_byz == 3
+
+
+def test_fo_fl_setting():
+    # default
+    sys.argv = ["simplified_test.py"]
+    fo_fl_setting = FOFLSetting()
+    assert fo_fl_setting.fo_fl_strategy == FOFLStrategy.fedavg
+    assert fo_fl_setting.fo_fl_beta1 == 0.9
+    assert fo_fl_setting.fo_fl_beta2 == 0.999
+
+    # some change
+    sys.argv = [
+        "simplified_test.py",
+        "--fo-fl-strategy=fedadam",
+        "--fo-fl-beta1=0.123",
+        "--fo-fl-beta2=0.456",
+    ]
+    fo_fl_setting = FOFLSetting()
+    assert fo_fl_setting.fo_fl_strategy == FOFLStrategy.fedadam
+    assert fo_fl_setting.fo_fl_beta1 == 0.123
+    assert fo_fl_setting.fo_fl_beta2 == 0.456

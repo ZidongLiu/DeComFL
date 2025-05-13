@@ -191,8 +191,8 @@ class FOFLSetting(FrozenSetting):
         description="FO-FL strategy, options: fedavg, fedadam, fedadagrad, fedyogi",
     )
 
-    fo_fl_beta1: float = Field(default=0.9)
-    fo_fl_beta2: float = Field(default=0.999)
+    fo_fl_beta1: float = Field(default=0.9, validation_alias=AliasChoices("fo-fl-beta1"))
+    fo_fl_beta2: float = Field(default=0.999, validation_alias=AliasChoices("fo-fl-beta2"))
 
     @cached_property
     def fo_fl_setting(self) -> "FOFLSetting":
