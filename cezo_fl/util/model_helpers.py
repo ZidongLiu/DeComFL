@@ -10,11 +10,11 @@ from typing import Iterator, TypeAlias
 
 import torch
 from peft import PeftModel
-from transformers.models.opt.modeling_opt import OPTForCausalLM
+from transformers.modeling_utils import PreTrainedModel
 
 from cezo_fl.util.language_utils import LLMBatchInput
 
-LanguageModel: TypeAlias = OPTForCausalLM | PeftModel
+LanguageModel: TypeAlias = PreTrainedModel | PeftModel
 AllModel: TypeAlias = torch.nn.Module | LanguageModel
 
 
@@ -65,7 +65,7 @@ def get_trainable_model_parameters(
 
 
 def model_forward(model: AllModel, batch_inputs: torch.Tensor | LLMBatchInput):
-    if isinstance(model, (OPTForCausalLM, PeftModel)):
+    if isinstance(model, (PreTrainedModel, PeftModel)):
         assert isinstance(batch_inputs, LLMBatchInput)
         return model(input_ids=batch_inputs.input_ids, attention_mask=batch_inputs.attention_mask)
     elif isinstance(model, torch.nn.Module):

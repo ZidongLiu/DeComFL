@@ -20,8 +20,7 @@ SUPPORTED_LLM = {
     "opt-6.7b": "facebook/opt-6.7b",
     "opt-13b": "facebook/opt-13b",
     "opt-30b": "facebook/opt-30b",
-    "phi-1": "microsoft/phi-1",
-    "phi-1.5": "microsoft/phi-1_5",
+    "deepseek-qwen-1.5b": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
 }
 
 
