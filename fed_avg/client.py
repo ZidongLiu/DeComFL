@@ -3,7 +3,7 @@ from typing import Iterator, Callable, Any
 import torch
 from peft import PeftModel
 from torch.utils.data import DataLoader
-from transformers.models.opt.modeling_opt import OPTForCausalLM
+from transformers.modeling_utils import PreTrainedModel
 
 from cezo_fl.typing import CriterionType
 from cezo_fl.util.metrics import Metric
@@ -66,7 +66,7 @@ class FedAvgClient:
 
         return train_loss.avg, train_accuracy.avg
 
-    def pull_model(self, server_model: OPTForCausalLM | PeftModel | torch.nn.Module) -> None:
+    def pull_model(self, server_model: PreTrainedModel | PeftModel | torch.nn.Module) -> None:
         with torch.no_grad():
             for p, updated_p in zip(self.model.parameters(), server_model.parameters()):
                 p.set_(updated_p.to(self._device))
