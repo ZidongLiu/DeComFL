@@ -82,11 +82,13 @@ if __name__ == "__main__":
 
     train_loader = train_loaders[0]
     model.train()
+    eval_iterations = 20
+    iterations = 1000
     total_loss = 0.0
     inf_train_loader = inf_loader(train_loader)
     train_losses = []
     eval_accs = []
-    for i in tqdm(range(args.iterations)):
+    for i in tqdm(range(iterations)):
         batch_input_dict, batch_output_tensor = next(inf_train_loader)
         batch_input_dict = batch_input_dict.to("cuda")
         batch_output_tensor = batch_output_tensor.to("cuda")
@@ -112,7 +114,7 @@ if __name__ == "__main__":
         # Print average loss for the epoch
         average_loss = total_loss / len(train_loader)
 
-        if (i + 1) % args.eval_iterations == 0:
+        if (i + 1) % eval_iterations == 0:
             acc = Metric("accuracy")
             model.eval()
             with torch.no_grad():
