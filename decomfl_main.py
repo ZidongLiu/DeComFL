@@ -1,165 +1,92 @@
 import functools
 from os import path
-
 import torch
-import torch.nn as nn
-from peft import LoraConfig, get_peft_model
+
+
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from byzantine import aggregation as byz_agg
 from byzantine import attack as byz_attack
 from cezo_fl.client import ResetClient
-from cezo_fl.fl_helpers import get_client_name
-from cezo_fl.models.cnn_fashion import CNN_FMNIST
-from cezo_fl.models.cnn_mnist import CNN_MNIST
-from cezo_fl.models.lenet import LeNet
-from cezo_fl.models.lstm import CharLSTM
-from cezo_fl.random_gradient_estimator import RandomGradientEstimator as RGE
+from cezo_fl.fl_helpers import get_client_name, get_server_name
 from cezo_fl.server import CeZO_Server
 from cezo_fl.util import model_helpers
-from cezo_fl.util.language_utils import LM_TEMPLATE_MAP, SUPPORTED_LLM, get_lm_loss
-from cezo_fl.util.metrics import accuracy
-from config import get_args_str, get_params
-from preprocess import preprocess
+from experiment_helper import prepare_settings
+from experiment_helper.cli_parser import (
+    GeneralSetting,
+    DeviceSetting,
+    DataSetting,
+    ModelSetting,
+    OptimizerSetting,
+    FederatedLearningSetting,
+    RGESetting,
+    ByzantineSetting,
+)
+from experiment_helper.device import use_device
+from experiment_helper.data import get_dataloaders
 
 
-def prepare_settings_underseed(args, device):
-    torch_dtype = {
-        "float32": torch.float32,
-        "float16": torch.float16,
-        "bfloat16": torch.bfloat16,
-    }[args.model_dtype]
-    torch.manual_seed(args.seed)
-    if args.dataset == "mnist":
-        model = CNN_MNIST().to(torch_dtype).to(device)
+class CliSetting(
+    GeneralSetting,
+    DeviceSetting,
+    DataSetting,
+    ModelSetting,
+    OptimizerSetting,
+    FederatedLearningSetting,
+    RGESetting,
+    ByzantineSetting,
+):
+    """
+    This is a replacement for regular argparse module.
+    We used a third party library pydantic_setting to make command line interface easier to manage.
+    Example:
+    if __name__ == "__main__":
+        args = CliSetting()
 
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=args.lr,
-            weight_decay=1e-5,
-            momentum=args.momentum,
-        )
-        accuracy_func = accuracy
-        # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
-    elif args.dataset == "cifar10":
-        model = LeNet().to(torch_dtype).to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=args.lr,
-            weight_decay=5e-4,
-            momentum=args.momentum,
-        )
-        accuracy_func = accuracy
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        #     optimizer, milestones=[200], gamma=0.1
-        # )
-    elif args.dataset == "fashion":
-        model = CNN_FMNIST().to(torch_dtype).to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=args.lr,
-            weight_decay=1e-5,
-            momentum=args.momentum,
-        )
-        accuracy_func = accuracy
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        #     optimizer, milestones=[200], gamma=0.1
-        # )
-    elif args.dataset == "shakespeare":
-        model = CharLSTM().to(torch_dtype).to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=args.lr,
-            momentum=0.9,
-            weight_decay=5e-4,
-        )
-        accuracy_func = accuracy
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        #     optimizer, milestones=[200], gamma=0.1
-        # )
-    elif args.dataset in LM_TEMPLATE_MAP.keys():
-        large_model = args.large_model
-        model_name = SUPPORTED_LLM[large_model]
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch_dtype).to(device)
-        model.model_name = large_model
-        if args.lora:
-            # this step initialize lora parameters, which should be under control of seed
-            lora_config = LoraConfig(
-                r=args.lora_r, lora_alpha=args.lora_alpha, target_modules=["q_proj", "v_proj"]
-            )
-            model = get_peft_model(model, lora_config).to(torch_dtype)
+    args will have all parameters defined by all components.
+    """
 
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_name, padding_side="left", truncate_side="left"
-        )
-        template = LM_TEMPLATE_MAP[args.dataset]()
-        verbalizer_id_map = template.get_verbalizer_id(tokenizer)
-        criterion = get_lm_loss("last_token", verbalizer_id_map)
-        optimizer = torch.optim.SGD(
-            model_helpers.get_trainable_model_parameters(model),
-            lr=args.lr,
-            momentum=0,
-            weight_decay=5e-4,
-        )
-        accuracy_func = get_lm_loss("accuracy", verbalizer_id_map)
-    else:
-        raise Exception(f"Dataset {args.dataset} is not supported")
-
-    if args.grad_estimate_method in ["rge-central", "rge-forward"]:
-        method = args.grad_estimate_method[4:]
-        print(f"Using RGE {method}")
-        grad_estimator = RGE(
-            model,
-            parameters=model_helpers.get_trainable_model_parameters(model),
-            mu=args.mu,
-            num_pert=args.num_pert,
-            grad_estimate_method=method,
-            device=device,
-            torch_dtype=torch_dtype,
-            # To save memory consumption, we have to use parameter-wise perturb + no_optim together.
-            sgd_only_no_optim=args.no_optim,
-            paramwise_perturb=args.no_optim,
-        )
-    else:
-        raise Exception(f"Grad estimate method {args.grad_estimate_method} not supported")
-    return model, criterion, optimizer, grad_estimator, accuracy_func
+    pass
 
 
 def setup_server_and_clients(
-    args, device_map: dict[str, torch.device], train_loaders
+    args: CliSetting, device_map: dict[str, torch.device], train_loaders
 ) -> CeZO_Server:
+    model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
+        args.dataset, args.model_setting
+    )
     clients = []
 
     for i in range(args.num_clients):
         client_name = get_client_name(i)
         client_device = device_map[client_name]
-        (
-            client_model,
-            client_criterion,
-            client_optimizer,
-            client_grad_estimator,
-            client_accuracy_func,
-        ) = prepare_settings_underseed(args, client_device)
-        client_model.to(client_device)
+        client_model = prepare_settings.get_model(
+            dataset=args.dataset, model_setting=args.model_setting, seed=args.seed
+        ).to(client_device)
+        client_optimizer = prepare_settings.get_optimizer(
+            model=client_model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
+        )
+        client_grad_estimator = prepare_settings.get_gradient_estimator(
+            model=client_model,
+            device=client_device,
+            rge_setting=args.rge_setting,
+            model_setting=args.model_setting,
+        )
 
         client = ResetClient(
             client_model,
+            model_inferences.train_inference,
             train_loaders[i],
             client_grad_estimator,
             client_optimizer,
-            client_criterion,
-            client_accuracy_func,
+            metrics.train_loss,
+            metrics.train_acc,
             client_device,
         )
         clients.append(client)
 
-    server_device = device_map["server"]
+    server_device = device_map[get_server_name()]
     server = CeZO_Server(
         clients,
         server_device,
@@ -168,18 +95,24 @@ def setup_server_and_clients(
     )
 
     # set server tools
-    (
-        server_model,
-        server_criterion,
-        server_optimizer,
-        server_grad_estimator,
-        server_accuracy_func,
-    ) = prepare_settings_underseed(args, server_device)
-    server_model.to(server_device)
+    server_model = prepare_settings.get_model(
+        dataset=args.dataset, model_setting=args.model_setting, seed=args.seed
+    ).to(server_device)
+    server_optimizer = prepare_settings.get_optimizer(
+        model=server_model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
+    )
+    server_grad_estimator = prepare_settings.get_gradient_estimator(
+        model=server_model,
+        device=server_device,
+        rge_setting=args.rge_setting,
+        model_setting=args.model_setting,
+    )
+
     server.set_server_model_and_criterion(
         server_model,
-        server_criterion,
-        server_accuracy_func,
+        model_inferences.test_inference,
+        metrics.test_loss,
+        metrics.test_acc,
         server_optimizer,
         server_grad_estimator,
     )
@@ -202,7 +135,7 @@ def setup_server_and_clients(
         )
     elif args.byz_type == "krum":
         server.register_attack_func(
-            functools.partial(byz_attack.krum_attack, num_attack=args.num_byz, lr=args.lr)
+            functools.partial(byz_attack.krum_attack, f=args.num_byz, lr=args.lr)
         )
     else:
         raise Exception(
@@ -227,30 +160,19 @@ def setup_server_and_clients(
     return server
 
 
-# get_warmup_lr is not used for now.
-def get_warmup_lr(args, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
-    overall_iterations = args.warmup_epochs * iters_per_epoch + 1
-    current_iterations = current_epoch * iters_per_epoch + current_iter + 1
-    return args.lr * current_iterations / overall_iterations
-
-
-def get_size_of_model(model):
-    return sum(p.numel() * p.element_size() for p in model.parameters())
-
-
 if __name__ == "__main__":
-    args = get_params().parse_args()
-    if args.dataset == "shakespeare":
-        args.num_clients = 139
+    args = CliSetting()
     print(args)
-    device_map, train_loaders, test_loader = preprocess(args)
-
+    device_map = use_device(args.device_setting, args.num_clients)
+    train_loaders, test_loader = get_dataloaders(
+        args.data_setting, args.num_clients, args.seed, args.get_hf_model_name()
+    )
     server = setup_server_and_clients(args, device_map, train_loaders)
 
     if args.log_to_tensorboard:
+        assert server.server_model
         tensorboard_sub_folder = "-".join(
             [
-                get_args_str(args),
                 server.server_model.model_name,
                 model_helpers.get_current_datetime_str(),
             ]
@@ -258,8 +180,8 @@ if __name__ == "__main__":
         writer = SummaryWriter(
             path.join(
                 "tensorboards",
-                "cezo_fl",
-                args.dataset,
+                "decomfl",
+                args.dataset.value,
                 args.log_to_tensorboard,
                 tensorboard_sub_folder,
             )
