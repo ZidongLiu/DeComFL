@@ -20,5 +20,4 @@ def test_get_next_connect_client_index():
 
 
 def test_preprare_for_next_iteration():
-    server = SampleServer()
     pass
