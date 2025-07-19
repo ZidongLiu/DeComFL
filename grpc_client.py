@@ -1,38 +1,52 @@
 from huggingface_hub.repository import atexit
 import torch
 import grpc
+import time
+
 from cezo_grpc import sample_pb2
 from cezo_grpc import sample_pb2_grpc
 from cezo_grpc import data_helper
+from cezo_grpc import cli_interface
 
 from cezo_fl import fl_helpers
 from cezo_fl import client
-import config
-import preprocess
-import decomfl_main
-import time
+
+from experiment_helper import prepare_settings
+from experiment_helper.device import use_device
+from experiment_helper.data import get_dataloaders
 
 
-def setup_client(args, client_index):
-    device_map, train_loaders, _ = preprocess.preprocess(args)
+def setup_client(args: cli_interface.CliSetting, client_index: int):
+    device_map = use_device(args.device_setting, args.num_clients)
+    train_loaders, _ = get_dataloaders(
+        args.data_setting, args.num_clients, args.seed, args.get_hf_model_name()
+    )
+    model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
+        args.dataset, args.model_setting
+    )
     client_name = fl_helpers.get_client_name(client_index)
     client_device = device_map[client_name]
-    (
-        client_model,
-        client_criterion,
-        client_optimizer,
-        client_grad_estimator,
-        client_accuracy_func,
-    ) = decomfl_main.prepare_settings_underseed(args, client_device)
-    client_model.to(client_device)
+    client_model = prepare_settings.get_model(
+        dataset=args.dataset, model_setting=args.model_setting, seed=args.seed
+    ).to(client_device)
+    client_optimizer = prepare_settings.get_optimizer(
+        model=client_model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
+    )
+    client_grad_estimator = prepare_settings.get_gradient_estimator(
+        model=client_model,
+        device=client_device,
+        rge_setting=args.rge_setting,
+        model_setting=args.model_setting,
+    )
 
     return client.ResetClient(
         client_model,
+        model_inferences.train_inference,
         train_loaders[client_index],
         client_grad_estimator,
         client_optimizer,
-        client_criterion,
-        client_accuracy_func,
+        metrics.train_loss,
+        metrics.train_acc,
         client_device,
     )
 
@@ -53,13 +67,13 @@ def get_stub():
     return ps_stub
 
 
-def train_with_args(args):
+def train_with_args(args: cli_interface.CliSetting):
     ps_stub = get_stub()
 
     connect_result = repeat_every(
         lambda: ps_stub.Connect(sample_pb2.EmptyRequest()), lambda x: x.successful
     )
-    client_index = connect_result.clientIndex
+    client_index: int = connect_result.clientIndex
     print(f"connected as client: {client_index}")
     # when program exits, we need to disconnect this client from server
     atexit.register(
@@ -109,8 +123,6 @@ def train_with_args(args):
 
 
 if __name__ == "__main__":
-    args = config.get_params_grpc().parse_args()
-    if args.dataset == "shakespeare":
-        args.num_clients = 139
+    args = cli_interface.CliSetting()
     print(args)
     train_with_args(args)

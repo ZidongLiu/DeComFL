@@ -8,10 +8,11 @@ import torch
 from cezo_grpc import data_helper
 from cezo_grpc import sample_pb2_grpc
 from cezo_grpc import sample_pb2
+from cezo_grpc import cli_interface
+
 from cezo_fl import server
 from byzantine.aggregation import mean
 from byzantine.attack import no_byz
-import config
 
 
 class ServerStatus(Enum):
@@ -310,7 +311,7 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
             return sample_pb2.EmptyResponse()
 
 
-def serve(args):
+def serve(args: cli_interface.CliSetting):
     rpc_master_port = args.rpc_master_port
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=args.rpc_num_workers))
     sample_pb2_grpc.add_SampleServerServicer_to_server(
@@ -324,8 +325,6 @@ def serve(args):
 
 
 if __name__ == "__main__":
-    args = config.get_params_grpc().parse_args()
-    if args.dataset == "shakespeare":
-        args.num_clients = 139
+    args = cli_interface.CliSetting()
     print(args)
     serve(args)

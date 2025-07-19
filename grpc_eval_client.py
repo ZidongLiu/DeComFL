@@ -6,23 +6,42 @@ from cezo_grpc import data_helper
 
 import grpc_client
 
-import config
-import preprocess
-import decomfl_main
-
 from cezo_fl.util.metrics import Metric
 
+from cezo_grpc import cli_interface
 
-def setup_eval_model(args):
-    device_map, _, test_loader = preprocess.preprocess(args)
-    device = device_map["server"]
-    (
-        model,
-        criterion,
-        optimizer,
-        grad_estimator,
-        accuracy_func,
-    ) = decomfl_main.prepare_settings_underseed(args, device)
+from experiment_helper import prepare_settings
+from experiment_helper.device import use_device
+from experiment_helper.data import get_dataloaders
+
+
+def setup_eval_model(args: cli_interface.CliSetting):
+    device_map = use_device(args.device_setting, args.num_clients)
+    device_name = "server"
+    device = device_map[device_name]
+
+    _, test_loader = get_dataloaders(
+        args.data_setting, args.num_clients, args.seed, args.get_hf_model_name()
+    )
+    model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
+        args.dataset, args.model_setting
+    )
+    server_model_inference = model_inferences.test_inference
+    server_criterion = metrics.test_loss
+    server_accuracy_func = metrics.test_acc
+
+    model = prepare_settings.get_model(
+        dataset=args.dataset, model_setting=args.model_setting, seed=args.seed
+    ).to(device)
+    optimizer = prepare_settings.get_optimizer(
+        model=model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
+    )
+    grad_estimator = prepare_settings.get_gradient_estimator(
+        model=model,
+        device=device,
+        rge_setting=args.rge_setting,
+        model_setting=args.model_setting,
+    )
 
     def update_model(seeds_list, grad_scalar_list):
         model.train()
@@ -42,10 +61,11 @@ def setup_eval_model(args):
                 if device != torch.device("cpu") or grad_estimator.torch_dtype != torch.float32:
                     batch_inputs = batch_inputs.to(device, grad_estimator.torch_dtype)
                     # NOTE: label does not convert to dtype
-                    batch_labels = batch_labels.to(device)
-                pred = grad_estimator.model_forward(batch_inputs)
-                eval_loss.update(criterion(pred, batch_labels))
-                eval_accuracy.update(accuracy_func(pred, batch_labels))
+                    if isinstance(batch_labels, torch.Tensor):
+                        batch_labels = batch_labels.to(device)
+                pred = server_model_inference(model, batch_inputs)
+                eval_loss.update(server_criterion(pred, batch_labels))
+                eval_accuracy.update(server_accuracy_func(pred, batch_labels))
         print(
             f"Eval Loss:{eval_loss.avg:.4f}, " f"Accuracy:{eval_accuracy.avg * 100:.2f}%",
         )
@@ -97,9 +117,6 @@ def eval_with_args(args):
 
 
 if __name__ == "__main__":
-    args = config.get_params_grpc().parse_args()
-    if args.dataset == "shakespeare":
-        args.num_clients = 139
+    args = cli_interface.CliSetting()
     print(args)
-
     eval_with_args(args)
