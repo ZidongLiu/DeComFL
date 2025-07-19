@@ -32,7 +32,7 @@ def find_first(lst: list, check_fn) -> int:
 
 
 class SampleServer(sample_pb2_grpc.SampleServerServicer):
-    def __init__(self, num_clients, num_sample_clients, local_update_steps):
+    def __init__(self, num_clients: int, num_sample_clients: int, local_update_steps: int):
         self.should_eval = True
         self.eval_iteration = 25
 
@@ -65,7 +65,7 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
     def _get_next_connect_client_index(self) -> int:
         return find_first(self.connected_clients, lambda x: not x)
 
-    def change_status(self, new_status: Enum) -> None:
+    def change_status(self, new_status: ServerStatus) -> None:
         self.status = new_status
 
     def preprare_for_next_iteration(self):

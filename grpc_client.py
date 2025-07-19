@@ -71,13 +71,14 @@ def train_with_args(args: cli_interface.CliSetting):
     ps_stub = get_stub()
 
     connect_result = repeat_every(
-        lambda: ps_stub.Connect(sample_pb2.EmptyRequest()), lambda x: x.successful
+        lambda: ps_stub.Connect(sample_pb2.EmptyRequest()),  # type: ignore[attr-defined]
+        lambda x: x.successful,
     )
     client_index: int = connect_result.clientIndex
     print(f"connected as client: {client_index}")
     # when program exits, we need to disconnect this client from server
     atexit.register(
-        lambda: ps_stub.Disconnect(sample_pb2.DisconnectRequest(clientIndex=client_index))
+        lambda: ps_stub.Disconnect(sample_pb2.DisconnectRequest(clientIndex=client_index))  # type: ignore[attr-defined]
     )
 
     with torch.no_grad():
@@ -86,7 +87,7 @@ def train_with_args(args: cli_interface.CliSetting):
         def try_to_join_iteration():
             join_result = repeat_every(
                 lambda: ps_stub.TryToJoinIteration(
-                    sample_pb2.TryToJoinIterationRequest(clientIndex=client_index)
+                    sample_pb2.TryToJoinIterationRequest(clientIndex=client_index)  # type: ignore[attr-defined]
                 ),
                 lambda x: x.successful,
             )
@@ -109,7 +110,7 @@ def train_with_args(args: cli_interface.CliSetting):
 
             print("submit result")
             ps_stub.SubmitIteration(
-                sample_pb2.SubmitIterationRequest(
+                sample_pb2.SubmitIterationRequest(  # type: ignore[attr-defined]
                     clientIndex=client_index,
                     gradTensors=data_helper.py_to_protobuf_list_of_list_of_floats(
                         [t.tolist() for t in client_local_update_result.grad_tensors]
