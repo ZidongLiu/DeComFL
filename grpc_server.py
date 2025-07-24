@@ -54,6 +54,7 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         self.iteration: int = -1
         self.iteration_seeds: list[int] = []
         self.iteration_sampled_clients: list[int] = []
+        self.iteration_finished_clients: set[int] = set()
         self.iteration_local_grad_scalar: dict[int, list[torch.Tensor]] = {}
 
     def _get_connect_status(self):
@@ -75,6 +76,7 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         self.iteration_sampled_clients = random.sample(
             range(self.num_clients), self.num_sample_clients
         )
+        self.iteration_finished_clients = set()
         self.iteration_local_grad_scalar = {}
         print(f"Iteration: {self.iteration}, sampled_clients: {self.iteration_sampled_clients}")
 
@@ -91,7 +93,7 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         if self._should_connect():
             return
         # 3. initialize training data for next iteration
-        print("swtich from connecting to training")
+        print("Switch from connecting to training")
         self.preprare_for_next_iteration()
         # 4. change status to training
         self.change_status(ServerStatus.training)
@@ -103,10 +105,12 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         self.change_status(ServerStatus.connecting)
 
     def _has_iteration_finished(self) -> bool:
-        return all(
+        sorted_sampled_clients = sorted(self.iteration_sampled_clients)
+        sorted_finished_clients = sorted(self.iteration_finished_clients)
+        return len(sorted_sampled_clients) == len(sorted_finished_clients) and all(
             [
-                self.iteration_local_grad_scalar.get(client_index)
-                for client_index in self.iteration_sampled_clients
+                sorted_sampled_clients[i] == sorted_finished_clients[i]
+                for i in range(len(sorted_sampled_clients))
             ]
         )
 
@@ -137,7 +141,7 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
         # 2. check if sampled client all have return result
         if not self._has_iteration_finished():
             return
-        print("swtich from training to aggregating")
+        print("Switch from training to aggregating")
         # 3. change status to aggregating
         self.change_status(ServerStatus.aggregating)
         # 4. update seed_grad_records
@@ -149,16 +153,16 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
             self.switch_from_aggregating_to_training()
 
     def switch_from_aggregating_to_training(self) -> None:
-        print("swtich from aggregating to training")
+        print("Switch from aggregating to training")
         self.preprare_for_next_iteration()
         self.change_status(ServerStatus.training)
 
     def switch_from_aggregating_to_evaluating(self) -> None:
-        print("swtich from aggregating to evaluating")
+        print("Switch from aggregating to evaluating")
         self.change_status(ServerStatus.evaluating)
 
     def switch_from_evaluating_to_training(self) -> None:
-        print("swtich from evaluating to training")
+        print("Switch from evaluating to training")
         self.preprare_for_next_iteration()
         self.change_status(ServerStatus.training)
 
@@ -196,6 +200,7 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
             if (
                 self.status is not ServerStatus.training
                 or client_index not in self.iteration_sampled_clients
+                or client_index in self.iteration_finished_clients
             ):
                 return sample_pb2.TryToJoinIterationResponse(
                     successful=False,
@@ -237,12 +242,14 @@ class SampleServer(sample_pb2_grpc.SampleServerServicer):
             if (
                 self.status is not ServerStatus.training
                 or client_index not in self.iteration_sampled_clients
+                or client_index in self.iteration_finished_clients
             ):
                 return sample_pb2.EmptyResponse()
 
             raw_grad_list = data_helper.protobuf_to_py_list_of_list_of_floats(request.gradTensors)
             grad_tensors = [torch.tensor(v) for v in raw_grad_list]
             self._apply_client_local_update_result(client_index, grad_tensors)
+            self.iteration_finished_clients.add(client_index)
             self.try_switch_from_training_to_aggregating()
             return sample_pb2.EmptyResponse()
 
