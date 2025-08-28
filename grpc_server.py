@@ -324,7 +324,7 @@ def serve(args: cli_interface.CliSetting):
     sample_pb2_grpc.add_SampleServerServicer_to_server(
         SampleServer(args.num_clients, args.num_sample_clients, args.local_update_steps), server
     )
-    port_str = f"{args.rpc_master_addr}:{rpc_master_port}"
+    port_str = f"[::]:{rpc_master_port}"
     server.add_insecure_port(port_str)
     print(f"Parameter server starting on {port_str}")
     server.start()
