@@ -27,6 +27,8 @@ exclude = [
     "site-packages",
     "venv",
     "*.ipynb",
+    "cezo_grpc/sample_pb2_grpc.py",
+    "cezo_grpc/sample_pb2.py"
 ]
 
 line-length = 100

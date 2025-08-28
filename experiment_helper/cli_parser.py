@@ -197,3 +197,22 @@ class FOFLSetting(FrozenSetting):
     @cached_property
     def fo_fl_setting(self) -> "FOFLSetting":
         return FOFLSetting()
+
+
+class GRPCSetting(FrozenSetting):
+    # gRPC
+    rpc_master_addr: str = Field(
+        default="localhost",
+        validation_alias=AliasChoices("rpc-master-addr"),
+        description="Address of the RPC master node (the parameter server).",
+    )
+    rpc_master_port: int = Field(
+        default=4242,
+        validation_alias=AliasChoices("rpc-master-port"),
+        description="Port of the RPC master node (the parameter server).",
+    )
+    rpc_num_workers: int = Field(default=8, validation_alias=AliasChoices("rpc-num-workers"))
+
+    @cached_property
+    def grpc_setting(self) -> "GRPCSetting":
+        return GRPCSetting()
