@@ -114,7 +114,7 @@ model: PreTrainedModel = load_model_from_config(config)
 ### Type Hint Examples for DeComFL
 
 ```python
-from typing import Optional, Any
+from typing import Any
 import torch
 from torch import Tensor
 from transformers import PreTrainedModel, PreTrainedTokenizer
