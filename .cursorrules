@@ -1,0 +1,220 @@
+# DeComFL - Federated Learning with Zeroth-Order Optimization
+
+## Project Overview
+
+This is a federated learning library that uses zeroth-order optimization to achieve dimension-free communication between clients. The main focus is on training/fine-tuning deep learning models in federated scenarios where communication is limited to scalars rather than full model parameters.
+
+## Key Technologies & Frameworks
+
+- **PyTorch**: Primary deep learning framework
+- **Transformers**: For large language models (OPT, GPT-2, etc.)
+- **Datasets**: Hugging Face datasets for NLP tasks
+- **Federated Learning**: Custom implementation with zeroth-order optimization, this part needs to be support memory efficient pytorch operation
+- **Optimization**: SGD, Adam, and zeroth-order methods
+
+## Code Structure & Conventions
+
+### File Organization
+
+- `experiment_helper/`: Configuration and utility functions for experiments
+- `models/`: Model definitions and architectures
+- `utils/`: Utility functions for data processing, logging, etc.
+- `*_main.py`: Main experiment scripts (zo_rge_main.py, decomfl_main.py, fo_fl_main.py, zo_adam_main.py)
+
+### Naming Conventions
+
+- Use snake_case for file names and function names
+- Use PascalCase for class names
+- Use UPPER_CASE for constants
+- Prefix experiment scripts with the method name (zo*, decomfl*, fo\_)
+
+### Model Naming
+
+- Follow the pattern: `{provider}-{model_name}-{size}`
+- Examples: `opt-125m`, `opt-350m`, `gpt2`, `deepseek-qwen-1.5b`
+- Use lowercase with hyphens for model identifiers
+
+## Development Guidelines
+
+### Adding New Experiments
+
+1. Create a new `*_main.py` file following the existing pattern
+2. Add configuration options to `experiment_helper/experiment_typing.py`
+3. Update the README.md with usage examples
+4. Follow the argument parsing pattern used in existing scripts
+
+### Model Integration
+
+- When adding new models, update the model mapping in `experiment_helper/experiment_typing.py`
+- Ensure model names follow the established naming convention
+- Add appropriate model loading logic in the model helper functions
+
+### Configuration Management
+
+- Use the existing configuration system with `experiment_typing.py`
+- Add new experiment types to the `ExperimentType` enum
+- Follow the pattern of creating configuration classes for new experiments
+
+### Code Style
+
+- Follow PEP 8 for Python code
+- Use type hints where appropriate
+- Add docstrings for functions and classes
+- Keep functions focused and single-purpose
+- Use meaningful variable names that reflect the federated learning context
+
+### Type Hints & MyPy
+
+- **Always use type hints** for function parameters, return values, and class attributes
+- **Use python 3.10 supported native typing** if possible rather than import from typing modules: `list[str]`, `dict[str, Any]`, `tuple[int, int]`
+- **Import typing modules** at the top, try to minimize using this extension: `from typing import Any`
+- **Use specific types** instead of `Any` whenever possible
+- **PyTorch types**: Use `torch.Tensor`, `torch.nn.Module`, `torch.optim.Optimizer`
+- **Transformers types**: Use `transformers.PreTrainedModel`, `transformers.PreTrainedTokenizer`
+- **Dataset types**: Use `datasets.Dataset`, `datasets.DatasetDict`
+- **Optional parameters**: Use `Type | None` for nullable values, not `Optional[Type]`
+- **Union types**: Use `Type1 | Type2` for multiple possible types, not `Union[Type1, Type2]`
+- **Generic types**: Use `list[str]`, `dict[str, Any]`, `tuple[int, int]` for collections
+- **Class attributes**: Type all class attributes, use `ClassVar` for class-level constants
+- **Function signatures**: Always type parameters and return values
+- **Variable annotations**: Type complex variables, especially model-related ones
+- **MyPy configuration**: Use `mypy.ini` with strict mode enabled
+- **Ignore patterns**: Use `# type: ignore` sparingly, prefer proper typing
+- **Protocol usage**: Use `typing.Protocol` for duck typing when appropriate
+- **Type aliases**: Create type aliases for complex types used frequently
+- **Forward references**: Use string literals for forward references: `"ModelType"`
+
+## Common Patterns
+
+### Experiment Scripts
+
+```python
+def main():
+    args = parse_args()
+    config = create_config(args)
+    # Setup logging, data, model
+    # Run experiment loop
+    # Save results
+```
+
+### Model Loading
+
+```python
+from typing import Any
+import torch
+from transformers import PreTrainedModel
+
+def load_model_from_config(config: dict[str, Any]) -> PreTrainedModel:
+    model = create_model(config["model_name"])
+    return model.to(config["device"])
+
+model: PreTrainedModel = load_model_from_config(config)
+```
+
+### Type Hint Examples for DeComFL
+
+```python
+from typing import Optional, Any
+import torch
+from torch import Tensor
+from transformers import PreTrainedModel, PreTrainedTokenizer
+from datasets import Dataset, DatasetDict
+
+# Function signatures
+def train_model(
+    model: PreTrainedModel,
+    dataset: Dataset,
+    num_epochs: int,
+    learning_rate: float,
+    device: torch.device
+) -> dict[str, float]:
+    pass
+
+# Class definitions
+class FederatedClient:
+    def __init__(
+        self,
+        client_id: int,
+        model: PreTrainedModel,
+        local_data: Dataset,
+        optimizer: torch.optim.Optimizer
+    ) -> None:
+        self.client_id: int = client_id
+        self.model: PreTrainedModel = model
+        self.local_data: Dataset = local_data
+        self.optimizer: torch.optim.Optimizer = optimizer
+
+# Type aliases for common patterns
+ModelType = PreTrainedModel | torch.nn.Module
+OptimizerType = torch.optim.SGD | torch.optim.Adam
+DatasetType = Dataset | DatasetDict
+
+# Optional and Union types
+def load_dataset(
+    dataset_name: str,
+    split: str | None = None
+) -> Dataset | DatasetDict:
+    pass
+
+# Generic collections
+def process_batch(
+    batch: dict[str, Tensor],
+    model: ModelType
+) -> tuple[Tensor, Tensor]:
+    pass
+```
+
+### Data Handling
+
+- Use the existing data loading utilities
+- Follow the pattern of splitting data for federated scenarios
+- Ensure proper preprocessing for different datasets
+
+## Testing & Validation
+
+- Test new experiments with small datasets first
+- Validate that zeroth-order optimization parameters work correctly
+- Ensure federated learning communication patterns are maintained
+- Test with different model sizes and configurations
+
+## Documentation
+
+- Update README.md when adding new experiments
+- Include usage examples with realistic parameters
+- Document any new configuration options
+- Maintain the existing documentation structure
+
+## Performance Considerations
+
+- Be mindful of memory usage with large models
+- Consider batch sizes for different model sizes
+- Optimize communication patterns for federated learning
+- Use appropriate learning rates for zeroth-order methods
+
+## Dependencies
+
+- Keep dependencies minimal and well-documented
+- Use conda environment files for reproducibility
+- Maintain compatibility with PyTorch and Transformers versions
+- Document any new dependencies in environment files
+
+## Error Handling
+
+- Use appropriate exception handling for model loading
+- Validate configuration parameters
+- Provide meaningful error messages for common issues
+- Handle edge cases in federated learning scenarios
+
+## Security & Privacy
+
+- Be mindful of data privacy in federated learning
+- Ensure proper handling of client data
+- Follow best practices for secure communication patterns
+- Document any privacy considerations
+
+## Git Workflow
+
+- Use descriptive commit messages
+- Create feature branches for new experiments
+- Test thoroughly before merging
+- Update documentation with changes
