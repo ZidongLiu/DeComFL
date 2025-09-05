@@ -9,7 +9,11 @@ import torch
 from torch.utils.data import DataLoader
 
 from cezo_fl.gradient_estimators.abstract_gradient_estimator import AbstractGradientEstimator
-from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradientEstimator
+from cezo_fl.gradient_estimators.random_gradient_estimator_splitted import (
+    RandomGradientEstimatorBatch,
+    RandomGradientEstimatorParamwise,
+)
+from cezo_fl.gradient_estimators.adam_forward import AdamForwardGradientEstimator
 from cezo_fl.typing import CriterionType
 from cezo_fl.util.metrics import Metric
 
@@ -122,22 +126,23 @@ class ResetClient(AbstractClient):
 
             # declare grad_scalars before assigning it to avoid no-redef type check
             grad_scalars: torch.Tensor
-            if self.grad_estimator.sgd_only_no_optim and isinstance(
-                self.grad_estimator, RandomGradientEstimator
-            ):
+            if isinstance(self.grad_estimator, RandomGradientEstimatorParamwise):
                 grad_scalars = self.grad_estimator._zo_grad_estimate_paramwise(
                     batch_inputs, labels, self._loss_fn, seed
                 )
                 self.grad_estimator.update_model_given_seed_and_grad(
                     self.optimizer, [seed], [grad_scalars]
                 )
-            else:
-                # generate grads and update model's gradient
-                # The length of grad_scalars is number of perturbations
+            elif isinstance(
+                self.grad_estimator, (RandomGradientEstimatorBatch, AdamForwardGradientEstimator)
+            ):
                 grad_scalars = self.grad_estimator.compute_grad(
                     batch_inputs, labels, self._loss_fn, seed
                 )
                 self.optimizer.step()
+            else:
+                raise ValueError(f"Unsupported gradient estimator: {self.grad_estimator}")
+
             iteration_local_update_grad_vectors.append(grad_scalars)
 
             # get_train_info

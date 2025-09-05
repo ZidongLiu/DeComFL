@@ -9,8 +9,10 @@ import torchvision.transforms as transforms
 from cezo_fl.client import AbstractClient, LocalUpdateResult, ResetClient
 from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.gradient_estimators.random_gradient_estimator import (
-    RandomGradientEstimator,
     RandomGradEstimateMethod,
+)
+from cezo_fl.gradient_estimators.random_gradient_estimator_splitted import (
+    RandomGradientEstimatorBatch,
 )
 from cezo_fl.gradient_estimators.adam_forward import (
     AdamForwardGradientEstimator,
@@ -132,7 +134,7 @@ def test_server_client_model_sync(estimator_type, k_update_strategy):
         optimizer = torch.optim.SGD(model.parameters(), lr=lr)
 
         if estimator_type == "vanilla":
-            grad_estimator = RandomGradientEstimator(
+            grad_estimator = RandomGradientEstimatorBatch(
                 model.parameters(),
                 mu=1e-3,
                 num_pert=2,
@@ -175,7 +177,7 @@ def test_server_client_model_sync(estimator_type, k_update_strategy):
     server_optimizer = torch.optim.SGD(server_model.parameters(), lr=lr)
 
     if estimator_type == "vanilla":
-        server_grad_estimator = RandomGradientEstimator(
+        server_grad_estimator = RandomGradientEstimatorBatch(
             server_model.parameters(),
             mu=1e-3,
             num_pert=2,
