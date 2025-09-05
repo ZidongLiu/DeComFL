@@ -13,7 +13,10 @@ from cezo_fl.gradient_estimators.random_gradient_estimator_splitted import (
     RandomGradientEstimatorBatch,
     RandomGradientEstimatorParamwise,
 )
-from cezo_fl.gradient_estimators.adam_forward import AdamForwardGradientEstimator
+from cezo_fl.gradient_estimators.adam_forward import (
+    AdamForwardGradientEstimatorBatch,
+    AdamForwardGradientEstimatorParamwise,
+)
 from cezo_fl.typing import CriterionType
 from cezo_fl.util.metrics import Metric
 
@@ -126,7 +129,10 @@ class ResetClient(AbstractClient):
 
             # declare grad_scalars before assigning it to avoid no-redef type check
             grad_scalars: torch.Tensor
-            if isinstance(self.grad_estimator, RandomGradientEstimatorParamwise):
+            if isinstance(
+                self.grad_estimator,
+                (RandomGradientEstimatorParamwise, AdamForwardGradientEstimatorParamwise),
+            ):
                 grad_scalars = self.grad_estimator._zo_grad_estimate_paramwise(
                     batch_inputs, labels, self._loss_fn, seed
                 )
@@ -134,7 +140,8 @@ class ResetClient(AbstractClient):
                     self.optimizer, [seed], [grad_scalars]
                 )
             elif isinstance(
-                self.grad_estimator, (RandomGradientEstimatorBatch, AdamForwardGradientEstimator)
+                self.grad_estimator,
+                (RandomGradientEstimatorBatch, AdamForwardGradientEstimatorBatch),
             ):
                 grad_scalars = self.grad_estimator.compute_grad(
                     batch_inputs, labels, self._loss_fn, seed

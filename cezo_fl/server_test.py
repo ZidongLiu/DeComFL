@@ -15,7 +15,7 @@ from cezo_fl.gradient_estimators.random_gradient_estimator_splitted import (
     RandomGradientEstimatorBatch,
 )
 from cezo_fl.gradient_estimators.adam_forward import (
-    AdamForwardGradientEstimator,
+    AdamForwardGradientEstimatorBatch,
     KUpdateStrategy,
 )
 from cezo_fl.server import CeZO_Server, SeedAndGradientRecords
@@ -142,7 +142,7 @@ def test_server_client_model_sync(estimator_type, k_update_strategy):
                 device=device,
             )
         else:  # adam_forward
-            grad_estimator = AdamForwardGradientEstimator(
+            grad_estimator = AdamForwardGradientEstimatorBatch(
                 model.parameters(),
                 mu=1e-3,
                 num_pert=2,
@@ -185,7 +185,7 @@ def test_server_client_model_sync(estimator_type, k_update_strategy):
             device=device,
         )
     else:  # adam_forward
-        server_grad_estimator = AdamForwardGradientEstimator(
+        server_grad_estimator = AdamForwardGradientEstimatorBatch(
             server_model.parameters(),
             mu=1e-3,
             num_pert=2,
@@ -230,7 +230,7 @@ def test_server_client_model_sync(estimator_type, k_update_strategy):
                 ), f"Server and client {client_index} model parameters differ for {estimator_type} with {k_update_strategy}"
 
             if estimator_type == "adam_forward":
-                assert isinstance(client.grad_estimator, AdamForwardGradientEstimator)
+                assert isinstance(client.grad_estimator, AdamForwardGradientEstimatorBatch)
                 # K_vec should be synchronized between server and clients
                 assert (
                     (server_grad_estimator.K_vec - client.grad_estimator.K_vec).abs().max() < 1e-6

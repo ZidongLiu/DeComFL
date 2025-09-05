@@ -62,6 +62,7 @@ class AbstractGradientEstimator(ABC):
         """
         Compute the gradient of the model parameters with respect to the loss function.
         Petrurb model then calculate loss for that direction.
+        This method is supposed to use together with the optimizer.step()
         Args:
             batch_inputs: input data for the model.
             labels: true labels for the input data.

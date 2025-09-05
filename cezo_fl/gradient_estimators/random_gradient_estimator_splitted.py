@@ -19,7 +19,7 @@ class RandomGradientEstimatorBatch(AbstractGradientEstimator):
     ):
         self.parameters_list: list[Parameter] = [p for p in parameters if p.requires_grad]
         self.total_dimensions = sum([p.numel() for p in self.parameters_list])
-        print(f"trainable model size: {self.total_dimensions}")
+        print(f"Using RandomGradientEstimatorBatch, trainable model size: {self.total_dimensions}")
 
         self.mu = mu
         self.num_pert = num_pert
@@ -200,7 +200,9 @@ class RandomGradientEstimatorParamwise(AbstractGradientEstimator):
     ):
         self.parameters_list: list[Parameter] = [p for p in parameters if p.requires_grad]
         self.total_dimensions = sum([p.numel() for p in self.parameters_list])
-        print(f"trainable model size: {self.total_dimensions}")
+        print(
+            f"Using RandomGradientEstimatorParamwise, trainable model size: {self.total_dimensions}"
+        )
 
         self.mu = mu
         self.num_pert = num_pert

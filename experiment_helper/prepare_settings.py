@@ -18,7 +18,10 @@ from cezo_fl.gradient_estimators.random_gradient_estimator_splitted import (
     RandomGradientEstimatorParamwise,
 )
 
-from cezo_fl.gradient_estimators.adam_forward import AdamForwardGradientEstimator
+from cezo_fl.gradient_estimators.adam_forward import (
+    AdamForwardGradientEstimatorBatch,
+    AdamForwardGradientEstimatorParamwise,
+)
 from cezo_fl.gradient_estimators.hessian_random_gradient_estimator import (
     HessianRandomGradientEstimator,
 )
@@ -209,21 +212,15 @@ def get_model_inferences_and_metrics(
 
 def get_gradient_estimator(
     model: AllModel, device: torch.device, rge_setting: RGESetting, model_setting: ModelSetting
-) -> RandomGradientEstimatorBatch | RandomGradientEstimatorParamwise | AdamForwardGradientEstimator:
+) -> (
+    RandomGradientEstimatorBatch
+    | RandomGradientEstimatorParamwise
+    | AdamForwardGradientEstimatorBatch
+    | AdamForwardGradientEstimatorParamwise
+):
     no_optim = not rge_setting.optim
     if rge_setting.estimator_type == EstimatorType.vanilla:
         if no_optim:
-            print("Using RandomGradientEstimatorBatch")
-            return RandomGradientEstimatorBatch(
-                parameters=model_helpers.get_trainable_model_parameters(model),
-                mu=rge_setting.mu,
-                num_pert=rge_setting.num_pert,
-                grad_estimate_method=rge_setting.grad_estimate_method,
-                device=device,
-                torch_dtype=model_setting.get_torch_dtype(),
-            )
-        else:
-            print("Using RandomGradientEstimatorParamwise")
             return RandomGradientEstimatorParamwise(
                 parameters=model_helpers.get_trainable_model_parameters(model),
                 mu=rge_setting.mu,
@@ -232,17 +229,36 @@ def get_gradient_estimator(
                 device=device,
                 torch_dtype=model_setting.get_torch_dtype(),
             )
+        else:
+            return RandomGradientEstimatorBatch(
+                parameters=model_helpers.get_trainable_model_parameters(model),
+                mu=rge_setting.mu,
+                num_pert=rge_setting.num_pert,
+                grad_estimate_method=rge_setting.grad_estimate_method,
+                device=device,
+                torch_dtype=model_setting.get_torch_dtype(),
+            )
     elif rge_setting.estimator_type == EstimatorType.adam_forward:
-        print("Using AdamForwardGradientEstimator")
-        return AdamForwardGradientEstimator(
-            parameters=model_helpers.get_trainable_model_parameters(model),
-            mu=rge_setting.mu,
-            num_pert=rge_setting.num_pert,
-            device=device,
-            torch_dtype=model_setting.get_torch_dtype(),
-            k_update_strategy=rge_setting.k_update_strategy,
-            hessian_smooth=rge_setting.hessian_smooth,
-        )
+        if no_optim:
+            return AdamForwardGradientEstimatorParamwise(
+                parameters=model_helpers.get_trainable_model_parameters(model),
+                mu=rge_setting.mu,
+                num_pert=rge_setting.num_pert,
+                device=device,
+                torch_dtype=model_setting.get_torch_dtype(),
+                k_update_strategy=rge_setting.k_update_strategy,
+                hessian_smooth=rge_setting.hessian_smooth,
+            )
+        else:
+            return AdamForwardGradientEstimatorBatch(
+                parameters=model_helpers.get_trainable_model_parameters(model),
+                mu=rge_setting.mu,
+                num_pert=rge_setting.num_pert,
+                device=device,
+                torch_dtype=model_setting.get_torch_dtype(),
+                k_update_strategy=rge_setting.k_update_strategy,
+                hessian_smooth=rge_setting.hessian_smooth,
+            )
     else:
         raise ValueError(f"Invalid estimator type: {rge_setting.estimator_type}")
 
