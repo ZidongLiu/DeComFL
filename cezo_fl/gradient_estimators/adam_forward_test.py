@@ -20,7 +20,7 @@ class SimpleModel(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.relu(self.linear1(x))
-        return self.linear2(x)
+        return self.linear2(x)  # type: ignore[no-any-return]
 
 
 def mse_loss_fn(predictions: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
