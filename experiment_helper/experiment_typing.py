@@ -10,6 +10,10 @@ class LargeModel(Enum):
     opt_13b = "opt-13b"
     opt_30b = "opt-30b"
     deepseek_qwen_1p5b = "deepseek-qwen-1.5b"
+    qwen3_0p6b = "qwen3-0.6b"
+    qwen3_1p7b = "qwen3-1.7b"
+    qwen3_4b = "qwen3-4b"
+    qwen3_8b = "qwen3-8b"
 
 
 class ModelDtype(Enum):
