@@ -14,6 +14,12 @@ class LargeModel(Enum):
     qwen3_1p7b = "qwen3-1.7b"
     qwen3_4b = "qwen3-4b"
     qwen3_8b = "qwen3-8b"
+    llama3p2_1b = "llama3.2-1b"
+    llama3p2_3b = "llama3.2-3b"
+    gemma3_270m = "gemma-3-270m"
+    gemma3_1b = "gemma-3-1b"
+    gemma3_4b = "gemma-3-4b"
+    smollm3_3b = "smollm3-3b"
 
 
 class ModelDtype(Enum):

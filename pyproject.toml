@@ -15,7 +15,8 @@ dependencies = [
 	"tensorboardx",
 	"tqdm",
 	"pydantic",
-	"pydantic-settings"
+	"pydantic-settings",
+	"python-dotenv"
 ]
 
 

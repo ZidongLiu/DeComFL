@@ -9,7 +9,7 @@ import torch
 import numpy as np
 
 from transformers import AutoTokenizer
-
+from experiment_helper.hf_token import HF_TOKEN
 
 # LLM
 SUPPORTED_LLM = {
@@ -25,11 +25,17 @@ SUPPORTED_LLM = {
     "qwen3-1.7b": "Qwen/Qwen3-1.7B",
     "qwen3-4b": "Qwen/Qwen3-4B",
     "qwen3-8b": "Qwen/Qwen3-8B",
+    "llama3.2-1b": "meta-llama/Llama-3.2-1B",
+    "llama3.2-3b": "meta-llama/Llama-3.2-3B",
+    "gemma-3-270m": "google/gemma-3-270m",
+    "gemma-3-1b": "google/gemma-3-1b-pt",
+    "gemma-3-4b": "google/gemma-3-4b-pt",
+    "smollm3-3b":"HuggingFaceTB/SmolLM3-3B"
 }
 
 
 def get_hf_tokenizer(hf_model_name):
-    return AutoTokenizer.from_pretrained(hf_model_name, padding_side="left", truncate_side="left")
+    return AutoTokenizer.from_pretrained(hf_model_name, padding_side="left", truncate_side="left", token=HF_TOKEN)
 
 
 class CustomLMDataset(torch.utils.data.DataLoader):
