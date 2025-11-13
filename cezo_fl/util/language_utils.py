@@ -35,7 +35,10 @@ SUPPORTED_LLM = {
 
 
 def get_hf_tokenizer(hf_model_name):
-    return AutoTokenizer.from_pretrained(hf_model_name, padding_side="left", truncate_side="left", token=HF_TOKEN)
+    tokenizer = AutoTokenizer.from_pretrained(hf_model_name, padding_side="left", truncate_side="left", token=HF_TOKEN)
+    if tokenizer.pad_token is None:
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    return tokenizer
 
 
 class CustomLMDataset(torch.utils.data.DataLoader):
