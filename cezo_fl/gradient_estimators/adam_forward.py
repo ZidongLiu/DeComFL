@@ -12,7 +12,7 @@ class KUpdateStrategy(Enum):
     LAST_LOCAL_UPDATE = "last_local_update"
 
 
-class AdamForwardGradientEstimator(AbstractGradientEstimator):
+class AdamForwardGradientEstimatorBatch(AbstractGradientEstimator):
     def __init__(
         self,
         parameters: Iterator[Parameter],
@@ -25,7 +25,9 @@ class AdamForwardGradientEstimator(AbstractGradientEstimator):
     ):
         self.parameters_list: list[Parameter] = [p for p in parameters if p.requires_grad]
         self.total_dimensions = sum([p.numel() for p in self.parameters_list])
-        print(f"trainable model size: {self.total_dimensions}")
+        print(
+            f"Using AdamForwardGradientEstimatorBatch, trainable model size: {self.total_dimensions}"
+        )
 
         self.mu = mu
         self.num_pert = num_pert
@@ -135,3 +137,167 @@ class AdamForwardGradientEstimator(AbstractGradientEstimator):
             self.generate_then_put_grad(one_update_seed, one_update_grad_dirs)
             # update model
             optimizer.step()
+
+
+class AdamForwardGradientEstimatorParamwise(AbstractGradientEstimator):
+    def __init__(
+        self,
+        parameters: Iterator[Parameter],
+        mu=1e-3,
+        num_pert=1,
+        k_update_strategy: KUpdateStrategy = KUpdateStrategy.LAST_LOCAL_UPDATE,
+        hessian_smooth: float = 0.95,
+        device: str | torch.device | None = None,
+        torch_dtype: torch.dtype = torch.float32,
+    ):
+        self.parameters_list: list[Parameter] = [p for p in parameters if p.requires_grad]
+        self.total_dimensions = sum([p.numel() for p in self.parameters_list])
+        print(
+            f"Using AdamForwardGradientEstimatorParamwise, trainable model size: {self.total_dimensions}"
+        )
+
+        self.mu = mu
+        self.num_pert = num_pert
+        self.device = device
+        self.torch_dtype = torch_dtype
+
+        self.k_update_strategy: KUpdateStrategy = k_update_strategy
+        self.hessian_smooth = hessian_smooth  # test fine tune this
+        # Create a list of K_param tensors, one for each parameter with same shape
+        self.K_param_list: list[torch.Tensor] = [
+            torch.ones(p.shape, device=self.device, dtype=self.torch_dtype)
+            for p in self.parameters_list
+        ]
+
+    def get_rng(self, seed: int, perturb_index: int) -> torch.Generator:
+        return torch.Generator(device=self.device).manual_seed(
+            seed * (perturb_index + 17) + perturb_index
+        )
+
+    def generate_perturbation_norm(self, rng: torch.Generator | None = None) -> torch.Tensor:
+        raise NotImplementedError("This method should not be called for this class")
+
+    def generate_perturbation_norm_paramwise(
+        self, param_index: int, rng: torch.Generator
+    ) -> torch.Tensor:
+        param = self.parameters_list[param_index]
+        param_k = self.K_param_list[param_index]
+        return torch.randn(
+            *param.shape, device=self.device, dtype=self.torch_dtype, generator=rng
+        ) / torch.sqrt(param_k)
+
+    def compute_grad(
+        self,
+        batch_inputs: torch.Tensor,
+        labels: torch.Tensor,
+        loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        seed: int,
+    ) -> torch.Tensor:
+        perturbation_dir_grads = self._zo_grad_estimate_paramwise(
+            batch_inputs, labels, loss_fn, seed
+        )
+        self.generate_then_put_grad_paramwise(seed, perturbation_dir_grads)
+        return perturbation_dir_grads
+
+    def _zo_grad_estimate_paramwise(
+        self,
+        batch_inputs: torch.Tensor,
+        labels: torch.Tensor,
+        loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        seed: int,
+    ) -> torch.Tensor:
+        loss_0 = loss_fn(batch_inputs, labels)
+        dir_grads = []
+
+        for i in range(self.num_pert):
+            rng = self.get_rng(seed, i)
+            self.perturb_model_paramwise(rng, alpha=self.mu)
+            loss_plus = loss_fn(batch_inputs, labels)
+            # need to reset rng after using it to be able to recover
+            rng = self.get_rng(seed, i)
+            self.perturb_model_paramwise(rng, alpha=-self.mu)
+
+            dir_grad = (loss_plus - loss_0) / self.mu
+            dir_grads.append(dir_grad)
+
+        return torch.tensor(dir_grads, device=self.device)
+
+    def perturb_model_paramwise(self, rng: torch.Generator, alpha: float | int) -> None:
+        for param_idx, param in enumerate(self.parameters_list):
+            _perturb = self.generate_perturbation_norm_paramwise(param_idx, rng)
+            param.add_(_perturb, alpha=alpha)
+            del _perturb
+
+    def generate_then_put_grad_paramwise(self, seed: int, dir_grads: torch.Tensor) -> None:
+        num_pert = len(dir_grads)
+        for i, dir_grad in enumerate(dir_grads):
+            rng = self.get_rng(seed, i)
+            for param_idx, param in enumerate(self.parameters_list):
+                _perturb = self.generate_perturbation_norm_paramwise(param_idx, rng)
+
+                if i == 0:
+                    param.grad = _perturb.mul_(dir_grad / num_pert)
+                else:
+                    param.grad += _perturb.mul_(dir_grad / num_pert)
+                del _perturb
+
+    def sgd_no_optim_update_model(
+        self, perturbation_dir_grads: torch.Tensor, seed: int, lr: float
+    ) -> None:
+        num_pert = len(perturbation_dir_grads)
+        for i, dir_grad in enumerate(perturbation_dir_grads):
+            rng = self.get_rng(seed, i)
+            for param_idx, param in enumerate(self.parameters_list):
+                _perturb = self.generate_perturbation_norm_paramwise(param_idx, rng)
+                param.data.add_(_perturb, alpha=-lr * float(dir_grad) / num_pert)
+                del _perturb
+
+    def update_K_param_paramwise(self, dir_grads: torch.Tensor, seed: int) -> None:
+        # Update K_param_list for each parameter separately
+        num_pert = len(dir_grads)
+
+        for i, dir_grad in enumerate(dir_grads):
+            rng = self.get_rng(seed, i)
+            for param_idx, param in enumerate(self.parameters_list):
+                _perturb = self.generate_perturbation_norm_paramwise(param_idx, rng)
+
+                # Update K_param for this parameter
+                grad_squared = _perturb.square_() * (dir_grad / num_pert) ** 2
+                self.K_param_list[param_idx] = (
+                    self.hessian_smooth * self.K_param_list[param_idx]
+                    + (1 - self.hessian_smooth) * grad_squared
+                )
+                del _perturb
+
+    def update_gradient_estimator_given_seed_and_grad(
+        self,
+        iteration_seeds: Sequence[int],
+        iteration_grad_scalar: Sequence[torch.Tensor],
+    ) -> None:
+        """
+        # seeds is [seed1, seed2, ...seedk, ] for K local updates
+        # global_grad_scalar is [gradscalar1, gradscalar2, ...gradscalarK, ] for K local updates
+        # strategy 1: update K k times for every k local updates
+        # strategy 2: update K 1 time for every last local update
+        # strategy 3: update K 1 time for average of K local updates. NOTE: this is not preferred
+        """
+        assert len(iteration_seeds) == len(iteration_grad_scalar)
+
+        if self.k_update_strategy == KUpdateStrategy.LAST_LOCAL_UPDATE:
+            self.update_K_param_paramwise(iteration_grad_scalar[-1], iteration_seeds[-1])
+        elif self.k_update_strategy == KUpdateStrategy.ALL_LOCAL_UPDATES:
+            for one_update_seed, one_update_grad_dirs in zip(
+                iteration_seeds, iteration_grad_scalar
+            ):
+                self.update_K_param_paramwise(one_update_grad_dirs, one_update_seed)
+
+    def update_model_given_seed_and_grad(
+        self,
+        optimizer: torch.optim.Optimizer,
+        iteration_seeds: Sequence[int],
+        iteration_grad_scalar: Sequence[torch.Tensor],
+    ) -> None:
+        assert len(iteration_seeds) == len(iteration_grad_scalar)
+        lr = optimizer.defaults["lr"]  # Assume only one parameter group with lr.
+        for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
+            self.sgd_no_optim_update_model(one_update_grad_dirs, one_update_seed, lr)
