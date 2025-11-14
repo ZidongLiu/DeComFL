@@ -62,7 +62,9 @@ def get_model(
     elif isinstance(dataset, (LmClassificationTask, LmGenerationTask)):
         assert model_setting.large_model.value in SUPPORTED_LLM
         hf_model_name = model_setting.get_hf_model_name()
-        model = AutoModelForCausalLM.from_pretrained(hf_model_name, dtype=torch_dtype, token=HF_TOKEN)
+        model = AutoModelForCausalLM.from_pretrained(
+            hf_model_name, dtype=torch_dtype, token=HF_TOKEN
+        )
         model.model_name = model_setting.large_model.value
         if model_setting and model_setting.lora:
             # this step initialize lora parameters, which should be under control of seed

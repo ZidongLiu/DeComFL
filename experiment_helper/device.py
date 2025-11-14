@@ -12,7 +12,8 @@ def use_device(device_setting: DeviceSetting, num_clients: int) -> dict[str, tor
         # num_workers will make dataloader very slow especially when number clients is large
         server_device = {get_server_name(): torch.device("cuda:0")}
         client_devices = {
-            get_client_name(i): torch.device(f"cuda:{(i+1) % num_gpu}") for i in range(num_clients)
+            get_client_name(i): torch.device(f"cuda:{(i + 1) % num_gpu}")
+            for i in range(num_clients)
         }
     elif use_mps:
         print("----- Using mps -----")

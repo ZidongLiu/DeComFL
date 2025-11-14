@@ -146,6 +146,6 @@ class FedAvgServer:
                 eval_accuracy.update(self.server_accuracy_func(pred, batch_labels))
         print(
             f"\nEvaluation(Iteration {iteration + 1}): ",
-            f"Eval Loss:{eval_loss.avg:.4f}, " f"Accuracy:{eval_accuracy.avg * 100:.2f}%",
+            f"Eval Loss:{eval_loss.avg:.4f}, Accuracy:{eval_accuracy.avg * 100:.2f}%",
         )
         return eval_loss.avg, eval_accuracy.avg

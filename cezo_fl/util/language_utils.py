@@ -30,14 +30,16 @@ SUPPORTED_LLM = {
     "gemma-3-270m": "google/gemma-3-270m",
     "gemma-3-1b": "google/gemma-3-1b-pt",
     "gemma-3-4b": "google/gemma-3-4b-pt",
-    "smollm3-3b":"HuggingFaceTB/SmolLM3-3B"
+    "smollm3-3b": "HuggingFaceTB/SmolLM3-3B",
 }
 
 
 def get_hf_tokenizer(hf_model_name):
-    tokenizer = AutoTokenizer.from_pretrained(hf_model_name, padding_side="left", truncate_side="left", token=HF_TOKEN)
+    tokenizer = AutoTokenizer.from_pretrained(
+        hf_model_name, padding_side="left", truncate_side="left", token=HF_TOKEN
+    )
     if tokenizer.pad_token is None:
-        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        tokenizer.add_special_tokens({"pad_token": "[PAD]"})
     return tokenizer
 
 

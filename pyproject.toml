@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
 	"torch>=2.7.0",
-  	"torchvision>=0.22.0",
+	"torchvision>=0.22.0",
 	"transformers>=4.57.0",
 	"accelerate",
 	"datasets",
@@ -16,7 +16,8 @@ dependencies = [
 	"tqdm",
 	"pydantic",
 	"pydantic-settings",
-	"python-dotenv"
+	"python-dotenv",
+	"ruff>=0.14.5",
 ]
 
 
