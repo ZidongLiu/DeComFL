@@ -7,6 +7,8 @@ from peft import LoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM
 
 
+from experiment_helper.hf_token import HF_TOKEN
+
 from cezo_fl.util import model_helpers
 from cezo_fl.util.model_helpers import AllModel
 from cezo_fl.models.cnn_fashion import CNN_FMNIST
@@ -60,7 +62,9 @@ def get_model(
     elif isinstance(dataset, (LmClassificationTask, LmGenerationTask)):
         assert model_setting.large_model.value in SUPPORTED_LLM
         hf_model_name = model_setting.get_hf_model_name()
-        model = AutoModelForCausalLM.from_pretrained(hf_model_name, torch_dtype=torch_dtype)
+        model = AutoModelForCausalLM.from_pretrained(
+            hf_model_name, dtype=torch_dtype, token=HF_TOKEN
+        )
         model.model_name = model_setting.large_model.value
         if model_setting and model_setting.lora:
             # this step initialize lora parameters, which should be under control of seed
