@@ -225,15 +225,13 @@ def test_server_client_model_sync(estimator_type, k_update_strategy):
                 server.server_model.parameters(), client.model.parameters()
             ):
                 # Models should be synchronized after each step
-                assert (server_param - client_param).abs().max() < 1e-6, (
-                    f"Server and client {client_index} model parameters differ for {estimator_type} with {k_update_strategy}"
-                )
+                assert (
+                    (server_param - client_param).abs().max() < 1e-6
+                ), f"Server and client {client_index} model parameters differ for {estimator_type} with {k_update_strategy}"
 
             if estimator_type == "adam_forward":
                 assert isinstance(client.grad_estimator, AdamForwardGradientEstimatorBatch)
                 # K_vec should be synchronized between server and clients
                 assert (
-                    server_grad_estimator.K_vec - client.grad_estimator.K_vec
-                ).abs().max() < 1e-6, (
-                    f"K_vec not synchronized between server and client after step {i}"
-                )
+                    (server_grad_estimator.K_vec - client.grad_estimator.K_vec).abs().max() < 1e-6
+                ), f"K_vec not synchronized between server and client after step {i}"
