@@ -103,7 +103,7 @@ if __name__ == "__main__":
         loss = metrics.train_loss(outputs, batch_output_tensor)
         total_loss += loss.item()
         if (i + 1) % 50 == 0:
-            print(f"Iteration: {i}, Loss: {(total_loss/50):.6f}")
+            print(f"Iteration: {i}, Loss: {(total_loss / 50):.6f}")
             train_losses += [(i, total_loss / 50)]
             total_loss = 0.0
 

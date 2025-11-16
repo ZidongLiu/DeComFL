@@ -11,8 +11,11 @@ from cezo_fl.client import ResetClient
 from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.gradient_estimators.random_gradient_estimator import (
     RandomGradEstimateMethod,
-    RandomGradientEstimator,
 )
+from cezo_fl.gradient_estimators.random_gradient_estimator_splitted import (
+    RandomGradientEstimatorBatch,
+)
+
 from cezo_fl.run_client_jobs import execute_sampled_clients, parallalizable_client_job
 from cezo_fl.util.metrics import accuracy
 from cezo_fl.fl_helpers import get_server_name
@@ -46,7 +49,7 @@ def set_fake_clients(
         torch.random.manual_seed(1234)  # Make sure all models are the same
         model = CNN_MNIST().to(model_device)
         train_loader = get_mnist_data_loader()
-        grad_estimator = RandomGradientEstimator(
+        grad_estimator = RandomGradientEstimatorBatch(
             model.parameters(),
             mu=1e-3,
             num_pert=2,

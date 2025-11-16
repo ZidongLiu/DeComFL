@@ -7,13 +7,23 @@ from peft import LoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM
 
 
+from experiment_helper.hf_token import HF_TOKEN
+
 from cezo_fl.util import model_helpers
 from cezo_fl.util.model_helpers import AllModel
 from cezo_fl.models.cnn_fashion import CNN_FMNIST
 from cezo_fl.models.cnn_mnist import CNN_MNIST
 from cezo_fl.models.lenet import LeNet
-from cezo_fl.gradient_estimators.random_gradient_estimator import RandomGradientEstimator
-from cezo_fl.gradient_estimators.adam_forward import AdamForwardGradientEstimator
+
+from cezo_fl.gradient_estimators.random_gradient_estimator_splitted import (
+    RandomGradientEstimatorBatch,
+    RandomGradientEstimatorParamwise,
+)
+
+from cezo_fl.gradient_estimators.adam_forward import (
+    AdamForwardGradientEstimatorBatch,
+    AdamForwardGradientEstimatorParamwise,
+)
 from cezo_fl.gradient_estimators.hessian_random_gradient_estimator import (
     HessianRandomGradientEstimator,
 )
@@ -52,7 +62,9 @@ def get_model(
     elif isinstance(dataset, (LmClassificationTask, LmGenerationTask)):
         assert model_setting.large_model.value in SUPPORTED_LLM
         hf_model_name = model_setting.get_hf_model_name()
-        model = AutoModelForCausalLM.from_pretrained(hf_model_name, torch_dtype=torch_dtype)
+        model = AutoModelForCausalLM.from_pretrained(
+            hf_model_name, dtype=torch_dtype, token=HF_TOKEN
+        )
         model.model_name = model_setting.large_model.value
         if model_setting and model_setting.lora:
             # this step initialize lora parameters, which should be under control of seed
@@ -204,30 +216,53 @@ def get_model_inferences_and_metrics(
 
 def get_gradient_estimator(
     model: AllModel, device: torch.device, rge_setting: RGESetting, model_setting: ModelSetting
-) -> RandomGradientEstimator | AdamForwardGradientEstimator:
+) -> (
+    RandomGradientEstimatorBatch
+    | RandomGradientEstimatorParamwise
+    | AdamForwardGradientEstimatorBatch
+    | AdamForwardGradientEstimatorParamwise
+):
     no_optim = not rge_setting.optim
     if rge_setting.estimator_type == EstimatorType.vanilla:
-        return RandomGradientEstimator(
-            parameters=model_helpers.get_trainable_model_parameters(model),
-            mu=rge_setting.mu,
-            num_pert=rge_setting.num_pert,
-            grad_estimate_method=rge_setting.grad_estimate_method,
-            device=device,
-            torch_dtype=model_setting.get_torch_dtype(),
-            # To save memory consumption, we have to use parameter-wise perturb + no_optim together.
-            sgd_only_no_optim=no_optim,
-            paramwise_perturb=no_optim,
-        )
+        if no_optim:
+            return RandomGradientEstimatorParamwise(
+                parameters=model_helpers.get_trainable_model_parameters(model),
+                mu=rge_setting.mu,
+                num_pert=rge_setting.num_pert,
+                grad_estimate_method=rge_setting.grad_estimate_method,
+                device=device,
+                torch_dtype=model_setting.get_torch_dtype(),
+            )
+        else:
+            return RandomGradientEstimatorBatch(
+                parameters=model_helpers.get_trainable_model_parameters(model),
+                mu=rge_setting.mu,
+                num_pert=rge_setting.num_pert,
+                grad_estimate_method=rge_setting.grad_estimate_method,
+                device=device,
+                torch_dtype=model_setting.get_torch_dtype(),
+            )
     elif rge_setting.estimator_type == EstimatorType.adam_forward:
-        return AdamForwardGradientEstimator(
-            parameters=model_helpers.get_trainable_model_parameters(model),
-            mu=rge_setting.mu,
-            num_pert=rge_setting.num_pert,
-            device=device,
-            torch_dtype=model_setting.get_torch_dtype(),
-            k_update_strategy=rge_setting.k_update_strategy,
-            hessian_smooth=rge_setting.hessian_smooth,
-        )
+        if no_optim:
+            return AdamForwardGradientEstimatorParamwise(
+                parameters=model_helpers.get_trainable_model_parameters(model),
+                mu=rge_setting.mu,
+                num_pert=rge_setting.num_pert,
+                device=device,
+                torch_dtype=model_setting.get_torch_dtype(),
+                k_update_strategy=rge_setting.k_update_strategy,
+                hessian_smooth=rge_setting.hessian_smooth,
+            )
+        else:
+            return AdamForwardGradientEstimatorBatch(
+                parameters=model_helpers.get_trainable_model_parameters(model),
+                mu=rge_setting.mu,
+                num_pert=rge_setting.num_pert,
+                device=device,
+                torch_dtype=model_setting.get_torch_dtype(),
+                k_update_strategy=rge_setting.k_update_strategy,
+                hessian_smooth=rge_setting.hessian_smooth,
+            )
     else:
         raise ValueError(f"Invalid estimator type: {rge_setting.estimator_type}")
 
