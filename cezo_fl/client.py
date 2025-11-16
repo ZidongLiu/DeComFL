@@ -77,11 +77,15 @@ class ResetClient(AbstractClient):
         criterion: CriterionType,
         accuracy_func,
         device: torch.device,
+        offload_to_cpu: bool = True,
     ):
         self.model = model
         self.model_inference = model_inference
         self.dataloader = dataloader
 
+        if offload_to_cpu and not isinstance(optimizer, torch.optim.SGD):
+            raise Exception("offload to cpu only works with SGD at this point of time")
+        self.offload_to_cpu = offload_to_cpu
         self.device = device
 
         self.grad_estimator = grad_estimator
@@ -166,14 +170,24 @@ class ResetClient(AbstractClient):
     def reset_model(self) -> None:
         """Reset the mode to the state before the local_update."""
         assert self.last_pull_state_dict is not None
-        self.model.load_state_dict(self.last_pull_state_dict["model"])
-        self.optimizer.load_state_dict(self.last_pull_state_dict["optimizer"])
+        if self.offload_to_cpu:
+            self.model.cpu()
+            self.model.load_state_dict(self.last_pull_state_dict["model"])
+            self.model.to(self.device)
+            self.optimizer.load_state_dict(self.last_pull_state_dict["optimizer"])
+        else:
+            self.model.load_state_dict(self.last_pull_state_dict["model"])
+            self.optimizer.load_state_dict(self.last_pull_state_dict["optimizer"])
 
     def screenshot(self) -> dict:
         # deepcopy current model.state_dict and optimizer.state_dict
-        return deepcopy(
-            {"model": self.model.state_dict(), "optimizer": self.optimizer.state_dict()}
-        )
+        if self.offload_to_cpu:
+            model_state_dict = {k: deepcopy(v).cpu() for k, v in self.model.state_dict().items()}
+            return {"model": model_state_dict, "optimizer": deepcopy(self.optimizer.state_dict())}
+        else:
+            return deepcopy(
+                {"model": self.model.state_dict(), "optimizer": self.optimizer.state_dict()}
+            )
 
     def pull_model(
         self,
