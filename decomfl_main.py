@@ -95,27 +95,27 @@ def setup_server_and_clients(
     )
 
     # set server tools
-    server_model = prepare_settings.get_model(
-        dataset=args.dataset, model_setting=args.model_setting, seed=args.seed
-    ).to(server_device)
-    server_optimizer = prepare_settings.get_optimizer(
-        model=server_model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
-    )
-    server_grad_estimator = prepare_settings.get_gradient_estimator(
-        model=server_model,
-        device=server_device,
-        rge_setting=args.rge_setting,
-        model_setting=args.model_setting,
-    )
+    # server_model = prepare_settings.get_model(
+    #     dataset=args.dataset, model_setting=args.model_setting, seed=args.seed
+    # ).to(server_device)
+    # server_optimizer = prepare_settings.get_optimizer(
+    #     model=server_model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
+    # )
+    # server_grad_estimator = prepare_settings.get_gradient_estimator(
+    #     model=server_model,
+    #     device=server_device,
+    #     rge_setting=args.rge_setting,
+    #     model_setting=args.model_setting,
+    # )
 
-    server.set_server_model_and_criterion(
-        server_model,
-        model_inferences.test_inference,
-        metrics.test_loss,
-        metrics.test_acc,
-        server_optimizer,
-        server_grad_estimator,
-    )
+    # server.set_server_model_and_criterion(
+    #     server_model,
+    #     model_inferences.test_inference,
+    #     metrics.test_loss,
+    #     metrics.test_acc,
+    #     server_optimizer,
+    #     server_grad_estimator,
+    # )
 
     # TODO(lizhe) move this into a seperate main file.
     # Prepare the Byzantine attack
@@ -163,6 +163,11 @@ def setup_server_and_clients(
 if __name__ == "__main__":
     args = CliSetting()
     print(args)
+    torch.cuda.reset_peak_memory_stats()
+    torch.cuda.empty_cache()
+    MAX_NUM_OF_MEM_EVENTS_PER_SNAPSHOT = 100_000
+    torch.cuda.memory._record_memory_history(max_entries=MAX_NUM_OF_MEM_EVENTS_PER_SNAPSHOT)
+
     device_map = use_device(args.device_setting, args.num_clients)
     train_loaders, test_loader = get_dataloaders(
         args.data_setting, args.num_clients, args.seed, args.get_hf_model_name()
@@ -212,3 +217,11 @@ if __name__ == "__main__":
                 if args.log_to_tensorboard:
                     writer.add_scalar("Loss/test", eval_loss, ite)
                     writer.add_scalar("Accuracy/test", eval_accuracy, ite)
+
+    peak_memory = torch.cuda.max_memory_allocated() / (1024**2)  # MB
+    print(f"Peak memory usage: {peak_memory:.2f} MB")
+
+    torch.cuda.memory._dump_snapshot("memory.pickle")
+
+    # Stop recording memory snapshot history.
+    torch.cuda.memory._record_memory_history(enabled=None)

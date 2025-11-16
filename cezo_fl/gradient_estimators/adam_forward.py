@@ -184,7 +184,7 @@ class AdamForwardGradientEstimatorParamwise(AbstractGradientEstimator):
         param_k = self.K_param_list[param_index]
         return torch.randn(
             *param.shape, device=self.device, dtype=self.torch_dtype, generator=rng
-        ) / torch.sqrt(param_k)
+        ).div_(torch.sqrt(param_k))
 
     def compute_grad(
         self,
