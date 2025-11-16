@@ -80,15 +80,15 @@ if __name__ == "__main__":
             torch.cuda.empty_cache()
     print(f"Start, Accuracy: {acc.avg:.4f}")
 
-    num_epochs = 20
     train_loader = train_loaders[0]
     model.train()
+    eval_iterations = 20
+    iterations = 1000
     total_loss = 0.0
     inf_train_loader = inf_loader(train_loader)
-    eval_iterations = 200
     train_losses = []
     eval_accs = []
-    for i in tqdm(range(10000)):
+    for i in tqdm(range(iterations)):
         batch_input_dict, batch_output_tensor = next(inf_train_loader)
         batch_input_dict = batch_input_dict.to("cuda")
         batch_output_tensor = batch_output_tensor.to("cuda")
