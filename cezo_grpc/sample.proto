@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package sample_server;
+
+service SampleServer {
+  rpc Connect (EmptyRequest) returns (ConnectResponse) {}
+  rpc Disconnect (DisconnectRequest) returns (EmptyResponse) {}
+  rpc TryToJoinIteration (TryToJoinIterationRequest) returns (TryToJoinIterationResponse) {}
+  rpc SubmitIteration (SubmitIterationRequest) returns (EmptyResponse) {}
+  
+  rpc ConnectEval (EmptyRequest) returns (ConnectResponse) {}
+  rpc DisconnectEval (EmptyRequest) returns (EmptyResponse) {}
+  rpc TryToEval (EmptyRequest) returns (TryToJoinIterationResponse) {}
+  rpc SubmitEvaluation (SubmitEvaluationRequest) returns (EmptyResponse) {}
+}
+
+message EmptyRequest {}
+
+message EmptyResponse {}
+
+message ConnectResponse {
+  bool successful = 1;
+  int32 clientIndex = 2;
+}
+
+message DisconnectRequest {
+  int32 clientIndex = 1;
+}
+
+message TryToJoinIterationRequest {
+  int32 clientIndex = 1;
+}
+
+message TryToJoinIterationResponse{
+  bool successful = 1;
+  ListOfListOfInts pullSeeds = 2;
+  ListOfListOfListOfFloats pullGrads = 3;
+  ListOfInts iterationSeeds = 4;
+}
+
+message SubmitIterationRequest {
+  int32 clientIndex = 1;
+  ListOfListOfFloats gradTensors = 2;
+  float stepAccuracy = 3;
+  float stepLoss = 4;
+}
+
+message SubmitEvaluationRequest {
+  float evalAccuracy = 1;
+  float evalLoss = 2;
+}
+
+message ListOfInts {
+  repeated int32 data = 1;
+}
+
+message ListOfListOfInts {
+  repeated ListOfInts data = 1;
+}
+
+message ListOfFloats {
+  repeated float data = 1;
+}
+
+message ListOfListOfFloats {
+  repeated ListOfFloats data = 1;
+}
+
+message ListOfListOfListOfFloats {
+  repeated ListOfListOfFloats data = 1;
+}
