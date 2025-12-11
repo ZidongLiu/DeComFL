@@ -20,6 +20,12 @@ dependencies = [
 	"ruff==0.6",
 ]
 
+[project.optional-dependencies]
+dev = [
+	"isort==5.13.2",
+	"pytest==8.3",
+	"mypy==1.11",
+]
 
 [tool.uv.sources]
 torch = [
