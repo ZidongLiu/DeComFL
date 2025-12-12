@@ -5,8 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-	"torch>=2.7.0",
-	"torchvision>=0.22.0",
 	"transformers>=4.57.0",
 	"accelerate",
 	"datasets",
@@ -26,14 +24,20 @@ dev = [
 	"pytest==8.3",
 	"mypy==1.11",
 ]
+cuda = [
+	"torch>=2.7.0",
+	"torchvision>=0.22.0",
+]
+cpu = [
+	"torch>=2.7.0",
+	"torchvision>=0.22.0",
+]
 
 [tool.uv.sources]
-torch = [
-  { index = "pytorch-cu126"},
-]
-torchvision = [
-  { index = "pytorch-cu126"},
-]
+# CUDA PyTorch sources - only used when --extra cuda is specified
+# For CPU-only installation (--extra cpu), PyPI will be used instead
+torch = { index = "pytorch-cu126", marker = "extra == 'cuda'" }
+torchvision = { index = "pytorch-cu126", marker = "extra == 'cuda'" }
 
 [[tool.uv.index]]
 name = "pytorch-cu126"

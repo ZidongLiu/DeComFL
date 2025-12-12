@@ -8,13 +8,32 @@ DeComFL is a library designed for training/fine-tuning deep learning models in t
 
 We use [uv](https://github.com/astral-sh/uv) as our Python package and environment management tool.
 
+### Requirements
+
+- Python >= 3.10
+- `uv` package manager (see installation instructions below)
+
 ### Set Up Steps
 
 1. Make sure `uv` is available. See https://github.com/astral-sh/uv#installation for installation instructions.
-2. At the root of this repo, run `uv sync` to create a virtual environment and install all dependencies.
-3. To install with dev dependencies (for development), run `uv sync --extra dev`.
+2. At the root of this repo, run one of the following commands to create a virtual environment and install dependencies:
+   - **For CUDA support**: `uv sync --extra cuda` (installs PyTorch with CUDA 12.6 support)
+   - **For CPU-only**: `uv sync --extra cpu` (installs CPU-only PyTorch)
+3. To install with dev dependencies (for development), run `uv sync --extra dev --extra cuda` or `uv sync --extra dev --extra cpu`.
 4. Run any command provided in [Run Experiments](#run-experiments) section using `uv run`. If code works, then congratulations, you have successfully set up the environment for this repo!
-5. To update dependencies, run `uv sync` again. This will update the lock file and install any new dependencies.
+5. To update dependencies, run `uv sync` again (with the same extras you used initially). This will update the lock file and install any new dependencies.
+
+### Key Dependencies
+
+- **PyTorch** (>=2.7.0) - Deep learning framework
+- **Transformers** (>=4.57.0) - Hugging Face transformers for LLMs
+- **Accelerate** - Model acceleration utilities
+- **Datasets** - Hugging Face datasets
+- **PEFT** - Parameter-Efficient Fine-Tuning
+- **TensorBoardX** - TensorBoard logging
+- **Pydantic** & **Pydantic-Settings** - Configuration management
+- **NumPy** - Numerical computing
+- **Ruff** (==0.6) - Code formatting and linting
 
 ## Run Experiments
 
