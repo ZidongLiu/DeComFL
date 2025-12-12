@@ -16,12 +16,10 @@ We use [uv](https://github.com/astral-sh/uv) as our Python package and environme
 ### Set Up Steps
 
 1. Make sure `uv` is available. See https://github.com/astral-sh/uv#installation for installation instructions.
-2. At the root of this repo, run one of the following commands to create a virtual environment and install dependencies:
-   - **For CUDA support**: `uv sync --extra cuda` (installs PyTorch with CUDA 12.6 support)
-   - **For CPU-only**: `uv sync --extra cpu` (installs CPU-only PyTorch)
-3. To install with dev dependencies (for development), run `uv sync --extra dev --extra cuda` or `uv sync --extra dev --extra cpu`.
-4. Run any command provided in [Run Experiments](#run-experiments) section using `uv run`. If code works, then congratulations, you have successfully set up the environment for this repo!
-5. To update dependencies, run `uv sync` again (with the same extras you used initially). This will update the lock file and install any new dependencies.
+2. At the root of this repo, run `uv sync` to create a virtual environment and install dependencies:
+   - To install with dev dependencies (for development), run `uv sync --extra dev`.
+3. Run any command provided in [Run Experiments](#run-experiments) section using `uv run`. If code works, then congratulations, you have successfully set up the environment for this repo!
+4. To update dependencies, run `uv sync` again (with the same extras you used initially). This will update the lock file and install any new dependencies.
 
 ### Key Dependencies
 
