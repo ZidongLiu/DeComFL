@@ -28,8 +28,6 @@ dev = [
 ]
 
 [tool.uv.sources]
-# CUDA PyTorch sources - only used when --extra cuda is specified
-# For CPU-only installation (--extra cpu), PyPI will be used instead
 torch = { index = "pytorch-cu126" }
 torchvision = { index = "pytorch-cu126"}
 
