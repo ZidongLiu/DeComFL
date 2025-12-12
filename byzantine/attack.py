@@ -52,7 +52,8 @@ def trim_attack(v: list[list[torch.Tensor]], num_attack: int) -> list[list[torch
 def score(gradient: torch.Tensor, v: torch.Tensor, f: int = 1) -> float:
     num_neighbours = int(v.shape[1] - 2 - f)
     sorted_distance, _ = torch.square(v - gradient).sum(dim=0).sort()
-    return sorted_distance[1 : (1 + num_neighbours)].sum().item()
+    result = sorted_distance[1 : (1 + num_neighbours)].sum().item()
+    return float(result)
 
 
 def krum(v: list[list[torch.Tensor]], f: int = 1):

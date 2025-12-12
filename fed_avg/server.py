@@ -65,7 +65,7 @@ class FedAvgServer:
 
     def aggregate_client_models(self, client_indices: list[int]) -> None:
         self.server_model.train()
-        running_sum: Sequence[torch.Tensor] = [0.0 for _ in self.server_model.parameters()]  # type: ignore[misc, use 0 to start calculcation for tensor]
+        running_sum: list[torch.Tensor] = [0.0 for _ in self.server_model.parameters()]  # type: ignore[misc, use 0 to start calculcation for tensor]
 
         if self.fo_fl_strategy == FOFLStrategy.fedavg:
             with torch.no_grad():

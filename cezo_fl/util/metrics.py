@@ -26,4 +26,5 @@ class Metric(object):
 
     @property
     def avg(self) -> float:
-        return (self.sum / self.n).item()
+        result = (self.sum / self.n).item()
+        return float(result)

@@ -38,7 +38,8 @@ def score(grad: torch.Tensor, v: torch.Tensor, f: int = 1) -> float:
     distances = torch.sum((v - grad) ** 2, dim=0)
     sorted_distance, _ = torch.sort(distances)
     num_neighbours = v.shape[1] - 2 - f
-    return torch.sum(sorted_distance[1 : (1 + num_neighbours)]).item()
+    result = torch.sum(sorted_distance[1 : (1 + num_neighbours)]).item()
+    return float(result)
 
 
 def krum(local_grad_scalar_list: list[list[torch.Tensor]], f: int = 1) -> list[torch.Tensor]:
