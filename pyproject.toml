@@ -16,6 +16,8 @@ dependencies = [
 	"pydantic-settings",
 	"python-dotenv",
 	"ruff==0.6",
+	"torch>=2.7.0",
+	"torchvision>=0.22.0",
 ]
 
 [project.optional-dependencies]
@@ -24,20 +26,12 @@ dev = [
 	"pytest==8.3",
 	"mypy==1.11",
 ]
-cuda = [
-	"torch>=2.7.0",
-	"torchvision>=0.22.0",
-]
-cpu = [
-	"torch>=2.7.0",
-	"torchvision>=0.22.0",
-]
 
 [tool.uv.sources]
 # CUDA PyTorch sources - only used when --extra cuda is specified
 # For CPU-only installation (--extra cpu), PyPI will be used instead
-torch = { index = "pytorch-cu126", marker = "extra == 'cuda'" }
-torchvision = { index = "pytorch-cu126", marker = "extra == 'cuda'" }
+torch = { index = "pytorch-cu126" }
+torchvision = { index = "pytorch-cu126"}
 
 [[tool.uv.index]]
 name = "pytorch-cu126"
