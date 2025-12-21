@@ -24,6 +24,10 @@ from cezo_fl.gradient_estimators.adam_forward import (
     AdamForwardGradientEstimatorBatch,
     AdamForwardGradientEstimatorParamwise,
 )
+from cezo_fl.gradient_estimators.hybrid_gradient_estimator import (
+    HybridGradientEstimatorBatch,
+    HybridGradientEstimatorParamwise,
+)
 from cezo_fl.gradient_estimators.hessian_random_gradient_estimator import (
     HessianRandomGradientEstimator,
 )
@@ -214,6 +218,20 @@ def get_model_inferences_and_metrics(
         )
 
 
+def _split_parameters_for_hybrid(
+    model: AllModel,
+) -> tuple[list[torch.nn.Parameter], list[torch.nn.Parameter]]:
+    """
+    Split trainable model parameters into two groups for hybrid gradient estimator.
+    First half goes to random gradient estimator, second half goes to adam_forward gradient estimator.
+    """
+    all_params = list(model_helpers.get_trainable_model_parameters(model))
+    split_idx = len(all_params) // 2
+    random_params = all_params[:split_idx]
+    adam_forward_params = all_params[split_idx:]
+    return random_params, adam_forward_params
+
+
 def get_gradient_estimator(
     model: AllModel, device: torch.device, rge_setting: RGESetting, model_setting: ModelSetting
 ) -> (
@@ -221,6 +239,8 @@ def get_gradient_estimator(
     | RandomGradientEstimatorParamwise
     | AdamForwardGradientEstimatorBatch
     | AdamForwardGradientEstimatorParamwise
+    | HybridGradientEstimatorBatch
+    | HybridGradientEstimatorParamwise
 ):
     no_optim = not rge_setting.optim
     if rge_setting.estimator_type == EstimatorType.vanilla:
@@ -256,6 +276,30 @@ def get_gradient_estimator(
         else:
             return AdamForwardGradientEstimatorBatch(
                 parameters=model_helpers.get_trainable_model_parameters(model),
+                mu=rge_setting.mu,
+                num_pert=rge_setting.num_pert,
+                device=device,
+                torch_dtype=model_setting.get_torch_dtype(),
+                k_update_strategy=rge_setting.k_update_strategy,
+                hessian_smooth=rge_setting.hessian_smooth,
+            )
+    elif rge_setting.estimator_type == EstimatorType.hybrid:
+        random_params, adam_forward_params = _split_parameters_for_hybrid(model)
+        if no_optim:
+            return HybridGradientEstimatorParamwise(
+                random_parameters_list=iter(random_params),
+                adam_forward_parameters_list=iter(adam_forward_params),
+                mu=rge_setting.mu,
+                num_pert=rge_setting.num_pert,
+                device=device,
+                torch_dtype=model_setting.get_torch_dtype(),
+                k_update_strategy=rge_setting.k_update_strategy,
+                hessian_smooth=rge_setting.hessian_smooth,
+            )
+        else:
+            return HybridGradientEstimatorBatch(
+                random_parameters_list=iter(random_params),
+                adam_forward_parameters_list=iter(adam_forward_params),
                 mu=rge_setting.mu,
                 num_pert=rge_setting.num_pert,
                 device=device,
