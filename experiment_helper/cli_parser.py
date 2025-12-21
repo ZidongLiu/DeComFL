@@ -100,6 +100,7 @@ class OptimizerSetting(FrozenSetting):
 class EstimatorType(Enum):
     vanilla = "vanilla"
     adam_forward = "adam_forward"
+    hybrid = "hybrid"
 
 
 class RGESetting(FrozenSetting):
@@ -107,7 +108,7 @@ class RGESetting(FrozenSetting):
     estimator_type: EstimatorType = Field(
         default=EstimatorType.vanilla,
         validation_alias=AliasChoices("estimator-type"),
-        description="Type of gradient estimator, options: vanilla, adam_forward",
+        description="Type of gradient estimator, options: vanilla, adam_forward, hybrid",
     )
     mu: float = Field(default=1e-3, description="Perturbation step to measure local gradients")
     num_pert: int = Field(
@@ -132,12 +133,12 @@ class RGESetting(FrozenSetting):
     k_update_strategy: KUpdateStrategy = Field(
         default=KUpdateStrategy.LAST_LOCAL_UPDATE,
         validation_alias=AliasChoices("k-update-strategy"),
-        description="Update strategy for K, options: last_local_update, all_local_updates. Only used when estimator-type is adam_forward",
+        description="Update strategy for K, options: last_local_update, all_local_updates. Only used when estimator-type is adam_forward or hybrid",
     )
     hessian_smooth: float = Field(
         default=0.95,
         validation_alias=AliasChoices("hessian-smooth"),
-        description="Smoothing factor for Hessian. Only used when estimator-type is adam_forward",
+        description="Smoothing factor for Hessian. Only used when estimator-type is adam_forward or hybrid",
     )
 
     @cached_property
