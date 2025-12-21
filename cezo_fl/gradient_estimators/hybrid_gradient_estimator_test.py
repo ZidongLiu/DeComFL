@@ -79,9 +79,7 @@ class TestHybridGradientEstimatorBatch:
 
         # Check K_vec initialization (only for adam_forward parameters)
         assert self.estimator.K_vec.shape == (expected_adam_forward_dimensions,)
-        assert torch.allclose(
-            self.estimator.K_vec, torch.ones(expected_adam_forward_dimensions)
-        )
+        assert torch.allclose(self.estimator.K_vec, torch.ones(expected_adam_forward_dimensions))
 
         # Check parameters lists
         assert len(self.estimator.random_parameters_list) == len(self.random_parameters)
@@ -593,11 +591,8 @@ class TestHybridEdgeCases:
 
         assert random_part.shape == (random_params[0].numel(),)
         assert adam_forward_part.shape == (adam_forward_params[0].numel(),)
-        assert (
-            random_part.shape[0] + adam_forward_part.shape[0] == estimator.total_dimensions
-        )
+        assert random_part.shape[0] + adam_forward_part.shape[0] == estimator.total_dimensions
 
 
 if __name__ == "__main__":
     pytest.main([__file__])
-
