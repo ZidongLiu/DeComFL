@@ -7,7 +7,8 @@ from tqdm import tqdm
 
 from cezo_fl.util import model_helpers
 from cezo_fl.fl_helpers import get_server_name
-from cezo_fl.util.metrics import Metric, accuracy
+from cezo_fl.util.metrics import Metric
+from cezo_fl.util.language_utils import LLMBatchInput
 
 from experiment_helper.cli_parser import (
     GeneralSetting,
@@ -31,13 +32,13 @@ from experiment_helper import prepare_settings
 def get_scheduler(
     optimizer: torch.optim.Optimizer,
     dataset: ImageClassificationTask | LmClassificationTask | LmGenerationTask,
-) -> torch.optim.lr_scheduler.LRScheduler:
-    if args.dataset == ImageClassificationTask.mnist:
+) -> torch.optim.lr_scheduler.LRScheduler | None:
+    if dataset == ImageClassificationTask.mnist:
         return torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
-    elif args.dataset in [ImageClassificationTask.cifar10, ImageClassificationTask.fashion]:
+    elif dataset in [ImageClassificationTask.cifar10, ImageClassificationTask.fashion]:
         return torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
     else:
-        raise Exception(f"{dataset.value} not support yet in zo_rge_main")
+        return None
 
 
 def get_warmup_lr(args: Any, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
@@ -53,32 +54,44 @@ def train_model(epoch: int) -> tuple[float, float]:
     train_accuracy = Metric("train accuracy")
     iter_per_epoch = len(train_loader)
     with tqdm(total=iter_per_epoch, desc="Training:") as t, torch.no_grad():
-        for iteration, (images, labels) in enumerate(train_loader):
+        for iteration, batch in enumerate(train_loader):
             if epoch < args.warmup_epochs:
                 warmup_lr = get_warmup_lr(args, epoch, iteration, iter_per_epoch)
                 for p in optimizer.param_groups:
                     p["lr"] = warmup_lr
 
-            if device != torch.device("cpu"):
-                images, labels = images.to(device), labels.to(device)
+            # Handle both image classification and language model tasks
+            if isinstance(batch[0], LLMBatchInput):
+                # Language model task: batch is (LLMBatchInput, labels)
+                batch_input, labels = batch
+                if device != torch.device("cpu"):
+                    batch_input = batch_input.to(device)
+                    labels = labels.to(device)
+            else:
+                # Image classification task: batch is (images, labels)
+                images, labels = batch
+                if device != torch.device("cpu"):
+                    images, labels = images.to(device), labels.to(device)
+                batch_input = images
+
             # update models
             optimizer.zero_grad()
             seed = iteration**2 + iteration
             dir_grads = grad_estimator.compute_grad(
-                images,
+                batch_input,
                 labels,
-                lambda x, y: criterion(model_inferences.train_inference(model, x), y),
+                lambda x, y: metrics.train_loss(model_inferences.train_inference(model, x), y),
                 seed=seed,
             )
             grad_estimator.update_gradient_estimator_given_seed_and_grad([seed], [dir_grads])
             optimizer.step()
 
-            pred = model(images)
-            train_loss.update(criterion(pred, labels))
-            train_accuracy.update(accuracy(pred, labels))
+            pred = model_inferences.train_inference(model, batch_input)
+            train_loss.update(metrics.train_loss(pred, labels))
+            train_accuracy.update(metrics.train_acc(pred, labels))
             t.set_postfix({"Loss": train_loss.avg, "Accuracy": train_accuracy.avg})
             t.update(1)
-        if epoch > args.warmup_epochs:
+        if epoch > args.warmup_epochs and scheduler is not None:
             scheduler.step()
     return train_loss.avg, train_accuracy.avg
 
@@ -88,12 +101,24 @@ def eval_model(epoch: int) -> tuple[float, float]:
     eval_loss = Metric("Eval loss")
     eval_accuracy = Metric("Eval accuracy")
     with torch.no_grad():
-        for _, (images, labels) in enumerate(test_loader):
-            if device != torch.device("cpu"):
-                images, labels = images.to(device), labels.to(device)
-            pred = model(images)
-            eval_loss.update(criterion(pred, labels))
-            eval_accuracy.update(accuracy(pred, labels))
+        for _, batch in enumerate(test_loader):
+            # Handle both image classification and language model tasks
+            if isinstance(batch[0], LLMBatchInput):
+                # Language model task: batch is (LLMBatchInput, labels)
+                batch_input, labels = batch
+                if device != torch.device("cpu"):
+                    batch_input = batch_input.to(device)
+                    labels = labels.to(device)
+            else:
+                # Image classification task: batch is (images, labels)
+                images, labels = batch
+                if device != torch.device("cpu"):
+                    images, labels = images.to(device), labels.to(device)
+                batch_input = images
+
+            pred = model_inferences.test_inference(model, batch_input)
+            eval_loss.update(metrics.test_loss(pred, labels))
+            eval_accuracy.update(metrics.test_acc(pred, labels))
     print(
         f"Evaluation(round {epoch}): Eval Loss:{eval_loss.avg:.4f}, "
         f"Accuracy:{eval_accuracy.avg * 100:.2f}%"
@@ -134,7 +159,6 @@ if __name__ == "__main__":
     train_loader = train_loaders[0]
     device = device_map[get_server_name()]
 
-    criterion = torch.nn.CrossEntropyLoss()
     model_inferences, metrics = prepare_settings.get_model_inferences_and_metrics(
         args.dataset, args.model_setting
     )
