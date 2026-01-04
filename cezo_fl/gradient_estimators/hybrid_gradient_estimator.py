@@ -288,21 +288,38 @@ class HybridGradientEstimatorParamwise(AbstractGradientEstimator):
             for param_idx, param in enumerate(self.parameters_list):
                 _perturb = self.generate_perturbation_norm_paramwise(param_idx, rng)
 
+                grad_update = _perturb.mul_(dir_grad / num_pert)
                 if i == 0:
-                    param.grad = _perturb.mul_(dir_grad / num_pert)
+                    param.grad = grad_update
                 else:
-                    param.grad += _perturb.mul_(dir_grad / num_pert)
+                    if param.grad is not None:
+                        param.grad += grad_update
+                    else:
+                        param.grad = grad_update
                 del _perturb
 
     def sgd_no_optim_update_model(
-        self, perturbation_dir_grads: torch.Tensor, seed: int, lr: float
+        self, perturbation_dir_grads: torch.Tensor, seed: int, pass_lrs: list[float]
     ) -> None:
+        """
+        Update model parameters using SGD without optimizer.
+
+        Args:
+            perturbation_dir_grads: Directional gradients from perturbations
+            seed: Random seed for perturbation generation
+            pass_lrs: List of learning rates. If length is 2, then [lr_for_random_params, lr_for_adam_forward_params]
+                      If length is 1, then use the same learning rate for both parameter groups
+        """
+
+        lrs = pass_lrs if len(pass_lrs) == 2 else [pass_lrs[0], pass_lrs[0]]
+
         num_pert = len(perturbation_dir_grads)
         for i, dir_grad in enumerate(perturbation_dir_grads):
             rng = self.get_rng(seed, i)
             for param_idx, param in enumerate(self.parameters_list):
+                param_lr = lrs[0] if param_idx < self.random_parameters_count else lrs[1]
                 _perturb = self.generate_perturbation_norm_paramwise(param_idx, rng)
-                param.data.add_(_perturb, alpha=-lr * float(dir_grad) / num_pert)
+                param.data.add_(_perturb, alpha=-param_lr * float(dir_grad) / num_pert)
                 del _perturb
 
     def update_K_param_paramwise(self, dir_grads: torch.Tensor, seed: int) -> None:
@@ -354,6 +371,6 @@ class HybridGradientEstimatorParamwise(AbstractGradientEstimator):
         iteration_grad_scalar: Sequence[torch.Tensor],
     ) -> None:
         assert len(iteration_seeds) == len(iteration_grad_scalar)
-        lr = optimizer.defaults["lr"]  # Assume only one parameter group with lr.
+        lrs = [group["lr"] for group in optimizer.param_groups]
         for one_update_seed, one_update_grad_dirs in zip(iteration_seeds, iteration_grad_scalar):
-            self.sgd_no_optim_update_model(one_update_grad_dirs, one_update_seed, lr)
+            self.sgd_no_optim_update_model(one_update_grad_dirs, one_update_seed, lrs)

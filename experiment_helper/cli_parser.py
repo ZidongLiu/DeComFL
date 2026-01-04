@@ -87,7 +87,14 @@ class ModelSetting(FrozenSetting):
 class OptimizerSetting(FrozenSetting):
     # optimizer
     optimizer: Literal["sgd", "adam"] = Field(default="sgd")
-    lr: float = Field(default=1e-4)
+    lr: float = Field(
+        default=1e-4,
+        description="Learning rate for optimizer and random gradient parameters in hybrid gradient estimator",
+    )
+    lr2: float | None = Field(
+        default=None,
+        description="Second learning rate for hybrid gradient estimator only, used for adam_forward parameters",
+    )
     momentum: float = Field(default=0)
     beta1: float = Field(default=0.9)
     beta2: float = Field(default=0.999)

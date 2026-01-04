@@ -84,42 +84,65 @@ def get_model(
 
 
 def get_optimizer(
-    model: AllModel, dataset: SupportedDataset, optimizer_setting: OptimizerSetting
+    model: AllModel,
+    dataset: SupportedDataset,
+    optimizer_setting: OptimizerSetting,
+    rge_setting: RGESetting | None = None,
 ) -> torch.optim.SGD | torch.optim.Adam:
     trainable_model_parameters = model_helpers.get_trainable_model_parameters(model)
+    if optimizer_setting.lr2 is None:
+        optimizer_param_groups = [
+            {
+                "params": trainable_model_parameters,
+                "lr": optimizer_setting.lr,
+            }
+        ]
+    else:
+        # When lr2 is provided, create separate parameter groups for hybrid estimator
+        # If lr2 is None but hybrid estimator is used, a single param group will be created
+        # and HybridGradientEstimatorParamwise will use the same LR for both parameter types
+        assert rge_setting is not None and rge_setting.estimator_type == EstimatorType.hybrid
+        print("lr2 is provided, creating separate parameter groups for hybrid estimator")
+        random_params, adam_forward_params = _split_parameters_for_hybrid(model)
+        optimizer_param_groups = [
+            {
+                "params": random_params,
+                "lr": optimizer_setting.lr,
+            },
+            {
+                "params": adam_forward_params,
+                "lr": optimizer_setting.lr2,
+            },
+        ]
+
     if optimizer_setting.optimizer == "sgd":
         if dataset == ImageClassificationTask.mnist:
             return torch.optim.SGD(
-                trainable_model_parameters,
-                lr=optimizer_setting.lr,
+                optimizer_param_groups,
                 weight_decay=1e-5,
                 momentum=optimizer_setting.momentum,
             )
         elif dataset == ImageClassificationTask.cifar10:
             return torch.optim.SGD(
-                trainable_model_parameters,
-                lr=optimizer_setting.lr,
+                optimizer_param_groups,
                 weight_decay=5e-4,
                 momentum=optimizer_setting.momentum,
             )
         elif dataset == ImageClassificationTask.fashion:
             return torch.optim.SGD(
-                trainable_model_parameters,
-                lr=optimizer_setting.lr,
+                optimizer_param_groups,
                 weight_decay=1e-5,
                 momentum=optimizer_setting.momentum,
             )
         elif isinstance(dataset, LmClassificationTask):
             return torch.optim.SGD(
-                trainable_model_parameters,
-                lr=optimizer_setting.lr,
+                optimizer_param_groups,
                 momentum=0,
                 weight_decay=5e-4,
             )
         elif isinstance(dataset, LmGenerationTask):
             return torch.optim.SGD(
-                trainable_model_parameters,
-                lr=optimizer_setting.lr,
+                optimizer_param_groups,
                 momentum=0,
                 weight_decay=0,
             )
@@ -127,8 +150,7 @@ def get_optimizer(
             raise Exception(f"dataset {dataset.value} not supported")
     elif optimizer_setting.optimizer == "adam":
         return torch.optim.Adam(
-            trainable_model_parameters,
-            lr=optimizer_setting.lr,
+            optimizer_param_groups,
             betas=(optimizer_setting.beta1, optimizer_setting.beta2),
             weight_decay=5e-4,
         )

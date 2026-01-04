@@ -38,6 +38,28 @@ from experiment_helper import prepare_settings
 from experiment_helper.prepare_settings import ModelInferences, MetricPacks
 
 
+class Setting(
+    GeneralSetting,
+    DeviceSetting,
+    DataSetting,
+    OptimizerSetting,
+    ModelSetting,
+    RGESetting,
+    NormalTrainingLoopSetting,
+):
+    """
+    This is a replacement for regular argparse module.
+    We used a third party library pydantic_setting to make command line interface easier to manage.
+    Example:
+    if __name__ == "__main__":
+        args = CliSetting()
+
+    args will have all parameters defined by all components.
+    """
+
+    pass
+
+
 def prepare_batch(batch: tuple[Any, Any], device: torch.device) -> tuple[Any, torch.Tensor]:
     """Prepare batch for training/evaluation by handling both image and language model tasks.
 
@@ -119,25 +141,36 @@ def update_model_with_gradient_estimator(
 
 
 def adjust_learning_rate_and_perturbation(
-    args: Any,
+    args: Setting,
     optimizer: torch.optim.Optimizer,
     grad_estimator: Any,
     iteration: int,
 ) -> None:
     """Adjust learning rate and perturbation number based on iteration count."""
     if args.adjust_perturb:
+        # Determine factor and perturbation multiplier based on iteration
         if iteration == 500:
-            for p in optimizer.param_groups:
-                p["lr"] = args.lr * 0.8
-            grad_estimator.num_pert = args.num_pert * 2
+            factor = 0.8
+            pert_multiplier = 2
         elif iteration == 1000:
-            for p in optimizer.param_groups:
-                p["lr"] = args.lr * 0.5
-            grad_estimator.num_pert = args.num_pert * 4
+            factor = 0.5
+            pert_multiplier = 4
         elif iteration == 2000:
+            factor = 0.3
+            pert_multiplier = 8
+        else:
+            return
+
+        # Adjust learning rates
+        if args.lr2 is not None and len(optimizer.param_groups) == 2:
+            optimizer.param_groups[0]["lr"] = args.lr * factor
+            optimizer.param_groups[1]["lr"] = args.lr2 * factor
+        else:
             for p in optimizer.param_groups:
-                p["lr"] = args.lr * 0.3
-            grad_estimator.num_pert = args.num_pert * 8
+                p["lr"] = args.lr * factor
+
+        # Adjust perturbation number
+        grad_estimator.num_pert = args.num_pert * pert_multiplier
 
 
 def train_by_epoch(
@@ -300,28 +333,6 @@ def eval_model(
     return eval_loss.avg, eval_accuracy.avg
 
 
-class Setting(
-    GeneralSetting,
-    DeviceSetting,
-    DataSetting,
-    OptimizerSetting,
-    ModelSetting,
-    RGESetting,
-    NormalTrainingLoopSetting,
-):
-    """
-    This is a replacement for regular argparse module.
-    We used a third party library pydantic_setting to make command line interface easier to manage.
-    Example:
-    if __name__ == "__main__":
-        args = CliSetting()
-
-    args will have all parameters defined by all components.
-    """
-
-    pass
-
-
 if __name__ == "__main__":
     args = Setting()
     torch.manual_seed(args.seed)
@@ -338,7 +349,10 @@ if __name__ == "__main__":
     )
     model = prepare_settings.get_model(args.dataset, args.model_setting, args.seed).to(device)
     optimizer = prepare_settings.get_optimizer(
-        model=model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
+        model=model,
+        dataset=args.dataset,
+        optimizer_setting=args.optimizer_setting,
+        rge_setting=args.rge_setting,
     )
     grad_estimator = prepare_settings.get_gradient_estimator(
         model=model, device=device, rge_setting=args.rge_setting, model_setting=args.model_setting
