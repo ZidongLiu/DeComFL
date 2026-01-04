@@ -1,7 +1,9 @@
 from os import path
+from typing import Any
 
 import torch
 from tensorboardX import SummaryWriter
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from cezo_fl.util import model_helpers
@@ -21,16 +23,129 @@ from experiment_helper.cli_parser import (
 from experiment_helper.device import use_device
 from experiment_helper.data import get_dataloaders
 from experiment_helper import prepare_settings
+from experiment_helper.prepare_settings import ModelInferences, MetricPacks
 
 
-def train_model(epoch: int) -> tuple[float, float]:
+def adjust_learning_rate_and_perturbation(
+    args: Any,
+    optimizer: torch.optim.Optimizer,
+    grad_estimator: Any,
+    iteration: int,
+) -> None:
+    """Adjust learning rate and perturbation number based on iteration count."""
+    if args.adjust_perturb:
+        if iteration == 500:
+            for p in optimizer.param_groups:
+                p["lr"] = args.lr * 0.8
+            grad_estimator.num_pert = args.num_pert * 2
+        elif iteration == 1000:
+            for p in optimizer.param_groups:
+                p["lr"] = args.lr * 0.5
+            grad_estimator.num_pert = args.num_pert * 4
+        elif iteration == 2000:
+            for p in optimizer.param_groups:
+                p["lr"] = args.lr * 0.3
+            grad_estimator.num_pert = args.num_pert * 8
+
+
+def train_by_epoch(
+    args: Any,
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    grad_estimator: Any,
+    train_loader: DataLoader,
+    test_loader: DataLoader,
+    device: torch.device,
+    model_inferences: ModelInferences,
+    metrics: MetricPacks,
+    writer: SummaryWriter | None,
+) -> None:
+    """Train by epoch: process all batches in one epoch."""
     model.train()
     train_loss = Metric("train loss")
     train_accuracy = Metric("train accuracy")
     iter_per_epoch = len(train_loader)
-    with tqdm(total=iter_per_epoch, desc="Training:") as t, torch.no_grad():
-        for iteration, batch in enumerate(train_loader):
-            total_iteration = epoch * iter_per_epoch + iteration
+
+    for epoch in range(args.epoch):
+        with tqdm(total=iter_per_epoch, desc="Training:") as t, torch.no_grad():
+            for iteration, batch in enumerate(train_loader):
+                total_iteration = epoch * iter_per_epoch + iteration
+
+                # Handle both image classification and language model tasks
+                if isinstance(batch[0], LLMBatchInput):
+                    # Language model task: batch is (LLMBatchInput, labels)
+                    batch_input, labels = batch
+                    if device != torch.device("cpu"):
+                        batch_input = batch_input.to(device)
+                        labels = labels.to(device)
+                else:
+                    # Image classification task: batch is (images, labels)
+                    images, labels = batch
+                    if device != torch.device("cpu"):
+                        images, labels = images.to(device), labels.to(device)
+                    batch_input = images
+
+                # update models
+                optimizer.zero_grad()
+                seed = iteration**2 + iteration
+                dir_grads = grad_estimator.compute_grad(
+                    batch_input,
+                    labels,
+                    lambda x, y: metrics.train_loss(model_inferences.train_inference(model, x), y),
+                    seed=seed,
+                )
+                grad_estimator.update_gradient_estimator_given_seed_and_grad([seed], [dir_grads])
+                optimizer.step()
+
+                # Apply learning rate and perturbation adjustments
+                adjust_learning_rate_and_perturbation(
+                    args, optimizer, grad_estimator, total_iteration
+                )
+
+                pred = model_inferences.train_inference(model, batch_input)
+                train_loss.update(metrics.train_loss(pred, labels))
+                train_accuracy.update(metrics.train_acc(pred, labels))
+                t.set_postfix({"Loss": train_loss.avg, "Accuracy": train_accuracy.avg})
+                t.update(1)
+
+        # Logging and evaluation
+        if args.log_to_tensorboard and writer is not None:
+            writer.add_scalar("Loss/train", train_loss.avg, epoch)
+            writer.add_scalar("Accuracy/train", train_accuracy.avg, epoch)
+        eval_loss, eval_accuracy = eval_model(
+            epoch, model, test_loader, device, model_inferences, metrics
+        )
+        if args.log_to_tensorboard and writer is not None:
+            writer.add_scalar("Loss/test", eval_loss, epoch)
+            writer.add_scalar("Accuracy/test", eval_accuracy, epoch)
+
+
+def train_by_iteration(
+    args: Any,
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    grad_estimator: Any,
+    train_loader: DataLoader,
+    test_loader: DataLoader,
+    device: torch.device,
+    model_inferences: ModelInferences,
+    metrics: MetricPacks,
+    writer: SummaryWriter | None,
+) -> None:
+    """Train by iteration: process batches one at a time for a fixed number of iterations."""
+    model.train()
+    train_loss_metric = Metric("train loss")
+    train_accuracy_metric = Metric("train accuracy")
+    batch_iter = iter(train_loader)
+
+    with tqdm(total=args.iterations, desc="Training:") as t, torch.no_grad():
+        for iteration in range(args.iterations):
+            # Get next batch, cycle through dataloader if exhausted
+            try:
+                batch = next(batch_iter)
+            except StopIteration:
+                batch_iter = iter(train_loader)
+                batch = next(batch_iter)
 
             # Handle both image classification and language model tasks
             if isinstance(batch[0], LLMBatchInput):
@@ -59,29 +174,44 @@ def train_model(epoch: int) -> tuple[float, float]:
             optimizer.step()
 
             # Apply learning rate and perturbation adjustments
-            if args.adjust_perturb:
-                if total_iteration == 500:
-                    for p in optimizer.param_groups:
-                        p["lr"] = args.lr * 0.8
-                    grad_estimator.num_pert = args.num_pert * 2
-                elif total_iteration == 1000:
-                    for p in optimizer.param_groups:
-                        p["lr"] = args.lr * 0.5
-                    grad_estimator.num_pert = args.num_pert * 4
-                elif total_iteration == 2000:
-                    for p in optimizer.param_groups:
-                        p["lr"] = args.lr * 0.3
-                    grad_estimator.num_pert = args.num_pert * 8
+            adjust_learning_rate_and_perturbation(args, optimizer, grad_estimator, iteration)
 
             pred = model_inferences.train_inference(model, batch_input)
-            train_loss.update(metrics.train_loss(pred, labels))
-            train_accuracy.update(metrics.train_acc(pred, labels))
-            t.set_postfix({"Loss": train_loss.avg, "Accuracy": train_accuracy.avg})
+            step_loss = metrics.train_loss(pred, labels)
+            step_accuracy = metrics.train_acc(pred, labels)
+            # Convert tensors to Python floats if needed
+            loss_val = float(step_loss.item() if isinstance(step_loss, torch.Tensor) else step_loss)
+            acc_val = float(
+                step_accuracy.item() if isinstance(step_accuracy, torch.Tensor) else step_accuracy
+            )
+
+            train_loss_metric.update(loss_val)
+            train_accuracy_metric.update(acc_val)
+            t.set_postfix({"Loss": train_loss_metric.avg, "Accuracy": train_accuracy_metric.avg})
             t.update(1)
-    return train_loss.avg, train_accuracy.avg
+
+            if args.log_to_tensorboard and writer is not None:
+                writer.add_scalar("Loss/train", loss_val, iteration)
+                writer.add_scalar("Accuracy/train", acc_val, iteration)
+
+            # Evaluation
+            if args.eval_iterations != 0 and (iteration + 1) % args.eval_iterations == 0:
+                eval_loss, eval_accuracy = eval_model(
+                    iteration, model, test_loader, device, model_inferences, metrics
+                )
+                if args.log_to_tensorboard and writer is not None:
+                    writer.add_scalar("Loss/test", eval_loss, iteration)
+                    writer.add_scalar("Accuracy/test", eval_accuracy, iteration)
 
 
-def eval_model(epoch: int) -> tuple[float, float]:
+def eval_model(
+    epoch: int,
+    model: torch.nn.Module,
+    test_loader: DataLoader,
+    device: torch.device,
+    model_inferences: ModelInferences,
+    metrics: MetricPacks,
+) -> tuple[float, float]:
     model.eval()
     eval_loss = Metric("Eval loss")
     eval_accuracy = Metric("Eval accuracy")
@@ -156,7 +286,11 @@ if __name__ == "__main__":
     )
 
     if args.log_to_tensorboard:
-        tensorboard_sub_folder = model.model_name + "-" + model_helpers.get_current_datetime_str()
+        tensorboard_sub_folder = (
+            str(getattr(model, "model_name", "model"))
+            + "-"
+            + model_helpers.get_current_datetime_str()
+        )
         writer = SummaryWriter(
             path.join(
                 "tensorboards",
@@ -165,16 +299,38 @@ if __name__ == "__main__":
                 tensorboard_sub_folder,
             )
         )
+    else:
+        writer = None
 
-    for epoch in range(args.epoch):
-        train_loss, train_accuracy = train_model(epoch)
-        if args.log_to_tensorboard:
-            writer.add_scalar("Loss/train", train_loss, epoch)
-            writer.add_scalar("Accuracy/train", train_accuracy, epoch)
-        eval_loss, eval_accuracy = eval_model(epoch)
-        if args.log_to_tensorboard:
-            writer.add_scalar("Loss/test", eval_loss, epoch)
-            writer.add_scalar("Accuracy/test", eval_accuracy, epoch)
+    if args.train_by_epoch:
+        # Training by epoch
+        train_by_epoch(
+            args,
+            model,
+            optimizer,
+            grad_estimator,
+            train_loader,
+            test_loader,
+            device,
+            model_inferences,
+            metrics,
+            writer,
+        )
+    else:
+        # Training by iteration/batch (default)
+        train_by_iteration(
+            args,
+            model,
+            optimizer,
+            grad_estimator,
+            train_loader,
+            test_loader,
+            device,
+            model_inferences,
+            metrics,
+            writer,
+        )
 
     if args.log_to_tensorboard:
+        assert writer is not None
         writer.close()

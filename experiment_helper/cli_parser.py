@@ -150,6 +150,20 @@ class NormalTrainingLoopSetting(FrozenSetting):
     # non-fl training loop
     epoch: int = Field(default=500)
     warmup_epochs: int = Field(default=5, validation_alias=AliasChoices("warmup-epochs"))
+    train_by_epoch: CliImplicitFlag[bool] = Field(
+        default=False,
+        validation_alias=AliasChoices("train-by-epoch"),
+        description="If set, train by epoch instead of by iteration. Default is to train by iteration.",
+    )
+    iterations: int = Field(
+        default=100,
+        description="Number of iterations when training by iteration. Only used when train-by-epoch is False",
+    )
+    eval_iterations: int = Field(
+        default=20,
+        validation_alias=AliasChoices("eval-iterations"),
+        description="Evaluate every N iterations when training by iteration. Set to 0 to disable. Only used when train-by-epoch is False",
+    )
 
     @cached_property
     def normal_training_loop_setting(self) -> "NormalTrainingLoopSetting":
