@@ -20,25 +20,8 @@ from experiment_helper.cli_parser import (
     RGESetting,
 )
 from experiment_helper.device import use_device
-from experiment_helper.data import (
-    get_dataloaders,
-    ImageClassificationTask,
-    LmClassificationTask,
-    LmGenerationTask,
-)
+from experiment_helper.data import get_dataloaders
 from experiment_helper import prepare_settings
-
-
-def get_scheduler(
-    optimizer: torch.optim.Optimizer,
-    dataset: ImageClassificationTask | LmClassificationTask | LmGenerationTask,
-) -> torch.optim.lr_scheduler.LRScheduler | None:
-    if dataset == ImageClassificationTask.mnist:
-        return torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
-    elif dataset in [ImageClassificationTask.cifar10, ImageClassificationTask.fashion]:
-        return torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.1)
-    else:
-        return None
 
 
 def get_warmup_lr(args: Any, current_epoch: int, current_iter: int, iters_per_epoch: int) -> float:
@@ -55,6 +38,8 @@ def train_model(epoch: int) -> tuple[float, float]:
     iter_per_epoch = len(train_loader)
     with tqdm(total=iter_per_epoch, desc="Training:") as t, torch.no_grad():
         for iteration, batch in enumerate(train_loader):
+            total_iteration = epoch * iter_per_epoch + iteration
+
             if epoch < args.warmup_epochs:
                 warmup_lr = get_warmup_lr(args, epoch, iteration, iter_per_epoch)
                 for p in optimizer.param_groups:
@@ -86,13 +71,26 @@ def train_model(epoch: int) -> tuple[float, float]:
             grad_estimator.update_gradient_estimator_given_seed_and_grad([seed], [dir_grads])
             optimizer.step()
 
+            # Apply learning rate and perturbation adjustments
+            if args.adjust_perturb:
+                if total_iteration == 500:
+                    for p in optimizer.param_groups:
+                        p["lr"] = args.lr * 0.8
+                    grad_estimator.num_pert = args.num_pert * 2
+                elif total_iteration == 1000:
+                    for p in optimizer.param_groups:
+                        p["lr"] = args.lr * 0.5
+                    grad_estimator.num_pert = args.num_pert * 4
+                elif total_iteration == 2000:
+                    for p in optimizer.param_groups:
+                        p["lr"] = args.lr * 0.3
+                    grad_estimator.num_pert = args.num_pert * 8
+
             pred = model_inferences.train_inference(model, batch_input)
             train_loss.update(metrics.train_loss(pred, labels))
             train_accuracy.update(metrics.train_acc(pred, labels))
             t.set_postfix({"Loss": train_loss.avg, "Accuracy": train_accuracy.avg})
             t.update(1)
-        if epoch > args.warmup_epochs and scheduler is not None:
-            scheduler.step()
     return train_loss.avg, train_accuracy.avg
 
 
@@ -166,7 +164,6 @@ if __name__ == "__main__":
     optimizer = prepare_settings.get_optimizer(
         model=model, dataset=args.dataset, optimizer_setting=args.optimizer_setting
     )
-    scheduler = get_scheduler(optimizer, args.dataset)
     grad_estimator = prepare_settings.get_gradient_estimator(
         model=model, device=device, rge_setting=args.rge_setting, model_setting=args.model_setting
     )
