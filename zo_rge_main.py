@@ -10,6 +10,18 @@ from cezo_fl.util import model_helpers
 from cezo_fl.fl_helpers import get_server_name
 from cezo_fl.util.metrics import Metric
 from cezo_fl.util.language_utils import LLMBatchInput
+from cezo_fl.gradient_estimators.random_gradient_estimator_splitted import (
+    RandomGradientEstimatorBatch,
+    RandomGradientEstimatorParamwise,
+)
+from cezo_fl.gradient_estimators.adam_forward import (
+    AdamForwardGradientEstimatorBatch,
+    AdamForwardGradientEstimatorParamwise,
+)
+from cezo_fl.gradient_estimators.hybrid_gradient_estimator import (
+    HybridGradientEstimatorBatch,
+    HybridGradientEstimatorParamwise,
+)
 
 from experiment_helper.cli_parser import (
     GeneralSetting,
@@ -24,6 +36,86 @@ from experiment_helper.device import use_device
 from experiment_helper.data import get_dataloaders
 from experiment_helper import prepare_settings
 from experiment_helper.prepare_settings import ModelInferences, MetricPacks
+
+
+def prepare_batch(batch: tuple[Any, Any], device: torch.device) -> tuple[Any, torch.Tensor]:
+    """Prepare batch for training/evaluation by handling both image and language model tasks.
+
+    Args:
+        batch: Tuple containing either (LLMBatchInput, labels) or (images, labels)
+        device: Target device for moving tensors
+
+    Returns:
+        Tuple of (batch_input, labels) ready for model inference
+    """
+    if isinstance(batch[0], LLMBatchInput):
+        # Language model task: batch is (LLMBatchInput, labels)
+        batch_input, labels = batch
+        if device != torch.device("cpu"):
+            batch_input = batch_input.to(device)
+            labels = labels.to(device)
+    else:
+        # Image classification task: batch is (images, labels)
+        images, labels = batch
+        if device != torch.device("cpu"):
+            images, labels = images.to(device), labels.to(device)
+        batch_input = images
+
+    return batch_input, labels
+
+
+def update_model_with_gradient_estimator(
+    grad_estimator: Any,
+    optimizer: torch.optim.Optimizer,
+    batch_input: Any,
+    labels: torch.Tensor,
+    model: torch.nn.Module,
+    model_inferences: ModelInferences,
+    metrics: MetricPacks,
+    iteration: int,
+) -> torch.Tensor:
+    """Update model using gradient estimator based on its type.
+
+    Returns the computed gradient scalars.
+    """
+    seed = iteration**2 + iteration
+    if isinstance(
+        grad_estimator,
+        (
+            RandomGradientEstimatorParamwise,
+            AdamForwardGradientEstimatorParamwise,
+            HybridGradientEstimatorParamwise,
+        ),
+    ):
+        dir_grads = grad_estimator._zo_grad_estimate_paramwise(
+            batch_input,
+            labels,
+            lambda x, y: metrics.train_loss(model_inferences.train_inference(model, x), y),
+            seed=seed,
+        )
+        grad_estimator.update_model_given_seed_and_grad(optimizer, [seed], [dir_grads])
+        grad_estimator.update_gradient_estimator_given_seed_and_grad([seed], [dir_grads])
+    elif isinstance(
+        grad_estimator,
+        (
+            RandomGradientEstimatorBatch,
+            AdamForwardGradientEstimatorBatch,
+            HybridGradientEstimatorBatch,
+        ),
+    ):
+        optimizer.zero_grad()
+        dir_grads = grad_estimator.compute_grad(
+            batch_input,
+            labels,
+            lambda x, y: metrics.train_loss(model_inferences.train_inference(model, x), y),
+            seed=seed,
+        )
+        optimizer.step()
+        grad_estimator.update_gradient_estimator_given_seed_and_grad([seed], [dir_grads])
+    else:
+        raise ValueError(f"Unsupported gradient estimator: {grad_estimator}")
+
+    return dir_grads
 
 
 def adjust_learning_rate_and_perturbation(
@@ -71,31 +163,20 @@ def train_by_epoch(
             for iteration, batch in enumerate(train_loader):
                 total_iteration = epoch * iter_per_epoch + iteration
 
-                # Handle both image classification and language model tasks
-                if isinstance(batch[0], LLMBatchInput):
-                    # Language model task: batch is (LLMBatchInput, labels)
-                    batch_input, labels = batch
-                    if device != torch.device("cpu"):
-                        batch_input = batch_input.to(device)
-                        labels = labels.to(device)
-                else:
-                    # Image classification task: batch is (images, labels)
-                    images, labels = batch
-                    if device != torch.device("cpu"):
-                        images, labels = images.to(device), labels.to(device)
-                    batch_input = images
+                # Prepare batch for training
+                batch_input, labels = prepare_batch(batch, device)
 
                 # update models
-                optimizer.zero_grad()
-                seed = iteration**2 + iteration
-                dir_grads = grad_estimator.compute_grad(
+                update_model_with_gradient_estimator(
+                    grad_estimator,
+                    optimizer,
                     batch_input,
                     labels,
-                    lambda x, y: metrics.train_loss(model_inferences.train_inference(model, x), y),
-                    seed=seed,
+                    model,
+                    model_inferences,
+                    metrics,
+                    iteration,
                 )
-                grad_estimator.update_gradient_estimator_given_seed_and_grad([seed], [dir_grads])
-                optimizer.step()
 
                 # Apply learning rate and perturbation adjustments
                 adjust_learning_rate_and_perturbation(
@@ -147,31 +228,20 @@ def train_by_iteration(
                 batch_iter = iter(train_loader)
                 batch = next(batch_iter)
 
-            # Handle both image classification and language model tasks
-            if isinstance(batch[0], LLMBatchInput):
-                # Language model task: batch is (LLMBatchInput, labels)
-                batch_input, labels = batch
-                if device != torch.device("cpu"):
-                    batch_input = batch_input.to(device)
-                    labels = labels.to(device)
-            else:
-                # Image classification task: batch is (images, labels)
-                images, labels = batch
-                if device != torch.device("cpu"):
-                    images, labels = images.to(device), labels.to(device)
-                batch_input = images
+            # Prepare batch for training
+            batch_input, labels = prepare_batch(batch, device)
 
             # update models
-            optimizer.zero_grad()
-            seed = iteration**2 + iteration
-            dir_grads = grad_estimator.compute_grad(
+            update_model_with_gradient_estimator(
+                grad_estimator,
+                optimizer,
                 batch_input,
                 labels,
-                lambda x, y: metrics.train_loss(model_inferences.train_inference(model, x), y),
-                seed=seed,
+                model,
+                model_inferences,
+                metrics,
+                iteration,
             )
-            grad_estimator.update_gradient_estimator_given_seed_and_grad([seed], [dir_grads])
-            optimizer.step()
 
             # Apply learning rate and perturbation adjustments
             adjust_learning_rate_and_perturbation(args, optimizer, grad_estimator, iteration)
@@ -217,19 +287,8 @@ def eval_model(
     eval_accuracy = Metric("Eval accuracy")
     with torch.no_grad():
         for _, batch in enumerate(test_loader):
-            # Handle both image classification and language model tasks
-            if isinstance(batch[0], LLMBatchInput):
-                # Language model task: batch is (LLMBatchInput, labels)
-                batch_input, labels = batch
-                if device != torch.device("cpu"):
-                    batch_input = batch_input.to(device)
-                    labels = labels.to(device)
-            else:
-                # Image classification task: batch is (images, labels)
-                images, labels = batch
-                if device != torch.device("cpu"):
-                    images, labels = images.to(device), labels.to(device)
-                batch_input = images
+            # Prepare batch for evaluation
+            batch_input, labels = prepare_batch(batch, device)
 
             pred = model_inferences.test_inference(model, batch_input)
             eval_loss.update(metrics.test_loss(pred, labels))
