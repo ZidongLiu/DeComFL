@@ -424,7 +424,7 @@ class TestHybridGradientEstimatorParamwise:
             assert not torch.allclose(orig, current)
 
     def test_update_model_given_seed_and_grad_paramwise(self):
-        """Test model update using generated gradients."""
+        """Test model update using generated gradients with single learning rate."""
         iteration_seeds = [42, 43]
         iteration_grad_scalar = [
             torch.tensor([0.5, -0.3], device=self.device),
@@ -434,7 +434,7 @@ class TestHybridGradientEstimatorParamwise:
         # Store original parameters
         original_params = [p.clone() for p in self.all_parameters]
 
-        # Create optimizer
+        # Create optimizer with single learning rate
         optimizer = torch.optim.SGD(self.all_parameters, lr=0.01)
 
         # Update model
@@ -446,6 +446,96 @@ class TestHybridGradientEstimatorParamwise:
         # Check that parameters changed
         for orig, current in zip(original_params, self.all_parameters):
             assert not torch.allclose(orig, current, atol=1e-6)
+
+    def test_update_model_given_seed_and_grad_paramwise_multiple_lrs(self):
+        """Test model update using generated gradients with multiple learning rates."""
+        iteration_seeds = [42, 43]
+        iteration_grad_scalar = [
+            torch.tensor([0.5, -0.3], device=self.device),
+            torch.tensor([0.2, 0.1], device=self.device),
+        ]
+
+        # Store original parameters
+        original_params = [p.clone() for p in self.all_parameters]
+
+        # Create optimizer with multiple learning rates (for hybrid estimator)
+        optimizer = torch.optim.SGD(
+            [
+                {"params": self.random_parameters, "lr": 0.01},
+                {"params": self.adam_forward_parameters, "lr": 0.005},
+            ]
+        )
+
+        # Store original learning rates
+        original_lr1 = optimizer.param_groups[0]["lr"]
+        original_lr2 = optimizer.param_groups[1]["lr"]
+
+        # Update model
+        with torch.no_grad():
+            self.estimator.update_model_given_seed_and_grad(
+                optimizer, iteration_seeds, iteration_grad_scalar
+            )
+
+        # Check that parameters changed
+        for orig, current in zip(original_params, self.all_parameters):
+            assert not torch.allclose(orig, current, atol=1e-6)
+
+        # Verify learning rates are preserved
+        assert optimizer.param_groups[0]["lr"] == original_lr1
+        assert optimizer.param_groups[1]["lr"] == original_lr2
+
+    def test_sgd_no_optim_update_model_single_lr(self):
+        """Test sgd_no_optim_update_model with single learning rate."""
+        perturbation_dir_grads = torch.tensor([0.5, -0.3], device=self.device)
+        seed = 42
+        lrs = [0.01]  # Single learning rate
+
+        # Store original parameters
+        original_params = [p.clone() for p in self.all_parameters]
+
+        # Update model
+        with torch.no_grad():
+            self.estimator.sgd_no_optim_update_model(perturbation_dir_grads, seed, lrs)
+
+        # Check that parameters changed
+        for orig, current in zip(original_params, self.all_parameters):
+            assert not torch.allclose(orig, current, atol=1e-6)
+
+    def test_sgd_no_optim_update_model_multiple_lrs(self):
+        """Test sgd_no_optim_update_model with multiple learning rates."""
+        perturbation_dir_grads = torch.tensor([0.5, -0.3], device=self.device)
+        seed = 42
+        lrs = [0.01, 0.005]  # Different learning rates for random and adam_forward params
+
+        # Store original parameters
+        original_params = [p.clone() for p in self.all_parameters]
+
+        # Update model
+        with torch.no_grad():
+            self.estimator.sgd_no_optim_update_model(perturbation_dir_grads, seed, lrs)
+
+        # Check that parameters changed
+        for orig, current in zip(original_params, self.all_parameters):
+            assert not torch.allclose(orig, current, atol=1e-6)
+
+        # Verify that random parameters and adam_forward parameters are updated differently
+        # by checking that the update magnitudes differ (since they use different LRs)
+        random_params_updated = any(
+            not torch.allclose(orig, current, atol=1e-6)
+            for orig, current in zip(
+                original_params[: self.estimator.random_parameters_count],
+                self.random_parameters,
+            )
+        )
+        adam_forward_params_updated = any(
+            not torch.allclose(orig, current, atol=1e-6)
+            for orig, current in zip(
+                original_params[self.estimator.random_parameters_count :],
+                self.adam_forward_parameters,
+            )
+        )
+        assert random_params_updated
+        assert adam_forward_params_updated
 
     def test_memory_efficiency(self):
         """Test that paramwise approach maintains proper structure."""
