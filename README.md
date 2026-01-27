@@ -4,6 +4,11 @@
 
 DeComFL is a library designed for training/fine-tuning deep learning models in the federated learning scenario. Its unique feature is the utilization of zeroth-order optimization, enabling communication between clients to be limited to just a few scalars, irrespective of the original model's size. This dimension-free communication is the inspiration behind the library's name.
 
+This repository is built for the following papers: 
+
+- [ICLR'26] "[Converge Faster, Talk Less: Hessian-Informed Federated Zeroth-Order Optimization](https://openreview.net/forum?id=lJqssVKeR7&referrer=%5BAuthor%20Console%5D(%2Fgroup%3Fid%3DICLR.cc%2F2026%2FConference%2FAuthors%23your-submissions))"
+- [ICLR'25] "[Achieving Dimension-Free Communication in Federated Learning via Zeroth-Order Optimization](https://openreview.net/forum?id=omrLHFzC37&referrer=%5BAuthor%20Console%5D(%2Fgroup%3Fid%3DICLR.cc%2F2025%2FConference%2FAuthors%23your-submissions))"
+
 ## Environment Setup
 
 We use [uv](https://github.com/astral-sh/uv) as our Python package and environment management tool.
@@ -44,14 +49,25 @@ We use [uv](https://github.com/astral-sh/uv) as our Python package and environme
 - **Run FedAvg:** Run standard fedavg algorithm.
   `uv run fo_fl_main.py --dataset=sst2 --lr=1e-3 --num-clients=5 --num-sample-clients=3 --local-update-steps=1 --train-batch-size=32 --test-batch-size=200 --momentum=0.9`
 
-## Citation
+## Citations
 
 ```
-@article{li2024achieving,
-  title={Achieving Dimension-Free Communication in Federated Learning via Zeroth-Order Optimization},
-  author={Li, Zhe and Ying, Bicheng and Liu, Zidong and Dong, Chaosheng and Yang, Haibo},
-  journal={arXiv preprint arXiv:2405.15861},
-  year={2024}
+@inproceedings{
+   li2025achieving,
+   title={Achieving Dimension-Free Communication in Federated Learning via Zeroth-Order Optimization},
+   author={Zhe Li and Bicheng Ying and Zidong Liu and Chaosheng Dong and Haibo Yang},
+   booktitle={The Thirteenth International Conference on Learning Representations},
+   year={2025},
+   url={https://openreview.net/forum?id=omrLHFzC37}
+}
+
+@inproceedings{
+   li2026converge,
+   title={Converge Faster, Talk Less: Hessian-Informed Federated Zeroth-Order Optimization},
+   author={Zhe Li and Bicheng Ying and Zidong Liu and Chaosheng Dong and Haibo Yang},
+   booktitle={The Fourteenth International Conference on Learning Representations},
+   year={2026},
+   url={https://openreview.net/forum?id=lJqssVKeR7}
 }
 ```
 
