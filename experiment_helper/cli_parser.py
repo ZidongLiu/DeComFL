@@ -87,7 +87,14 @@ class ModelSetting(FrozenSetting):
 class OptimizerSetting(FrozenSetting):
     # optimizer
     optimizer: Literal["sgd", "adam"] = Field(default="sgd")
-    lr: float = Field(default=1e-4)
+    lr: float = Field(
+        default=1e-4,
+        description="Learning rate for optimizer and random gradient parameters in hybrid gradient estimator",
+    )
+    lr2: float | None = Field(
+        default=None,
+        description="Second learning rate for hybrid gradient estimator only, used for adam_forward parameters",
+    )
     momentum: float = Field(default=0)
     beta1: float = Field(default=0.9)
     beta2: float = Field(default=0.999)
@@ -100,6 +107,7 @@ class OptimizerSetting(FrozenSetting):
 class EstimatorType(Enum):
     vanilla = "vanilla"
     adam_forward = "adam_forward"
+    hybrid = "hybrid"
 
 
 class RGESetting(FrozenSetting):
@@ -107,7 +115,7 @@ class RGESetting(FrozenSetting):
     estimator_type: EstimatorType = Field(
         default=EstimatorType.vanilla,
         validation_alias=AliasChoices("estimator-type"),
-        description="Type of gradient estimator, options: vanilla, adam_forward",
+        description="Type of gradient estimator, options: vanilla, adam_forward, hybrid",
     )
     mu: float = Field(default=1e-3, description="Perturbation step to measure local gradients")
     num_pert: int = Field(
@@ -132,12 +140,12 @@ class RGESetting(FrozenSetting):
     k_update_strategy: KUpdateStrategy = Field(
         default=KUpdateStrategy.LAST_LOCAL_UPDATE,
         validation_alias=AliasChoices("k-update-strategy"),
-        description="Update strategy for K, options: last_local_update, all_local_updates. Only used when estimator-type is adam_forward",
+        description="Update strategy for K, options: last_local_update, all_local_updates. Only used when estimator-type is adam_forward or hybrid",
     )
     hessian_smooth: float = Field(
         default=0.95,
         validation_alias=AliasChoices("hessian-smooth"),
-        description="Smoothing factor for Hessian. Only used when estimator-type is adam_forward",
+        description="Smoothing factor for Hessian. Only used when estimator-type is adam_forward or hybrid",
     )
 
     @cached_property
@@ -149,6 +157,20 @@ class NormalTrainingLoopSetting(FrozenSetting):
     # non-fl training loop
     epoch: int = Field(default=500)
     warmup_epochs: int = Field(default=5, validation_alias=AliasChoices("warmup-epochs"))
+    train_by_epoch: CliImplicitFlag[bool] = Field(
+        default=False,
+        validation_alias=AliasChoices("train-by-epoch"),
+        description="If set, train by epoch instead of by iteration. Default is to train by iteration.",
+    )
+    iterations: int = Field(
+        default=100,
+        description="Number of iterations when training by iteration. Only used when train-by-epoch is False",
+    )
+    eval_iterations: int = Field(
+        default=20,
+        validation_alias=AliasChoices("eval-iterations"),
+        description="Evaluate every N iterations when training by iteration. Set to 0 to disable. Only used when train-by-epoch is False",
+    )
 
     @cached_property
     def normal_training_loop_setting(self) -> "NormalTrainingLoopSetting":

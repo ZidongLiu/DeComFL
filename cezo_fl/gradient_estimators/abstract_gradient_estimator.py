@@ -102,6 +102,10 @@ class AbstractGradientEstimator(ABC):
     ) -> None:
         """
         Update the model parameters using the optimizer and the provided gradients.
+        This step need to happen before update_gradient_estimator_given_seed_and_grad.
+        Becuase in training, we use the current k_vec to generate the perturbation vector.
+        Thus K_vec should remain unchanged before model parameters are updated.
+
         Args:
             optimizer: optimizer to update the model parameters.
             iteration_seeds: list of seeds for 1 iteration in decomfl framework.
