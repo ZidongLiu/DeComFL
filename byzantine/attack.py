@@ -50,8 +50,9 @@ def trim_attack(v: list[list[torch.Tensor]], num_attack: int) -> list[list[torch
 
 
 def score(gradient: torch.Tensor, v: torch.Tensor, f: int = 1) -> float:
-    num_neighbours = int(v.shape[1] - 2 - f)
-    sorted_distance, _ = torch.square(v - gradient).sum(dim=0).sort()
+    # v has shape (num_clients, dim); distances are measured between clients.
+    num_neighbours = int(v.shape[0] - 2 - f)
+    sorted_distance, _ = torch.square(v - gradient).sum(dim=1).sort()
     result = sorted_distance[1 : (1 + num_neighbours)].sum().item()
     return float(result)
 
@@ -87,10 +88,11 @@ def krum_attack(v: list[list[torch.Tensor]], f: int, lr: float) -> list[list[tor
                 split_tensors = torch.unbind(temp, dim=0)
                 v[i] = list(split_tensors)
             min_idx, _ = krum(v, f)
-        v[0] = -lamda * torch.sign(original_dir)  # type: ignore[call-overload]
+        v[0] = list(torch.unbind(-lamda * torch.sign(original_dir), dim=0))
         for i in range(1, f):
             random_raw = torch.rand(vi_shape) - 0.5
             random_norm = torch.rand(1).item() * epsilon / lr
             randomness = random_raw * random_norm / torch.norm(random_raw)
-            v[i] = -lamda * torch.sign(original_dir) + randomness.to(v[0][0].device)
+            randomness = randomness.view(original_dir.shape).to(original_dir.device)
+            v[i] = list(torch.unbind(-lamda * torch.sign(original_dir) + randomness, dim=0))
     return v
